@@ -19,3 +19,6 @@
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
+
+# 暂时不将测试文件上传
+*_test.go

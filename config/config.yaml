@@ -23,6 +23,14 @@ redis:
   ReadTimeout: 500ms
   WriteTimeout: 500ms
 
+ldapConn:
+  ConnUrl:       ldap://192.168.100.100:389
+  BaseDn:        DC=TEST,DC=com
+  AdminAccount:  CN=Administrator,CN=Users,DC=TEST,DC=com
+  Password:      test83^&GHIOIJ
+  SslEncryption: True
+  Timeout:       5
+
 email:
   Host: SMTP_HOST       # SMTP地址
   Port: 25              # 端口

@@ -21,4 +21,4 @@ var RequiredStaticVersion = "0.0.1"
 var IsPro = "false"
 
 // LastCommit 最后commit id
-var LastCommit = "fdc02af"
+var LastCommit = "5aeace5"

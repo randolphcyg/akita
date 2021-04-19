@@ -2,6 +2,8 @@ package conf
 
 import (
 	"gitee.com/RandolphCYG/akita/pkg/database/orm"
+
+	"gitee.com/RandolphCYG/akita/internal/model"
 	"gitee.com/RandolphCYG/akita/pkg/email"
 	"gitee.com/RandolphCYG/akita/pkg/redis"
 )
@@ -11,6 +13,7 @@ type Config struct {
 	System   System
 	Database orm.Config
 	Redis    redis.Config
+	LdapConn model.LdapConn
 	Email    email.Config
 }
 
