@@ -22,3 +22,6 @@
 
 # 暂时不将测试文件上传
 *_test.go
+
+# 忽略主配置文件
+config/config.yaml
