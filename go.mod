@@ -8,7 +8,7 @@ require (
 	github.com/fatih/color v1.10.0
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/gin-gonic/gin v1.7.1
-	github.com/go-ldap/ldap v3.0.3+incompatible // indirect
+	github.com/go-ldap/ldap v3.0.3+incompatible
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/gomodule/redigo v1.8.4 // indirect
@@ -16,7 +16,6 @@ require (
 	github.com/onsi/gomega v1.11.0 // indirect
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.7.1
-	github.com/teris-io/shortid v0.0.0-20201117134242-e59966efd125
 	github.com/yuin/gopher-lua v0.0.0-20200816102855-ee81675732da // indirect
 	gopkg.in/asn1-ber.v1 v1.0.0-20181015200546-f715ec2f112d // indirect
 	gorm.io/driver/mysql v1.0.5

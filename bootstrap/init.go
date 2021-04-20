@@ -22,8 +22,9 @@ func Init(cfg string) {
 	log.Log().Info("#######初始化数据库:%v", &c.Database)
 	model.Init(&c.Database)
 	// 数据迁移
-	model.DB.AutoMigrate(&model.LdapConn{})
-	if err := model.DB.First(&model.LdapConn{}).Error; err != nil {
+	model.DB.AutoMigrate(&model.LdapConn{}, &model.LdapField{})
+	if result := model.DB.Limit(1).Find(&model.LdapConn{}); result.RowsAffected == 0 {
+		log.Log().Info("#######数据迁移...")
 		model.DB.Create(&c.LdapConn)
 	}
 

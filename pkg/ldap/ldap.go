@@ -22,11 +22,12 @@ func Init(c *model.LdapConn) *model.LdapConn {
 }
 
 // 获取ldap连接
-func NewLdapConn(conn *model.LdapConn) (l *ldap.Conn) {
+func NewLdapConn(conn *model.LdapConn) (l *ldap.Conn, err error) {
 	// 建立ldap连接
-	l, err := ldap.DialURL(conn.ConnUrl)
+	l, err = ldap.DialURL(conn.ConnUrl)
 	if err != nil {
 		log.Log().Error("建立ldap连接时突发错误:%v", err)
+		return
 	}
 	// defer l.Close()
 
@@ -34,12 +35,14 @@ func NewLdapConn(conn *model.LdapConn) (l *ldap.Conn) {
 	err = l.StartTLS(&tls.Config{InsecureSkipVerify: true})
 	if err != nil {
 		log.Log().Error("重新连接TLS突发错误:%v", err)
+		return
 	}
 
 	// 首先与只读用户绑定
 	err = l.Bind(conn.AdminAccount, conn.Password)
 	if err != nil {
 		log.Log().Error("与只读用户绑定时突发错误:%v", err)
+		return
 	}
 	return
 }

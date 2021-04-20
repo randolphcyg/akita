@@ -8,14 +8,14 @@ import (
 )
 
 // UserLogin 用户登录
-func UserLogin(c *gin.Context) {
+func UserLogin(ctx *gin.Context) {
 	var service user.UserLoginService
-	if err := c.ShouldBindJSON(&service); err == nil {
-		res := service.Login(c)
+	if err := ctx.ShouldBindJSON(&service); err == nil {
+		res := service.Login(ctx)
 		fmt.Println(err)
-		c.JSON(200, res)
+		ctx.JSON(200, res)
 	} else {
 		// 错误消息先直接写在这里
-		c.JSON(200, "登录出现错误!")
+		ctx.JSON(200, "登录出现错误!")
 	}
 }

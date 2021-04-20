@@ -30,6 +30,7 @@ func InitDebugRouter() *gin.Engine {
 	{
 		// 全局设置相关
 		site := v1.Group("site")
+		// 测试
 		site.GET("ping", handler.Ping)
 
 		// 用户相关路由
@@ -38,15 +39,29 @@ func InitDebugRouter() *gin.Engine {
 		user.GET("login", handler.UserLogin)
 
 		// ldap连接相关路由
-		ldap := v1.Group("ldap")
+		ldapConn := v1.Group("ldap/conn")
 		// 获取所有ldap连接配置
-		ldap.GET("fetch", handler.FetchLdapConn)
+		ldapConn.GET("fetch", handler.FetchLdapConn)
 		// 增加ldap连接
-		ldap.POST("create", handler.CreateLdapConn)
+		ldapConn.POST("create", handler.CreateLdapConn)
 		// 更新ldap连接
-		ldap.POST("update", handler.UpdateLdapConn)
+		ldapConn.POST("update", handler.UpdateLdapConn)
 		// 删除ldap连接
-		ldap.DELETE("delete", handler.DeleteLdapConn)
+		ldapConn.DELETE("delete", handler.DeleteLdapConn)
+		// 测试ldap连接
+		ldapConn.POST("test", handler.TestLdapConn)
+
+		ldapField := v1.Group("ldap/field")
+		// 获取ldap连接的字段明细配置
+		ldapField.GET("fetch", handler.FetchLdapField)
+		// 增加ldap连接的字段明细
+		ldapField.POST("create", handler.CreateLdapField)
+		// 更新ldap连接的字段明细
+		ldapField.POST("update", handler.UpdateLdapField)
+		// 删除ldap连接的字段明细
+		ldapField.DELETE("delete", handler.DeleteLdapField)
+		// 测试ldap连接的字段明细
+		ldapField.POST("test", handler.TestLdapField)
 	}
 
 	return r

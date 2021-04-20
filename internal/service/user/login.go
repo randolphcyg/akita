@@ -2,7 +2,7 @@ package user
 
 import (
 	"gitee.com/RandolphCYG/akita/internal/model"
-	// "github.com/cloudreve/Cloudreve/v3/pkg/serializer"
+	// "github.com/RandolphCYG/akita/pkg/serializer"
 	"github.com/gin-gonic/gin"
 )
 
@@ -14,7 +14,7 @@ type UserLoginService struct {
 }
 
 // Login 用户登录函数
-func (service *UserLoginService) Login(c *gin.Context) model.User {
+func (service *UserLoginService) Login(ctx *gin.Context) model.User {
 	expectedUser, _ := model.GetUserByEmail(service.UserName)
 
 	// // 一系列校验
