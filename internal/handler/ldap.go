@@ -12,7 +12,7 @@ func FetchLdapConn(ctx *gin.Context) {
 		res := service.Fetch()
 		ctx.JSON(200, res)
 	} else {
-		ctx.JSON(200, "查询错误")
+		ctx.JSON(200, err)
 	}
 }
 
@@ -23,7 +23,7 @@ func CreateLdapConn(ctx *gin.Context) {
 		res := service.Add(&service)
 		ctx.JSON(200, res)
 	} else {
-		ctx.JSON(200, "增加错误")
+		ctx.JSON(200, err)
 	}
 }
 
@@ -34,7 +34,7 @@ func UpdateLdapConn(ctx *gin.Context) {
 		res := service.Update(&service)
 		ctx.JSON(200, res)
 	} else {
-		ctx.JSON(200, "修改错误")
+		ctx.JSON(200, err)
 	}
 }
 
@@ -45,7 +45,7 @@ func DeleteLdapConn(ctx *gin.Context) {
 		res := service.Delete(&service)
 		ctx.JSON(200, res)
 	} else {
-		ctx.JSON(200, "删除错误")
+		ctx.JSON(200, err)
 	}
 }
 
@@ -60,20 +60,20 @@ func TestLdapConn(ctx *gin.Context) {
 		res := service.Test(id)
 		ctx.JSON(200, res)
 	} else {
-		ctx.JSON(200, "测试失败")
+		ctx.JSON(200, err)
 	}
 }
 
-// FetchLdapField 查询所有ldap字段
+// FetchLdapField 查询对应ldap连接的ldap字段明细
 func FetchLdapField(ctx *gin.Context) {
-	// var service ldap.LdapConnService
-	// if err := ctx.ShouldBindUri(&service); err == nil {
-	// 	res := service.Fetch()
-	// 	ctx.JSON(200, res)
-	// } else {
-	// 	ctx.JSON(200, "查询错误")
-	// }
-	// TODO
+	url := ctx.Query("conn_url")
+	var service ldap.LdapFieldService
+	if err := ctx.ShouldBindUri(&service); err == nil {
+		res := service.FetchField(url)
+		ctx.JSON(200, res)
+	} else {
+		ctx.JSON(200, err)
+	}
 }
 
 // CreateLdapField 增加ldap字段记录
@@ -83,7 +83,7 @@ func CreateLdapField(ctx *gin.Context) {
 		res := service.AddField(&service)
 		ctx.JSON(200, res)
 	} else {
-		ctx.JSON(200, "增加错误")
+		ctx.JSON(200, err)
 	}
 }
 
@@ -94,18 +94,19 @@ func UpdateLdapField(ctx *gin.Context) {
 		res := service.UpdateField(&service)
 		ctx.JSON(200, res)
 	} else {
-		ctx.JSON(200, "修改错误")
+		ctx.JSON(200, err)
 	}
 }
 
 // DeleteLdapField 删除ldap字段记录
 func DeleteLdapField(ctx *gin.Context) {
+	url := ctx.Query("conn_url")
 	var service ldap.LdapFieldService
 	if err := ctx.ShouldBindJSON(&service); err == nil {
-		res := service.DeleteField(&service)
+		res := service.DeleteField(url)
 		ctx.JSON(200, res)
 	} else {
-		ctx.JSON(200, "删除错误")
+		ctx.JSON(200, err)
 	}
 }
 
@@ -120,7 +121,7 @@ func TestLdapField(ctx *gin.Context) {
 	// 	res := service.Test(id)
 	// 	ctx.JSON(200, res)
 	// } else {
-	// 	ctx.JSON(200, "测试失败")
+	// 	ctx.JSON(200, err)
 	// }
 	// TODO
 }

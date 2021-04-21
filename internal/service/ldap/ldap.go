@@ -1,6 +1,7 @@
 package ldap
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"gitee.com/RandolphCYG/akita/internal/model"
@@ -125,11 +126,12 @@ type LdapFieldService struct {
 
 	// 用户拓展字段
 	// 组织过滤规则
-	SearchFilterOu string `json:"search_filter_ou" gorm:"type:varchar(255);;comment:组织过滤规则"`
+	SearchFilterOu string `json:"search_filter_ou" gorm:"type:varchar(255);comment:组织过滤规则"`
 	// 禁用用户DN
-	BaseDnDisabled string `json:"base_dn_disabled" gorm:"type:varchar(255);;comment:禁用用户DN"`
+	BaseDnDisabled string `json:"base_dn_disabled" gorm:"type:varchar(255);comment:禁用用户DN"`
 	// 公司英文前缀
-	CompanyPrefixs []string `json:"company_prefixs" gorm:"type:varchar(255);;comment:公司英文前缀"`
+	CompanyPrefixs      string             `json:"company_prefixs" gorm:"type:varchar(255);comment:公司英文前缀"`
+	CompanyPrefixsSlice []model.CompPreMap `gorm:"-"` // 非数据库字段 用来处理复杂数据结构
 
 	// 用户组字段
 	// 用户组对象类
@@ -142,27 +144,47 @@ type LdapFieldService struct {
 	UserGroupDescription string `json:"user_group_description" gorm:"type:varchar(255);not null;comment:用户组描述"`
 }
 
+// 序列化 公司前缀映射关系切片转字符串存储
+func CompanyPrefixs2String(m []model.CompPreMap) (string, error) {
+	bs, err := json.Marshal(m)
+	return string(bs), err
+}
+
+// 反序列化 公司前缀映射关系字符串转切片使用
+func string2CompanyPrefixs(m string) ([]model.CompPreMap, error) {
+	var compPreMap []model.CompPreMap
+	err := json.Unmarshal([]byte(m), &compPreMap)
+	return compPreMap, err
+}
+
 // 增
 func (service *LdapFieldService) AddField(f *LdapFieldService) serializer.Response {
-	field := model.NewLdapField()
-	field.BaseDnDisabled = f.BaseDnDisabled
-	field.BasicPullNode = f.BasicPullNode
-	field.CompanyPrefixs = f.CompanyPrefixs
-	field.ConnUrl = f.ConnUrl // 这里的连接地址由前端传回 然后后端校验ldap_conns表确实有这个记录在进行增操作
-	field.DisplayName = f.DisplayName
-	field.Email = f.Email
-	field.Mobile = f.Mobile
-	field.OrganizationClass = f.OrganizationClass
-	field.SearchFilterOu = f.SearchFilterOu
-	field.UserClass = f.UserClass
-	field.UserFilter = f.UserFilter
-	field.UserGroupClass = f.UserGroupClass
-	field.UserGroupDescription = f.UserGroupDescription
-	field.UserGroupFilter = f.UserGroupFilter
-	field.UserGroupName = f.UserGroupName
-	field.Username = f.Username
+	compPreMaps := f.CompanyPrefixsSlice
 
-	if err := model.DB.Create(&field).Error; err != nil {
+	companyPrefixsStr, err := CompanyPrefixs2String(compPreMaps)
+	if err != nil {
+		return serializer.Err(-1, "序列化错误", err)
+	}
+	field := &model.LdapField{
+		BaseDnDisabled:       f.BaseDnDisabled,
+		BasicPullNode:        f.BasicPullNode,
+		ConnUrl:              f.ConnUrl,
+		DisplayName:          f.DisplayName,
+		Email:                f.Email,
+		Mobile:               f.Mobile,
+		OrganizationClass:    f.OrganizationClass,
+		SearchFilterOu:       f.SearchFilterOu,
+		UserClass:            f.UserClass,
+		UserFilter:           f.UserFilter,
+		UserGroupClass:       f.UserGroupClass,
+		UserGroupDescription: f.UserGroupDescription,
+		UserGroupFilter:      f.UserGroupFilter,
+		UserGroupName:        f.UserGroupName,
+		Username:             f.Username,
+		CompanyPrefixs:       companyPrefixsStr,
+	}
+
+	if err := model.DB.Create(field).Error; err != nil {
 		return serializer.DBErr("增加字段明细记录失败", err)
 	} else {
 		return serializer.Response{Data: field, Msg: "增加字段明细成功!"}
@@ -170,10 +192,9 @@ func (service *LdapFieldService) AddField(f *LdapFieldService) serializer.Respon
 }
 
 // 删
-func (service *LdapFieldService) DeleteField(f *LdapFieldService) serializer.Response {
+func (service *LdapFieldService) DeleteField(url string) serializer.Response {
 	field := model.NewLdapField()
-	field.ID = f.ID
-	if err := model.DB.Delete(&field).Error; err != nil {
+	if err := model.DB.Where("conn_url = ?", url).Delete(&field).Error; err != nil {
 		return serializer.DBErr("删除字段明细记录失败", err)
 	} else {
 		return serializer.Response{Data: field, Msg: "删除字段明细成功!"}
@@ -182,28 +203,54 @@ func (service *LdapFieldService) DeleteField(f *LdapFieldService) serializer.Res
 
 // 改
 func (service *LdapFieldService) UpdateField(f *LdapFieldService) serializer.Response {
-	field := model.NewLdapField()
-	field.ID = f.ID
-	field.BaseDnDisabled = f.BaseDnDisabled
-	field.BasicPullNode = f.BasicPullNode
-	field.CompanyPrefixs = f.CompanyPrefixs
-	field.ConnUrl = f.ConnUrl // 这里的连接地址由前端传回 然后后端校验ldap_conns表确实有这个记录在进行增操作
-	field.DisplayName = f.DisplayName
-	field.Email = f.Email
-	field.Mobile = f.Mobile
-	field.OrganizationClass = f.OrganizationClass
-	field.SearchFilterOu = f.SearchFilterOu
-	field.UserClass = f.UserClass
-	field.UserFilter = f.UserFilter
-	field.UserGroupClass = f.UserGroupClass
-	field.UserGroupDescription = f.UserGroupDescription
-	field.UserGroupFilter = f.UserGroupFilter
-	field.UserGroupName = f.UserGroupName
-	field.Username = f.Username
+	compPreMaps := f.CompanyPrefixsSlice
+	companyPrefixsStr, err := CompanyPrefixs2String(compPreMaps)
+	if err != nil {
+		return serializer.Err(-1, "序列化错误", err)
+	}
+	field := &model.LdapField{
+		BaseDnDisabled:       f.BaseDnDisabled,
+		BasicPullNode:        f.BasicPullNode,
+		ConnUrl:              f.ConnUrl,
+		DisplayName:          f.DisplayName,
+		Email:                f.Email,
+		Mobile:               f.Mobile,
+		OrganizationClass:    f.OrganizationClass,
+		SearchFilterOu:       f.SearchFilterOu,
+		UserClass:            f.UserClass,
+		UserFilter:           f.UserFilter,
+		UserGroupClass:       f.UserGroupClass,
+		UserGroupDescription: f.UserGroupDescription,
+		UserGroupFilter:      f.UserGroupFilter,
+		UserGroupName:        f.UserGroupName,
+		Username:             f.Username,
+		CompanyPrefixs:       companyPrefixsStr,
+	}
 
-	if err := model.DB.Save(&field).Error; err != nil {
+	if err := model.DB.Where("conn_url = ?", f.ConnUrl).Save(&field).Error; err != nil {
 		return serializer.DBErr("修改字段明细记录失败", err)
 	} else {
 		return serializer.Response{Data: field, Msg: "修改字段明细成功!"}
+	}
+}
+
+// 查
+func (service *LdapFieldService) FetchField(url string) serializer.Response {
+	var field model.LdapField
+	res := model.DB.Where("conn_url = ?", url).First(&field)
+	if res.Error != nil {
+		return serializer.DBErr("反序列化失败", res.Error)
+	}
+
+	companyPrefixsSlice, err := string2CompanyPrefixs(field.CompanyPrefixs)
+	if err != nil {
+		return serializer.Err(-2, "反序列化失败", err)
+	}
+	field.CompanyPrefixsSlice = companyPrefixsSlice
+
+	if err != nil {
+		return serializer.DBErr("不存在任何ldap连接的字段明细信息!", err)
+	} else {
+		return serializer.Response{Data: field, Msg: "查询成功!"}
 	}
 }

@@ -53,13 +53,13 @@ func InitDebugRouter() *gin.Engine {
 
 		ldapField := v1.Group("ldap/field")
 		// 获取ldap连接的字段明细配置
-		ldapField.GET("fetch", handler.FetchLdapField)
+		ldapField.GET("fetch", handler.FetchLdapField) // /api/v1/ldap/field/fetch?conn_url=ldap://192.168.5.55:390
 		// 增加ldap连接的字段明细
 		ldapField.POST("create", handler.CreateLdapField)
 		// 更新ldap连接的字段明细
 		ldapField.POST("update", handler.UpdateLdapField)
 		// 删除ldap连接的字段明细
-		ldapField.DELETE("delete", handler.DeleteLdapField)
+		ldapField.DELETE("delete", handler.DeleteLdapField) // /api/v1/ldap/field/delete?conn_url=ldap://192.168.5.55:390
 		// 测试ldap连接的字段明细
 		ldapField.POST("test", handler.TestLdapField)
 	}

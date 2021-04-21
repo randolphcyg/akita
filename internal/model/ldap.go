@@ -23,6 +23,12 @@ type LdapConn struct {
 	Password string `json:"password" gorm:"type:varchar(255);not null;comment:密码"`
 }
 
+// 公司名-英文前缀映射关系
+type CompPreMap struct {
+	Company string `json:"company"`
+	Prefix  string `json:"prefix"`
+}
+
 // LdapField LDAP服务器字段配置
 type LdapField struct {
 	gorm.Model
@@ -50,11 +56,12 @@ type LdapField struct {
 
 	// 用户拓展字段
 	// 组织过滤规则
-	SearchFilterOu string `json:"search_filter_ou" gorm:"type:varchar(255);;comment:组织过滤规则"`
+	SearchFilterOu string `json:"search_filter_ou" gorm:"type:varchar(255);comment:组织过滤规则"`
 	// 禁用用户DN
-	BaseDnDisabled string `json:"base_dn_disabled" gorm:"type:varchar(255);;comment:禁用用户DN"`
+	BaseDnDisabled string `json:"base_dn_disabled" gorm:"type:varchar(255);comment:禁用用户DN"`
 	// 公司英文前缀
-	CompanyPrefixs []string `json:"company_prefixs" gorm:"type:varchar(255);;comment:公司英文前缀"`
+	CompanyPrefixs      string       `json:"company_prefixs" gorm:"type:varchar(255);comment:公司英文前缀"`
+	CompanyPrefixsSlice []CompPreMap `gorm:"-"` // 非数据库字段 用来处理复杂数据结构
 
 	// 用户组字段
 	// 用户组对象类
@@ -90,4 +97,12 @@ func NewLdapConn() LdapConn {
 // NewLdapField 返回一个新的空 LdapField
 func NewLdapField() LdapField {
 	return LdapField{}
+}
+
+// GetLdapFieldByConn 根据连接的URL查询ldap连接的字段明细
+func GetLdapFieldByConnUrl(url string) (LdapField, error) {
+	var field LdapField
+	result := DB.Where("conn_url = ?", url).First(&field)
+	fmt.Println(result.RowsAffected)
+	return field, result.Error
 }
