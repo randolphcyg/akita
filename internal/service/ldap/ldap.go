@@ -48,10 +48,17 @@ func (service *LdapConnService) Add(c *LdapConnService) serializer.Response {
 func (service *LdapConnService) Delete(c *LdapConnService) serializer.Response {
 	conn := model.NewLdapConn()
 	conn.ID = c.ID
-	if err := model.DB.Delete(&conn).Error; err != nil {
-		return serializer.DBErr("删除记录失败", err)
+	err1 := model.DB.Where("conn_url = ?", c.ConnUrl).Delete(&conn).Error // 删除LDAP连接记录
+
+	field := model.NewLdapField()
+	err2 := model.DB.Where("conn_url = ?", c.ConnUrl).Delete(&field).Error // 删除LDAP连接对应的字段明细记录
+
+	if err1 != nil {
+		return serializer.DBErr("删除连接记录失败", err1)
+	} else if err2 != nil {
+		return serializer.DBErr("删除连接对应明细记录失败", err2)
 	} else {
-		return serializer.Response{Data: conn, Msg: "删除成功!"}
+		return serializer.Response{Data: c.ConnUrl, Msg: "删除连接成功!"}
 	}
 }
 
