@@ -88,7 +88,16 @@ func (service *LdapConnService) Fetch() serializer.Response {
 	} else {
 		return serializer.Response{Data: conn, Msg: "查询成功!"}
 	}
+}
 
+// 查 根据conn_url查询ldap连接信息
+func (service *LdapConnService) FetchByConnUrl(url string) (conn model.LdapConn, err error) {
+	conn, err = model.GetLdapConnByConnUrl(url)
+	if err != nil {
+		return
+	} else {
+		return conn, nil
+	}
 }
 
 // 测试

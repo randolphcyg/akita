@@ -89,6 +89,13 @@ func GetLdapConn(id uint) (LdapConn, error) {
 	return conn, result.Error
 }
 
+// GetLdapConnByConnUrl  根据conn_url查询一个ldap连接
+func GetLdapConnByConnUrl(url string) (LdapConn, error) {
+	var conn LdapConn
+	result := DB.Where("conn_url = ?", url).First(&conn)
+	return conn, result.Error
+}
+
 // NewLdapConn 返回一个新的空 LdapConn
 func NewLdapConn() LdapConn {
 	return LdapConn{}

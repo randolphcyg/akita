@@ -62,6 +62,10 @@ func InitDebugRouter() *gin.Engine {
 		ldapField.DELETE("delete", handler.DeleteLdapField) // /api/v1/ldap/field/delete?conn_url=ldap://192.168.5.55:390
 		// 测试ldap连接的字段明细
 		ldapField.POST("test", handler.TestLdapField)
+
+		ldapUser := v1.Group("ldap/user")
+		ldapUser.GET("fetch", handler.FetchLdapUser) // 根据conn_url查询LDAP用户 /api/v1/ldap/user/fetch?conn_url=ldap://192.168.5.55:390
+
 	}
 
 	return r

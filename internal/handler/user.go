@@ -19,3 +19,18 @@ func UserLogin(ctx *gin.Context) {
 		ctx.JSON(200, "登录出现错误!")
 	}
 }
+
+// FetchLdapUser 查询LDAP用户
+func FetchLdapUser(ctx *gin.Context) {
+	conn_url := ctx.Query("conn_url")
+	if conn_url == "" {
+		ctx.JSON(200, "没有传ldap连接")
+	}
+	var service user.LdapUserService
+	if err := ctx.ShouldBindUri(&service); err == nil {
+		res := service.FetchUser(conn_url)
+		ctx.JSON(200, res)
+	} else {
+		ctx.JSON(200, err)
+	}
+}

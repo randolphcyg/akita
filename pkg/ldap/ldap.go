@@ -2,6 +2,7 @@ package ldap
 
 import (
 	"crypto/tls"
+	"fmt"
 
 	"gitee.com/RandolphCYG/akita/internal/model"
 	"gitee.com/RandolphCYG/akita/pkg/log"
@@ -47,7 +48,14 @@ func NewLdapConn(conn *model.LdapConn) (l *ldap.Conn, err error) {
 	return
 }
 
-func FetchLdapUsers(l *ldap.Conn) (LdapUsers []*ldap.Entry) {
+func FetchLdapUsers(conn *model.LdapConn) (LdapUsers []*ldap.Entry) {
+	// 建立ldap连接
+	ldap_conn, err := NewLdapConn(conn)
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer ldap_conn.Close()
+
 	attrs := []string{
 		"employeeNumber",     // 工号
 		"sAMAccountName",     // SAM账号
@@ -69,8 +77,6 @@ func FetchLdapUsers(l *ldap.Conn) (LdapUsers []*ldap.Entry) {
 		"title",           // 职务
 	}
 
-	var conn model.LdapConn
-
 	searchRequest := ldap.NewSearchRequest(
 		conn.BaseDn, // 待查询的base dn
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
@@ -79,73 +85,9 @@ func FetchLdapUsers(l *ldap.Conn) (LdapUsers []*ldap.Entry) {
 		nil,
 	)
 
-	sr, err := l.Search(searchRequest)
+	sr, err := ldap_conn.Search(searchRequest)
 	if err != nil {
 		log.Log().Error("查询用户出错:%v", err)
 	}
 	return sr.Entries
 }
-
-/*
-* 查询所有的ldap用户
- */
-// func FetchLdapUsers(conn model.ServerLdapConn) *ldap.SearchResult {
-// 	// ldap连接
-// 	l, _ := LdapConn(conn)
-// 	// redis读取AD配置
-// 	config := redis.LoadAdServerConfigFromRedis()
-// 	conf := model.DB.Config
-// 	fmt.Print(config)
-
-// 	attrs := []string{
-// 		"employeeNumber",     // 工号
-// 		"sAMAccountName",     // SAM账号
-// 		"distinguishedName",  // dn
-// 		"UserAccountControl", // 用户账户控制
-// 		"accountExpires",     // 账户过期时间
-// 		"pwdLastSet",         // 用户下次登录必须修改密码
-// 		"whenCreated",        // 创建时间
-// 		"whenChanged",        // 修改时间
-// 		"displayName",        // 显示名
-// 		"sn",                 // 姓
-// 		"name",
-// 		"givenName",       // 名
-// 		"mail",            // 邮箱
-// 		"mobile",          // 移动电话
-// 		"telephoneNumber", // 电话号码
-// 		"company",         // 公司
-// 		"department",      // 部门
-// 		"title",           // 职务
-// 	}
-
-// 	searchRequest := ldap.NewSearchRequest(
-// 		config["baseDnEnabled"], // 待查询的base dn
-// 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-// 		config["searchFilterUser"], // 过滤规则
-// 		attrs,                      // 待查询属性列表
-// 		nil,
-// 	)
-
-// 	sr, err := l.Search(searchRequest)
-// 	if err != nil {
-// 		fmt.Println(err)
-// 	}
-
-// 	return sr
-
-// 	// user := make(map[string]string)
-// 	// for _, v := range sr.Entries {
-// 	// 	fmt.Print(reflect.TypeOf(v.GetAttributeValue("displayName")))
-// 	// 	break
-// 	// }
-
-// 	// for _, v := range sr.Entries[0].Attributes {
-// 	// 	user[v.Name] = v.Values[0]
-// 	// 	if v.Name == "displayName" {
-// 	// 		fmt.Print(fmt.Sprintf(v.Name) + " " + fmt.Sprintf(v.Values[0]) + "\n")
-// 	// 	}
-// 	// 	// fmt.Print(fmt.Sprintf(v.Name) + "\n")
-// 	// 	// fmt.Print(fmt.Sprintf(v.Name) + " " + fmt.Sprintf(v.Values[0]) + "\n")
-// 	// 	// fmt.Print(index, v.Values, entry.GetAttributeValues("whenCreated"), entry.GetAttributeValues("whenChanged"), entry.GetAttributeValues("displayName"), entry.GetAttributeValues("mail"), entry.GetAttributeValues("mobile"), entry.GetAttributeValues("title"))
-// 	// }
-// }
