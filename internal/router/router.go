@@ -65,6 +65,7 @@ func InitDebugRouter() *gin.Engine {
 
 		ldapUser := v1.Group("ldap/user")
 		ldapUser.GET("fetch", handler.FetchLdapUser) // 根据conn_url查询LDAP用户 /api/v1/ldap/user/fetch?conn_url=ldap://192.168.5.55:390
+		ldapUser.GET("create", handler.CreateLdapUser)
 
 	}
 

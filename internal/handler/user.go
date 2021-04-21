@@ -34,3 +34,14 @@ func FetchLdapUser(ctx *gin.Context) {
 		ctx.JSON(200, err)
 	}
 }
+
+// CreateLdapUser 创建ldap用户
+func CreateLdapUser(ctx *gin.Context) {
+	var service user.LdapUserService
+	if err := ctx.ShouldBindJSON(&service); err == nil {
+		res := service.AddUser(service)
+		ctx.JSON(200, res)
+	} else {
+		ctx.JSON(200, err)
+	}
+}

@@ -43,3 +43,10 @@ func (service *LdapUserService) FetchUser(url string) serializer.Response {
 	}
 	return serializer.Response{Data: LdapUsers}
 }
+
+// 创建用户
+func (service *LdapUserService) AddUser(u LdapUserService) serializer.Response {
+	// service层处理前端数据，并将数据传给pkg的ldap组件，然后ldap组件处理有关ldap用户的通用逻辑
+
+	return serializer.Response{Data: 111}
+}
