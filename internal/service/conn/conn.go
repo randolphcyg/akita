@@ -1,4 +1,4 @@
-package ldap
+package conn
 
 import (
 	"encoding/json"

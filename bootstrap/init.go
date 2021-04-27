@@ -2,8 +2,8 @@ package bootstrap
 
 import (
 	"gitee.com/RandolphCYG/akita/internal/conf"
+	"gitee.com/RandolphCYG/akita/pkg/cache"
 	"gitee.com/RandolphCYG/akita/pkg/log"
-	"gitee.com/RandolphCYG/akita/pkg/redis"
 
 	"gitee.com/RandolphCYG/akita/internal/model"
 )
@@ -30,6 +30,6 @@ func Init(cfg string) {
 
 	// 初始化 redis
 	log.Log().Info("#######初始化缓存库库:%v", &c.Redis)
-	redis.Init(&c.Redis)
+	cache.Init(&c.Redis)
 	log.Log().Info("#######初始化其他组件...")
 }

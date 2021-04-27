@@ -3,7 +3,7 @@ package user
 import (
 	"fmt"
 
-	ldapService "gitee.com/RandolphCYG/akita/internal/service/ldap"
+	"gitee.com/RandolphCYG/akita/internal/service/conn"
 	"gitee.com/RandolphCYG/akita/pkg/ldap"
 	"gitee.com/RandolphCYG/akita/pkg/serializer"
 )
@@ -29,9 +29,9 @@ type LdapUserService struct {
 // 查
 func (service *LdapUserService) FetchUser(url string) serializer.Response {
 	// 初始化连接
-	var ldapService ldapService.LdapConnService
-	fmt.Println(url)
-	conn, err := ldapService.FetchByConnUrl(url)
+	var c conn.LdapConnService
+
+	conn, err := c.FetchByConnUrl(url)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -49,4 +49,33 @@ func (service *LdapUserService) AddUser(u LdapUserService) serializer.Response {
 	// service层处理前端数据，并将数据传给pkg的ldap组件，然后ldap组件处理有关ldap用户的通用逻辑
 
 	return serializer.Response{Data: 111}
+}
+
+/*
+* 这里是外部接口(HR数据)的模型
+ */
+// HrDataService HR数据查询条件
+type HrDataService struct {
+	// 获取 token 的 URL
+	UrlGetToken string `json:"url_get_token" gorm:"type:varchar(255);not null;comment:获取token的地址"`
+	// 获取 数据 的URL
+	UrlGetData string `json:"url_get_data" gorm:"type:varchar(255);not null;comment:获取数据的地址"`
+}
+
+// 查询HR数据
+func (service *HrDataService) FetchHrData(h HrDataService) serializer.Response {
+	// 初始化连接
+	// var c conn.LdapConnService
+
+	// conn, err := c.FetchByConnUrl(url)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+	// LdapUsers := ldap.FetchLdapUsers(&conn)
+	// for _, user := range LdapUsers {
+	// 	user.PrettyPrint(2)
+	// 	fmt.Println(user.GetAttributeValue("displayName"))
+	// 	break
+	// }
+	return serializer.Response{Data: 1111}
 }

@@ -45,3 +45,14 @@ func CreateLdapUser(ctx *gin.Context) {
 		ctx.JSON(200, err)
 	}
 }
+
+// FetchHrData 查询用户
+func FetchHrData(ctx *gin.Context) {
+	var service user.HrDataService
+	if err := ctx.ShouldBindJSON(&service); err == nil {
+		res := service.FetchHrData(service)
+		ctx.JSON(200, res)
+	} else {
+		ctx.JSON(200, err)
+	}
+}
