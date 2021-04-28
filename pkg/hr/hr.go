@@ -1,9 +1,7 @@
 package hr
 
 import (
-	"fmt"
-
-	// "gitee.com/RandolphCYG/akita/pkg/cache"
+	"gitee.com/RandolphCYG/akita/pkg/log"
 	"github.com/asmcos/requests"
 )
 
@@ -62,19 +60,19 @@ func FetchToken(h *HrDataConn) (token HrToken) {
 	respFetchToken, err := req.Post(h.UrlGetToken)
 	if err != nil {
 		// 抛错
-		fmt.Printf("fetch token failed,err:%v\n", err)
+		log.Log().Error("fetch token failed,err:%v\n", err)
 		return
 	}
 	// 反序列化
 	err = respFetchToken.Json(&token)
 	if err != nil {
 		// 抛错
-		fmt.Printf("convert response to json failed,err:%v\n", err)
+		log.Log().Error("convert response to json failed,err:%v\n", err)
 		return
 	}
 	if !token.Success {
 		// 抛错
-		fmt.Printf(token.ErrorDescription)
+		log.Log().Error(token.ErrorDescription)
 		return
 	}
 	return
@@ -91,14 +89,14 @@ func FetchHrData(h *HrDataConn) (hrUsers []HrUser) {
 	// 发送请求
 	respFetchData, err := req.Post(h.UrlGetData, header)
 	if err != nil {
-		fmt.Printf("fetch hr data failed,err:%v\n", err)
+		log.Log().Error("fetch hr data failed,err:%v\n", err)
 		return
 	}
 	var hrdata HrData
 	respFetchData.Json(&hrdata)
 	// 返回数据是否有报错字段
 	if hrdata.Result != "" {
-		fmt.Printf("fetch hr data failed,err%v\n", hrdata.Result)
+		log.Log().Error("fetch hr data failed,err%v\n", hrdata.Result)
 		return
 	}
 	hrUsers = hrdata.Content

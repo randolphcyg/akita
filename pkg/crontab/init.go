@@ -1,73 +1,55 @@
 package crontab
 
 import (
-	"fmt"
+	"time"
 
+	"gitee.com/RandolphCYG/akita/pkg/log"
 	"github.com/robfig/cron/v3"
-	log "github.com/sirupsen/logrus"
 )
 
-// 定时任务计划
 /*
-- spec，传入 cron 时间设置
-- job，对应执行的任务
+TODO 可配置性，将页面上配置的定时任务缓存到 redis
+然后系统启动刷一遍所有的定时任务
 */
-func StartJob(spec string, job Job) {
-	logger := &CLog{clog: log.New()}
-	logger.clog.SetFormatter(&log.TextFormatter{
-		FullTimestamp:   true,
-		TimestampFormat: "2006-01-02 15:04:05",
-	})
-	c := cron.New(cron.WithChain(cron.SkipIfStillRunning(logger)))
 
-	c.AddJob(spec, &job)
+// Cron 定时任务
+var Cron *cron.Cron
 
-	// 启动执行任务
-	c.Start()
-	// 退出时关闭计划任务
-	defer c.Stop()
+// Init 初始化定时任务
+func Init() {
+	log.Log().Info("初始化定时任务...")
+	// 先开启秒级，写不标准crontab命令测试
+	Cron := cron.New(cron.WithSeconds())
+	spec1 := "*/3 * * * * *"
+	Cron.AddFunc(spec1, task1)
 
-	// 如果使用 select{} 那么就一直会循环
-	select {
-	case <-job.Shut:
-		return
+	spec2 := "*/5 * * * * *"
+	Cron.AddFunc(spec2, task2)
+
+	defer Cron.Stop()
+
+	go Cron.Start()
+	// select {
+	// case <-Cron.Stop().Done():
+	// 	return
+	// }
+	time.Sleep(time.Second * 5)
+}
+
+// Reload 重新启动定时任务
+func Reload() {
+	if Cron != nil {
+		Cron.Stop()
+		log.Log().Warning("停止定时任务...")
 	}
+	Init()
 }
 
-func StopJob(shut chan int) {
-	shut <- 0
+// 测试秒级别定时任务 回头改成不支持秒级别的
+func task1() {
+	log.Log().Debug("每隔3秒执行一次")
 }
 
-type CLog struct {
-	clog *log.Logger
-}
-
-func (l *CLog) Info(msg string, keysAndValues ...interface{}) {
-	l.clog.WithFields(log.Fields{
-		"data": keysAndValues,
-	}).Info(msg)
-}
-
-func (l *CLog) Error(err error, msg string, keysAndValues ...interface{}) {
-	l.clog.WithFields(log.Fields{
-		"msg":  msg,
-		"data": keysAndValues,
-	}).Warn(msg)
-}
-
-type Job struct {
-	A    int      `json:"a"`
-	B    int      `json:"b"`
-	C    string   `json:"c"`
-	Shut chan int `json:"shut"`
-}
-
-// implement Run() interface to start job
-func (j *Job) Run() {
-	j.A++
-	fmt.Printf("A: %d\n", j.A)
-	j.B++
-	fmt.Printf("B: %d\n", j.B)
-	j.C += "str"
-	fmt.Printf("C: %s\n", j.C)
+func task2() {
+	log.Log().Debug("每隔5秒执行")
 }

@@ -2,7 +2,6 @@ package ldap
 
 import (
 	"crypto/tls"
-	"fmt"
 
 	"gitee.com/RandolphCYG/akita/internal/model"
 	"gitee.com/RandolphCYG/akita/pkg/log"
@@ -27,7 +26,7 @@ func NewLdapConn(conn *model.LdapConn) (l *ldap.Conn, err error) {
 	// 建立ldap连接
 	l, err = ldap.DialURL(conn.ConnUrl)
 	if err != nil {
-		log.Log().Error("建立ldap连接时突发错误:%v", err)
+		log.Log().Error("dial ldap url failed,err:%v", err)
 		return
 	}
 	// defer l.Close()
@@ -35,14 +34,14 @@ func NewLdapConn(conn *model.LdapConn) (l *ldap.Conn, err error) {
 	// 重新连接TLS
 	err = l.StartTLS(&tls.Config{InsecureSkipVerify: true})
 	if err != nil {
-		log.Log().Error("重新连接TLS突发错误:%v", err)
+		log.Log().Error("start tls failed,err:%v", err)
 		return
 	}
 
 	// 首先与只读用户绑定
 	err = l.Bind(conn.AdminAccount, conn.Password)
 	if err != nil {
-		log.Log().Error("与只读用户绑定时突发错误:%v", err)
+		log.Log().Error("admin user auth failed,err:%v", err)
 		return
 	}
 	return
@@ -52,7 +51,7 @@ func FetchLdapUsers(conn *model.LdapConn) (LdapUsers []*ldap.Entry) {
 	// 建立ldap连接
 	ldap_conn, err := NewLdapConn(conn)
 	if err != nil {
-		fmt.Println(err)
+		log.Log().Error("setup ldap connect failed,err:%v\n", err)
 	}
 	defer ldap_conn.Close()
 
@@ -96,7 +95,7 @@ func AddLdapUsers(conn *model.LdapConn) (LdapUsers []*ldap.Entry) {
 	// 建立ldap连接
 	ldap_conn, err := NewLdapConn(conn)
 	if err != nil {
-		fmt.Println(err)
+		log.Log().Error("setup ldap connect failed,err:%v\n", err)
 	}
 	defer ldap_conn.Close()
 

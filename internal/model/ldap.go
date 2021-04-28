@@ -1,8 +1,6 @@
 package model
 
 import (
-	"fmt"
-
 	"gorm.io/gorm"
 )
 
@@ -78,7 +76,6 @@ type LdapField struct {
 func GetAllLdapConn() (LdapConn, error) {
 	var conn LdapConn
 	result := DB.Find(&conn)
-	fmt.Println(result.RowsAffected)
 	return conn, result.Error
 }
 
@@ -110,6 +107,5 @@ func NewLdapField() LdapField {
 func GetLdapFieldByConnUrl(url string) (LdapField, error) {
 	var field LdapField
 	result := DB.Where("conn_url = ?", url).First(&field)
-	fmt.Println(result.RowsAffected)
 	return field, result.Error
 }

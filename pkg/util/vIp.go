@@ -1,10 +1,10 @@
 package util
 
 import (
-	"fmt"
-	"log"
 	"strconv"
 	"strings"
+
+	"gitee.com/RandolphCYG/akita/pkg/log"
 )
 
 // 对应的虚拟IP段是 10.11.0.2 10.11.255.253 最小和最大可以分配的虚拟IP对应的uint64
@@ -21,7 +21,7 @@ func VipToOct(addr string) (vipOct uint64) {
 			fieldInt <<= fieldMaps[index]
 			vipOct += fieldInt
 		} else {
-			fmt.Printf("错误: %v\n", err)
+			log.Log().Error("convert ip failed,err:%v\n", err)
 		}
 	}
 	return vipOct

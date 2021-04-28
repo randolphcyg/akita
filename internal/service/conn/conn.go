@@ -2,7 +2,6 @@ package conn
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"gitee.com/RandolphCYG/akita/internal/model"
 	"gitee.com/RandolphCYG/akita/pkg/ldap"
@@ -103,7 +102,6 @@ func (service *LdapConnService) FetchByConnUrl(url string) (conn model.LdapConn,
 // 测试
 func (service *LdapConnService) Test(id uint) serializer.Response {
 	conn, err := model.GetLdapConn(id)
-	fmt.Println(conn)
 	if err != nil {
 		return serializer.DBErr("不存在任何ldap连接信息", err)
 	}

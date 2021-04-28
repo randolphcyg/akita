@@ -5,6 +5,7 @@ import (
 
 	"gitee.com/RandolphCYG/akita/internal/service/conn"
 	"gitee.com/RandolphCYG/akita/pkg/ldap"
+	"gitee.com/RandolphCYG/akita/pkg/log"
 	"gitee.com/RandolphCYG/akita/pkg/serializer"
 )
 
@@ -33,7 +34,7 @@ func (service *LdapUserService) FetchUser(url string) serializer.Response {
 
 	conn, err := c.FetchByConnUrl(url)
 	if err != nil {
-		fmt.Println(err)
+		log.Log().Error("%v\n", err)
 	}
 	LdapUsers := ldap.FetchLdapUsers(&conn)
 	for _, user := range LdapUsers {
