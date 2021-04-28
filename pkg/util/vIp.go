@@ -30,7 +30,7 @@ func VipToOct(addr string) (vipOct uint64) {
 // OctToVip 将十进制整数IP转换成IP地址字符串
 func OctToVip(vipOct uint64) (addr string) {
 	if vipOct < VIPMIN && vipOct > VIPMAX {
-		log.Fatal("传入错误十进制整数，检查是否所有虚拟IP都分配出去")
+		log.Log().Error("传入错误十进制整数，检查是否所有虚拟IP都分配出去")
 		return
 	} else {
 		var vips [4]string
