@@ -3,6 +3,7 @@ package crontab
 import (
 	"time"
 
+	"gitee.com/RandolphCYG/akita/internal/model"
 	"gitee.com/RandolphCYG/akita/pkg/log"
 	"github.com/robfig/cron/v3"
 )
@@ -20,20 +21,24 @@ func Init() {
 	log.Log().Info("初始化定时任务...")
 	// 先开启秒级，写不标准crontab命令测试
 	Cron := cron.New(cron.WithSeconds())
-	spec1 := "*/3 * * * * *"
-	Cron.AddFunc(spec1, task1)
+	// spec1 := "*/3 * * * * *"
+	// Cron.AddFunc(spec1, task1)
 
-	spec2 := "*/5 * * * * *"
-	Cron.AddFunc(spec2, task2)
+	// spec2 := "*/5 * * * * *"
+	// Cron.AddFunc(spec2, task2)
+
+	spec2 := "*/30 * * * * *"
+	Cron.AddFunc(spec2, model.TaskSyncHrUsers2Cache)
 
 	defer Cron.Stop()
 
 	go Cron.Start()
+	// select {}
 	// select {
 	// case <-Cron.Stop().Done():
 	// 	return
 	// }
-	time.Sleep(time.Second * 5)
+	time.Sleep(time.Second * 30)
 }
 
 // Reload 重新启动定时任务

@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"gitee.com/RandolphCYG/akita/internal/conf"
 	"gitee.com/RandolphCYG/akita/pkg/cache"
+	"gitee.com/RandolphCYG/akita/pkg/hr"
 	"gitee.com/RandolphCYG/akita/pkg/log"
 
 	"gitee.com/RandolphCYG/akita/internal/model"
@@ -22,7 +23,7 @@ func Init(cfg string) {
 	log.Log().Info("#######初始化数据库:%v", &c.Database)
 	model.Init(&c.Database)
 	// 数据迁移
-	model.DB.AutoMigrate(&model.LdapConn{}, &model.LdapField{})
+	model.DB.AutoMigrate(&model.LdapConn{}, &model.LdapField{}, &hr.HrDataConn{})
 	if result := model.DB.Limit(1).Find(&model.LdapConn{}); result.RowsAffected == 0 {
 		log.Log().Info("#######数据迁移...")
 		model.DB.Create(&c.LdapConn)

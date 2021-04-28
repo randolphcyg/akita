@@ -13,7 +13,7 @@ type HrToken struct {
 	Scope       string `json:"scope"`
 	TokenType   string `json:"token_type"`
 	// 错误时候
-	Code             int    `json:"code"`
+	Code             string `json:"code"`
 	Error            string `json:"error"`
 	ErrorDescription string `json:"error_description"`
 	Message          string `json:"message"`

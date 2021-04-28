@@ -68,8 +68,8 @@ func Init(c *Config) (err error) {
 // 	return buffer.Bytes(), nil
 // }
 
-// serializer 序列化 将go结构体对象转换为字节流
-func serializer(value interface{}) (result []byte, err error) {
+// Serializer 序列化 将go结构体对象转换为字节流
+func Serializer(value interface{}) (result []byte, err error) {
 	result, err = json.Marshal(value)
 	return
 }
@@ -85,8 +85,8 @@ func serializer(value interface{}) (result []byte, err error) {
 // 	return res.Value, nil
 // }
 
-// deserializer 反序列化 将字节流转换为go结构体对象
-func deserializer(value []byte, result interface{}) (interface{}, error) {
+// Deserializer 反序列化 将字节流转换为go结构体对象
+func Deserializer(value []byte, result interface{}) (interface{}, error) {
 	err := json.Unmarshal(value, &result)
 	if err != nil {
 		log.Log().Error("get data failed, err:%v\n", err)
@@ -109,7 +109,7 @@ func Set(key string, value interface{}) (err error) {
 func Get(key string, value interface{}) (result interface{}, err error) {
 	strCmd := RedisClient.Get(ctx, key)
 	byteValue, _ := strCmd.Bytes()
-	result, err = deserializer(byteValue, value)
+	result, err = Serializer(byteValue)
 	if err != nil {
 		log.Log().Error("deserializer data failed, err:%v\n", err)
 		return

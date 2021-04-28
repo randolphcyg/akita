@@ -1,6 +1,9 @@
 package model
 
 import (
+	"gitee.com/RandolphCYG/akita/pkg/cache"
+	"gitee.com/RandolphCYG/akita/pkg/hr"
+	"gitee.com/RandolphCYG/akita/pkg/log"
 	"gorm.io/gorm"
 )
 
@@ -35,4 +38,22 @@ func GetUserByEmail(email string) (User, error) {
 	var user User
 	result := DB.Set("gorm:auto_preload", true).Where("email = ?", email).First(&user)
 	return user, result.Error
+}
+
+// TaskSyncHrUsers2Cache 定时任务 将用户定时更新到缓存库
+func TaskSyncHrUsers2Cache() {
+	log.Log().Debug("开始执行定时同步用户定时任务...")
+	var hrDataConn hr.HrDataConn
+	if result := DB.First(&hrDataConn); result.Error != nil {
+		log.Log().Error("没有外部HR数据连接信息")
+	}
+
+	hrConn := &hr.HrDataConn{
+		UrlGetToken: hrDataConn.UrlGetToken,
+		UrlGetData:  hrDataConn.UrlGetData,
+	}
+
+	hrUsers := hr.FetchHrData(hrConn)
+	data, _ := cache.Serializer(hrUsers)
+	cache.Set("hrUsers", data)
 }
