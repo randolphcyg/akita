@@ -20,18 +20,13 @@ const (
 
 // User 用户模型
 type User struct {
-	// 表字段
 	gorm.Model
-	Email     string `gorm:"type:varchar(100);unique_index"`
-	Nick      string `gorm:"size:50"`
-	Password  string `json:"-"`
-	Status    int
-	GroupID   uint
-	Storage   uint64
-	TwoFactor string
-	Avatar    string
-	Options   string `json:"-",gorm:"type:text"`
-	Authn     string `gorm:"type:text"`
+	// ldap字段
+
+	// 补充字段
+	IsLdap    bool `json:"isLdap" gorm:"type:tinyint(3)"`    // 是否ldap
+	IsEnabled bool `json:"isEnabled" gorm:"type:tinyint(3)"` // 是否被启用
+	IsAdmin   bool `json:"isAdmin" gorm:"type:tinyint(3)"`   // 是否管理员
 }
 
 func GetUserByEmail(email string) (User, error) {

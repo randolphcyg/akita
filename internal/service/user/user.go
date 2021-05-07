@@ -38,8 +38,7 @@ func (service *LdapUserService) FetchUser(url string) serializer.Response {
 	}
 	LdapUsers := ldap.FetchLdapUsers(&conn)
 	for _, user := range LdapUsers {
-		user.PrettyPrint(2)
-		fmt.Println(user.GetAttributeValue("displayName"))
+		fmt.Println(user.GivenName)
 		break
 	}
 	return serializer.Response{Data: LdapUsers}

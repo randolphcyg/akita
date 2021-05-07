@@ -2,6 +2,7 @@ package conn
 
 import (
 	"encoding/json"
+	"time"
 
 	"gitee.com/RandolphCYG/akita/internal/model"
 	"gitee.com/RandolphCYG/akita/pkg/ldap"
@@ -17,7 +18,7 @@ type LdapConnService struct {
 	// SSL加密方式
 	SslEncryption bool `json:"ssl_encryption" gorm:"type:tinyint;length:1;comment:SSL加密方式"`
 	// 超时设置
-	Timeout int `json:"timeout" gorm:"type:int;comment:超时设置"`
+	Timeout time.Duration `json:"timeout" gorm:"type:int;comment:超时设置"`
 	// 根目录
 	BaseDn string `json:"base_dn" gorm:"type:varchar(255);not null;comment:根目录"`
 	// 用户名
