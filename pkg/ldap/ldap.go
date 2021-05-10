@@ -2,10 +2,12 @@ package ldap
 
 import (
 	"crypto/tls"
+	"strconv"
 	"time"
 
 	"gitee.com/RandolphCYG/akita/internal/model"
 	"gitee.com/RandolphCYG/akita/pkg/log"
+	"gitee.com/RandolphCYG/akita/pkg/util"
 	"github.com/go-ldap/ldap"
 )
 
@@ -137,6 +139,20 @@ func FetchLdapUsers(conn *model.LdapConn) (LdapUsers []*LdapAttributes) {
 	return
 }
 
+// 用户过期期限处理 -1为永久
+func expireTime(expireMouths int) (expireTimestamp int64) {
+	if expireMouths == -1 {
+		expireTimestamp = 9223372036854775807
+		return
+	}
+	// 当前时间
+	unixTime := time.Now()
+	// 当前时间往后推迟6个月
+	unixTime.AddDate(0, expireMouths, 0)
+	expireTimestamp = util.UnixToNt(unixTime)
+	return
+}
+
 // 批量新增用户
 func AddLdapUsers(conn *model.LdapConn, LdapUsers []*LdapAttributes) (AddLdapUsersRes []bool) {
 	ldap_conn, err := NewLdapConn(conn) // 建立ldap连接
@@ -148,18 +164,26 @@ func AddLdapUsers(conn *model.LdapConn, LdapUsers []*LdapAttributes) (AddLdapUse
 	// 批量处理
 	for _, user := range LdapUsers {
 		log.Log().Info(user.Dn)
-		addReq := ldap.NewAddRequest(user.Dn, nil)                                                 // 指定新用户的dn 会同时给cn name字段赋值
+		addReq := ldap.NewAddRequest(user.Dn, nil) // 指定新用户的dn 会同时给cn name字段赋值
+		// 过期时间处理逻辑
+		// 当前时间
+		unixTime := time.Now()
+		expire, _ := strconv.Atoi(user.Expire)
+		// 当前时间往后推迟expire个月
+		unixTime = unixTime.AddDate(0, expire, 0)
+		expireStr := strconv.FormatInt(util.UnixToNt(unixTime), 10) // 将int64改成str类型
+
 		addReq.Attribute("objectClass", []string{"top", "organizationalPerson", "user", "person"}) // 必填字段 否则报错 LDAP Result Code 65 "Object Class Violation"
 		addReq.Attribute("employeeNumber", []string{user.Num})                                     // 工号 暂时没用到
 		addReq.Attribute("sAMAccountName", []string{user.Sam})                                     // 登录名 必填
 		addReq.Attribute("UserAccountControl", []string{user.AccountCtl})                          // 账号控制 544 是启用用户
-		// addReq.Attribute("accountExpires", []string{user.Expire})                                  // 账号过期时间 当前时间加一个时间差并转换为NT时间
-		addReq.Attribute("pwdLastSet", []string{user.PwdLastSet})   // 用户下次登录必须修改密码 0是永不过期
-		addReq.Attribute("displayName", []string{user.DisplayName}) // 真实姓名 某些系统需要
-		addReq.Attribute("sn", []string{user.Sn})                   // 姓
-		addReq.Attribute("givenName", []string{user.GivenName})     // 名
-		addReq.Attribute("mail", []string{user.Email})              // 邮箱 必填
-		addReq.Attribute("mobile", []string{user.Phone})            // 手机号 必填 某些系统需要
+		addReq.Attribute("accountExpires", []string{expireStr})                                    // 账号过期时间 当前时间加一个时间差并转换为NT时间
+		addReq.Attribute("pwdLastSet", []string{user.PwdLastSet})                                  // 用户下次登录必须修改密码 0是永不过期
+		addReq.Attribute("displayName", []string{user.DisplayName})                                // 真实姓名 某些系统需要
+		addReq.Attribute("sn", []string{user.Sn})                                                  // 姓
+		addReq.Attribute("givenName", []string{user.GivenName})                                    // 名
+		addReq.Attribute("mail", []string{user.Email})                                             // 邮箱 必填
+		addReq.Attribute("mobile", []string{user.Phone})                                           // 手机号 必填 某些系统需要
 		addReq.Attribute("company", []string{user.Company})
 		addReq.Attribute("department", []string{user.Depart})
 		addReq.Attribute("title", []string{user.Title})
