@@ -21,6 +21,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.7.1
 	github.com/yuin/gopher-lua v0.0.0-20200816102855-ee81675732da // indirect
+	golang.org/x/text v0.3.3 // indirect
 	gopkg.in/asn1-ber.v1 v1.0.0-20181015200546-f715ec2f112d // indirect
 	gorm.io/driver/mysql v1.0.5
 	gorm.io/gorm v1.21.7
