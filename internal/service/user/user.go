@@ -36,7 +36,14 @@ func (service *LdapUserService) FetchUser(url string) serializer.Response {
 	if err != nil {
 		log.Log().Error("%v\n", err)
 	}
-	LdapUsers := ldap.FetchLdapUsers(&conn)
+
+	ldap_conn, err := ldap.NewLdapConn(&conn) // 建立ldap连接
+	if err != nil {
+		log.Log().Error("setup ldap connect failed,err:%v\n", err)
+	}
+	defer ldap_conn.Close()
+
+	LdapUsers := ldap.FetchLdapUsers(ldap_conn, &conn)
 	for _, user := range LdapUsers {
 		fmt.Println(user.GivenName)
 		break
