@@ -43,9 +43,10 @@ func (service *LdapUserService) FetchUser(url string) serializer.Response {
 	}
 	defer ldap_conn.Close()
 
-	LdapUsers := ldap.FetchLdapUsers(ldap_conn, &conn)
+	user := &ldap.LdapAttributes{}
+	LdapUsers := ldap.FetchLdapUsers(ldap_conn, &conn, user)
 	for _, user := range LdapUsers {
-		fmt.Println(user.GivenName)
+		fmt.Println(user.DN)
 		break
 	}
 	return serializer.Response{Data: LdapUsers}
