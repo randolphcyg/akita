@@ -254,11 +254,10 @@ func FetchUser(ldap_conn *ldap.Conn, conn *model.LdapConn, user *LdapAttributes)
 }
 
 // ldap用户方法——修改dn
-func (user *LdapAttributes) ModifyDn(ldap_conn *ldap.Conn, conn *model.LdapConn, newDnName string) {
+func (user *LdapAttributes) ModifyDn(ldap_conn *ldap.Conn, conn *model.LdapConn, cn string) {
 	u := FetchUser(ldap_conn, conn, user)
-	fmt.Println(u)
-	newDnName = "CN=" + newDnName
-	modReq := ldap.NewModifyDNRequest(u.DN, newDnName, true, "")
+	cn = "CN=" + cn
+	modReq := ldap.NewModifyDNRequest(u.DN, cn, true, "")
 	if err := ldap_conn.ModifyDN(modReq); err != nil {
 		log.Log().Error("Failed to modify DN: %s\n", err)
 	}
@@ -275,6 +274,7 @@ func (user *LdapAttributes) MoveDn(ldap_conn *ldap.Conn, conn *model.LdapConn, n
 
 }
 
+// 将ldap库的entry类型转换为自定义类型LdapAttributes
 func NewUser(entry *ldap.Entry) *LdapAttributes {
 	expire, _ := strconv.ParseInt(entry.GetAttributeValue("accountExpires"), 10, 64)
 	return &LdapAttributes{
@@ -301,13 +301,7 @@ func NewUser(entry *ldap.Entry) *LdapAttributes {
 func (user *LdapAttributes) ModifyInfo(ldap_conn *ldap.Conn, conn *model.LdapConn) {
 	u := FetchUser(ldap_conn, conn, user)
 	modReq := ldap.NewModifyRequest(u.DN, []ldap.Control{})
-	// 对用户数据进行判断性更新
-	if user.Dn != "" {
-		// 将用户转类型后处理
-		uu := NewUser(u)
-		fmt.Println(uu)
-		uu.ModifyDn(ldap_conn, conn, uu.Dn)
-	}
+	// 对用户的普通数据进行选择性更新
 	if user.Num != "" {
 		modReq.Replace("employeeNumber", []string{user.Company})
 	}
@@ -335,5 +329,11 @@ func (user *LdapAttributes) ModifyInfo(ldap_conn *ldap.Conn, conn *model.LdapCon
 
 	if err := ldap_conn.Modify(modReq); err != nil {
 		log.Log().Error("error modify user information:%s\n", err)
+	}
+
+	// 对用户DN进行更新 必须放在修改其他普通数据之后
+	if user.Dn != "" && strings.SplitN(u.DN, ",", 2)[1] != user.Dn {
+		// 将用户转类型后处理
+		NewUser(u).MoveDn(ldap_conn, conn, user.Dn)
 	}
 }
