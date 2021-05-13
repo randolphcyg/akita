@@ -13,6 +13,10 @@ import (
 	"golang.org/x/text/encoding/unicode"
 )
 
+// 禁用/启用用户的 UserAccountControl 状态码
+var DisabledLdapUserCodes = [5]int32{514, 546, 66050, 66080, 66082}
+var EnabledLdapUserCodes = [4]int32{512, 544, 66048, 262656}
+
 type LdapAttributes struct {
 	// ldap字段
 	Num         string `json:"employeeNumber" gorm:"type:varchar(100);unique_index"`    // 工号
@@ -198,21 +202,49 @@ func ModifyPwd(ldap_conn *ldap.Conn, entry *ldap.Entry, newUserPwd string) (err 
 }
 
 // 多条件查询用户 若有结果则返回
-func FetchLdapUser(ldap_conn *ldap.Conn, conn *model.LdapConn, user *LdapAttributes) (result *ldap.Entry) {
+func FetchLdapUser(ldap_conn *ldap.Conn, conn *model.LdapConn, user *LdapAttributes) (result []*ldap.Entry) {
 	// 多查询条件
-	searchFilterStr := "(&(objectClass=organizationalPerson)(sAMAccountName=" + user.Sam + "))"
-	if user.Email != "" && user.Phone != "" {
-		searchFilterStr = "(&(objectClass=organizationalPerson)(sAMAccountName=" + user.Sam + ")(mail=" + user.Email + ")(mobile=" + user.Phone + "))"
-	} else if user.Email != "" {
-		searchFilterStr = "(&(objectClass=organizationalPerson)(sAMAccountName=" + user.Sam + ")(mail=" + user.Email + "))"
-	} else if user.Phone != "" {
-		searchFilterStr = "(&(objectClass=organizationalPerson)(sAMAccountName=" + user.Sam + ")(mobile=" + user.Phone + "))"
+	ldapFilterNum := "(employeeNumber=" + user.Num + ")"
+	ldapFilterSam := "(sAMAccountName=" + user.Sam + ")"
+	ldapFilterEmail := "(mail=" + user.Email + ")"
+	ldapFilterPhone := "(mobile=" + user.Phone + ")"
+	ldapFilterName := "(displayName=" + user.DisplayName + ")"
+	ldapFilterDepart := "(department=" + user.Depart + ")"
+	ldapFilterCompany := "(company=" + user.Company + ")"
+	ldapFilterTitle := "(title=" + user.Title + ")"
+
+	searchFilter := "(objectClass=organizationalPerson)"
+
+	if user.Num != "" {
+		searchFilter += ldapFilterNum
 	}
+	if user.Sam != "" {
+		searchFilter += ldapFilterSam
+	}
+	if user.Email != "" {
+		searchFilter += ldapFilterEmail
+	}
+	if user.Phone != "" {
+		searchFilter += ldapFilterPhone
+	}
+	if user.DisplayName != "" {
+		searchFilter += ldapFilterName
+	}
+	if user.Depart != "" {
+		searchFilter += ldapFilterDepart
+	}
+	if user.Company != "" {
+		searchFilter += ldapFilterCompany
+	}
+	if user.Title != "" {
+		searchFilter += ldapFilterTitle
+	}
+	searchFilter = "(&" + searchFilter + ")"
 
 	searchRequest := ldap.NewSearchRequest(
 		conn.BaseDn,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		searchFilterStr,
+		searchFilter,
 		attrs,
 		nil,
 	)
@@ -222,7 +254,7 @@ func FetchLdapUser(ldap_conn *ldap.Conn, conn *model.LdapConn, user *LdapAttribu
 		log.Log().Error("%s", err)
 	}
 	if len(sr.Entries) > 0 && len(sr.Entries[0].Attributes) > 0 {
-		result = sr.Entries[0]
+		result = sr.Entries
 	}
 	return
 }
