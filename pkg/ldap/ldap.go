@@ -332,8 +332,70 @@ func (user *LdapAttributes) ModifyInfo(ldap_conn *ldap.Conn, conn *model.LdapCon
 	}
 
 	// 对用户DN进行更新 必须放在修改其他普通数据之后
-	if user.Dn != "" && strings.SplitN(u.DN, ",", 2)[1] != user.Dn {
+	if user.Dn != "" && !strings.EqualFold(strings.SplitN(u.DN, ",", 2)[1], user.Dn) {
 		// 将用户转类型后处理
 		NewUser(u).MoveDn(ldap_conn, conn, user.Dn)
 	}
+}
+
+// 查询OU是否存在
+func IsOuExist(ldap_conn *ldap.Conn, conn *model.LdapConn, newOu string) (isOuExist bool) {
+	searchRequest := ldap.NewSearchRequest(
+		conn.BaseDn,
+		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
+		"(&(objectClass=organizationalUnit)(distinguishedName="+newOu+"))",
+		attrs,
+		nil,
+	)
+
+	sr, err := ldap_conn.Search(searchRequest)
+	if err != nil {
+		log.Log().Error("error fetch ou:%s\n", err)
+		isOuExist = false
+
+	}
+	if len(sr.Entries) > 0 && len(sr.Entries[0].Attributes) > 0 {
+		isOuExist = true
+	}
+	return
+}
+
+// 新增OU 只处理当前OU，不考虑父子OU
+func AddOu(ldap_conn *ldap.Conn, conn *model.LdapConn, newOu string) {
+	// 新增逻辑
+	addReq := ldap.NewAddRequest(newOu, []ldap.Control{})
+	addReq.Attribute("objectClass", []string{"top", "organizationalUnit"})
+	addReq.Attribute("cn", []string{strings.Split(strings.Split(newOu, ",")[0], "=")[1]})
+
+	if err := ldap_conn.Add(addReq); err != nil {
+		log.Log().Error("error add ou:%s\n", err)
+	}
+}
+
+// 新增OU树逻辑 判断OU树是否存在，若不存在 则层层新增
+func CheckOuTree(ldap_conn *ldap.Conn, conn *model.LdapConn, newOu string) {
+	ous := strings.SplitN(newOu, ",", len(strings.Split(newOu, ","))-1)
+	for i := range ous {
+		if i != 0 {
+			dn := strings.Join(ous[len(ous)-i-1:], ",") // 获取每层DN地址
+			// 查询dn树中每一层是否都存在
+			isOuExist := IsOuExist(ldap_conn, conn, dn)
+			if !isOuExist { // 如果不存在则新增
+				fmt.Println(dn)
+				// AddOu(ldap_conn, conn, dn)  // 为了安全 充分测试后再启用
+			}
+		}
+	}
+}
+
+// 将部门架构转换为LDAP的DN地址
+func DepartToDn(conn *model.LdapConn, depart string) (dn string) {
+	ous := strings.Split(depart, ".")
+	var reversedOus []string = []string{}
+	for i := range ous {
+		reversedOus = append(reversedOus, ous[len(ous)-i-1])
+	}
+	dn = strings.Join(reversedOus, ",OU=")
+	dn = "OU=" + dn + "," + conn.BaseDn
+	return
 }
