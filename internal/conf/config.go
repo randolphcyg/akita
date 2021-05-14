@@ -13,7 +13,7 @@ type Config struct {
 	System   System
 	Database orm.Config
 	Redis    cache.Config
-	LdapConn model.LdapConn
+	LdapCfg  model.LdapCfg
 	Email    email.Config
 }
 

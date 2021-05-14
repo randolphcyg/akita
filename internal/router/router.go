@@ -69,7 +69,8 @@ func InitDebugRouter() *gin.Engine {
 
 		hrData := v1.Group("hr")
 		// 通过查询hr数据接口确定是否包含某员工
-		hrData.GET("fetch", handler.FetchHrData)
+		hrData.GET("fetch", handler.FetchHrData) // /api/v1/hr/fetch
+		hrData.GET("sync", handler.SyncHrToLdap) // /api/v1/hr/sync
 
 	}
 

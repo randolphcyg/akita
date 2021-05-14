@@ -55,3 +55,14 @@ func FetchHrData(ctx *gin.Context) {
 		ctx.JSON(200, err)
 	}
 }
+
+// SyncHrToLdap Sync更新hr数据到ldap
+func SyncHrToLdap(ctx *gin.Context) {
+	var service user.HrDataService
+	if err := ctx.ShouldBindJSON(&service); err == nil {
+		res := service.HrToLdap(service)
+		ctx.JSON(200, res)
+	} else {
+		ctx.JSON(200, err)
+	}
+}

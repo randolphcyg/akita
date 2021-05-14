@@ -6,8 +6,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// LdapConn LDAP服务器连接配置
-type LdapConn struct {
+// LdapCfg LDAP服务器连接配置
+type LdapCfg struct {
 	gorm.Model
 	// 连接地址
 	ConnUrl string `json:"conn_url" gorm:"type:varchar(255);unique_index;not null;comment:连接地址 逻辑外键"`
@@ -75,29 +75,29 @@ type LdapField struct {
 }
 
 // GetAllLdapConn 查询所有ldap连接
-func GetAllLdapConn() (LdapConn, error) {
-	var conn LdapConn
+func GetAllLdapConn() (LdapCfg, error) {
+	var conn LdapCfg
 	result := DB.Find(&conn)
 	return conn, result.Error
 }
 
 // GetLdapConn 查询一个ldap连接
-func GetLdapConn(id uint) (LdapConn, error) {
-	var conn LdapConn
+func GetLdapConn(id uint) (LdapCfg, error) {
+	var conn LdapCfg
 	result := DB.First(&conn, id)
 	return conn, result.Error
 }
 
 // GetLdapConnByConnUrl  根据conn_url查询一个ldap连接
-func GetLdapConnByConnUrl(url string) (LdapConn, error) {
-	var conn LdapConn
+func GetLdapConnByConnUrl(url string) (LdapCfg, error) {
+	var conn LdapCfg
 	result := DB.Where("conn_url = ?", url).First(&conn)
 	return conn, result.Error
 }
 
 // NewLdapConn 返回一个新的空 LdapConn
-func NewLdapConn() LdapConn {
-	return LdapConn{}
+func NewLdapConn() LdapCfg {
+	return LdapCfg{}
 }
 
 // NewLdapField 返回一个新的空 LdapField

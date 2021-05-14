@@ -91,7 +91,7 @@ func (service *LdapConnService) Fetch() serializer.Response {
 }
 
 // 查 根据conn_url查询ldap连接信息
-func (service *LdapConnService) FetchByConnUrl(url string) (conn model.LdapConn, err error) {
+func (service *LdapConnService) FetchByConnUrl(url string) (conn model.LdapCfg, err error) {
 	conn, err = model.GetLdapConnByConnUrl(url)
 	if err != nil {
 		return
@@ -107,7 +107,7 @@ func (service *LdapConnService) Test(id uint) serializer.Response {
 		return serializer.DBErr("不存在任何ldap连接信息", err)
 	}
 
-	_, err = ldap.NewLdapConn(&conn)
+	err = ldap.Init(&conn)
 	if err != nil {
 		return serializer.Err(-1, "ldap连接出错", err)
 	}

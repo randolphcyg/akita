@@ -4,6 +4,7 @@ import (
 	"gitee.com/RandolphCYG/akita/internal/conf"
 	"gitee.com/RandolphCYG/akita/pkg/cache"
 	"gitee.com/RandolphCYG/akita/pkg/hr"
+	"gitee.com/RandolphCYG/akita/pkg/ldap"
 	"gitee.com/RandolphCYG/akita/pkg/log"
 
 	"gitee.com/RandolphCYG/akita/internal/model"
@@ -23,14 +24,18 @@ func Init(cfg string) {
 	log.Log().Info("#######初始化数据库:%v", &c.Database)
 	model.Init(&c.Database)
 	// 数据迁移
-	model.DB.AutoMigrate(&model.LdapConn{}, &model.LdapField{}, &hr.HrDataConn{})
-	if result := model.DB.Limit(1).Find(&model.LdapConn{}); result.RowsAffected == 0 {
+	model.DB.AutoMigrate(&model.LdapCfg{}, &model.LdapField{}, &hr.HrDataConn{})
+	if result := model.DB.Limit(1).Find(&model.LdapCfg{}); result.RowsAffected == 0 {
 		log.Log().Info("#######数据迁移...")
-		model.DB.Create(&c.LdapConn)
+		model.DB.Create(&c.LdapCfg)
 	}
 
 	// 初始化 redis
 	log.Log().Info("#######初始化缓存库库:%v", &c.Redis)
 	cache.Init(&c.Redis)
-	log.Log().Info("#######初始化其他组件...")
+
+	// 初始化ldap连接
+	log.Log().Info("#######初始化ldap连接...")
+	Conn, _ := model.GetAllLdapConn() // 直接查询
+	ldap.Init(&Conn)
 }
