@@ -143,7 +143,7 @@ func FetchLdapUsers(user *LdapAttributes) (result []*ldap.Entry) {
 
 	sr, err := LdapConn.Search(searchRequest)
 	if err != nil {
-		log.Log().Error("%s", err)
+		log.Log().Error("search users error%s", err)
 	}
 	if len(sr.Entries) > 0 && len(sr.Entries[0].Attributes) > 0 {
 		result = sr.Entries
@@ -162,18 +162,18 @@ func ExpireTime(expireDays int64) (expireTimestamp int64) {
 
 // 新增用户
 func AddUser(user *LdapAttributes) (AddLdapUsersRes []bool) {
-	addReq := ldap.NewAddRequest(user.Dn, nil)                                                   // 指定新用户的dn 会同时给cn name字段赋值
-	addReq.Attribute("objectClass", []string{"top", "organizationalPerson", "user", "person"})   // 必填字段 否则报错 LDAP Result Code 65 "Object Class Violation"
-	addReq.Attribute("employeeNumber", []string{user.Num})                                       // 工号 暂时没用到
-	addReq.Attribute("sAMAccountName", []string{user.Sam})                                       // 登录名 必填
-	addReq.Attribute("UserAccountControl", []string{user.AccountCtl})                            // 账号控制 544 是启用用户
-	addReq.Attribute("accountExpires", []string{strconv.FormatInt(ExpireTime(user.Expire), 10)}) // 账号过期时间 当前时间加一个时间差并转换为NT时间
-	addReq.Attribute("pwdLastSet", []string{user.PwdLastSet})                                    // 用户下次登录必须修改密码 0是永不过期
-	addReq.Attribute("displayName", []string{user.DisplayName})                                  // 真实姓名 某些系统需要
-	addReq.Attribute("sn", []string{user.Sn})                                                    // 姓
-	addReq.Attribute("givenName", []string{user.GivenName})                                      // 名
-	addReq.Attribute("mail", []string{user.Email})                                               // 邮箱 必填
-	addReq.Attribute("mobile", []string{user.Phone})                                             // 手机号 必填 某些系统需要
+	addReq := ldap.NewAddRequest(user.Dn, nil)                                                 // 指定新用户的dn 会同时给cn name字段赋值
+	addReq.Attribute("objectClass", []string{"top", "organizationalPerson", "user", "person"}) // 必填字段 否则报错 LDAP Result Code 65 "Object Class Violation"
+	addReq.Attribute("employeeNumber", []string{user.Num})                                     // 工号 暂时没用到
+	addReq.Attribute("sAMAccountName", []string{user.Sam})                                     // 登录名 必填
+	addReq.Attribute("UserAccountControl", []string{user.AccountCtl})                          // 账号控制 544 是启用用户
+	addReq.Attribute("accountExpires", []string{strconv.FormatInt(user.Expire, 10)})           // 账号过期时间 当前时间加一个时间差并转换为NT时间
+	addReq.Attribute("pwdLastSet", []string{user.PwdLastSet})                                  // 用户下次登录必须修改密码 0是永不过期
+	addReq.Attribute("displayName", []string{user.DisplayName})                                // 真实姓名 某些系统需要
+	addReq.Attribute("sn", []string{user.Sn})                                                  // 姓
+	addReq.Attribute("givenName", []string{user.GivenName})                                    // 名
+	addReq.Attribute("mail", []string{user.Email})                                             // 邮箱 必填
+	addReq.Attribute("mobile", []string{user.Phone})                                           // 手机号 必填 某些系统需要
 	addReq.Attribute("company", []string{user.Company})
 	addReq.Attribute("department", []string{user.Depart})
 	addReq.Attribute("title", []string{user.Title})
@@ -193,14 +193,14 @@ func AddUser(user *LdapAttributes) (AddLdapUsersRes []bool) {
 
 // 修改用户密码 这种修改密码的方法有延迟性 大约五分钟，新旧密码都能使用
 func (user *LdapAttributes) ModifyPwd(newUserPwd string) (err error) {
-	u, _ := FetchUser(user)
+	entry, _ := FetchUser(user)
 	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
 	pwdEncoded, err := utf16.NewEncoder().String(fmt.Sprintf("%q", newUserPwd))
 	if err != nil {
 		log.Log().Error("转码错误:%s\n", err)
 	}
 
-	modReq := ldap.NewModifyRequest(u.DN, []ldap.Control{})
+	modReq := ldap.NewModifyRequest(entry.DN, []ldap.Control{})
 	modReq.Replace("unicodePwd", []string{pwdEncoded})
 
 	if err = LdapConn.Modify(modReq); err != nil {
@@ -210,20 +210,16 @@ func (user *LdapAttributes) ModifyPwd(newUserPwd string) (err error) {
 	return
 }
 
-// 多条件查询单个用户
+// 根据cn查询用户
 func FetchUser(user *LdapAttributes) (result *ldap.Entry, err error) {
 	// 这里的查询条件必须保证每个用户必须有
-	ldapFilterSam := "(sAMAccountName=" + user.Sam + ")"
-	// ldapFilterEmail := "(mail=" + user.Email + ")"
-
+	// 根据cn查询用户 [sam登录名字段也出现了不同的版本 邮箱\手机号都可能更换掉 真实姓名存在重复可能]
+	ldapFilterCn := "(cn=" + user.Name + user.Num + ")"
 	searchFilter := "(objectClass=organizationalPerson)"
 
-	if user.Sam != "" {
-		searchFilter += ldapFilterSam
+	if user.Name != "" && user.Num != "" {
+		searchFilter += ldapFilterCn
 	}
-	// if user.Email != "" {
-	// 	searchFilter += ldapFilterEmail
-	// }
 	searchFilter = "(&" + searchFilter + ")"
 
 	searchRequest := ldap.NewSearchRequest(
@@ -237,7 +233,7 @@ func FetchUser(user *LdapAttributes) (result *ldap.Entry, err error) {
 	// 这里LdapConn 为nil
 	sr, err := LdapConn.Search(searchRequest)
 	if err != nil {
-		log.Log().Error("%s", err)
+		log.Log().Error("fetch user error%s", err)
 	}
 	if len(sr.Entries) > 0 && len(sr.Entries[0].Attributes) > 0 {
 		result = sr.Entries[0]
@@ -247,9 +243,9 @@ func FetchUser(user *LdapAttributes) (result *ldap.Entry, err error) {
 
 // ldap用户方法——修改dn
 func (user *LdapAttributes) ModifyDn(cn string) {
-	u, _ := FetchUser(user)
+	entry, _ := FetchUser(user)
 	cn = "CN=" + cn
-	modReq := ldap.NewModifyDNRequest(u.DN, cn, true, "")
+	modReq := ldap.NewModifyDNRequest(entry.DN, cn, true, "")
 	if err := LdapConn.ModifyDN(modReq); err != nil {
 		log.Log().Error("Failed to modify DN: %s\n", err)
 	}
@@ -257,9 +253,9 @@ func (user *LdapAttributes) ModifyDn(cn string) {
 
 // ldap用户方法——移动dn
 func (user *LdapAttributes) MoveDn(newOu string) {
-	u, _ := FetchUser(user)
-	cn := strings.Split(u.DN, ",")[0]
-	movReq := ldap.NewModifyDNRequest(u.DN, cn, true, newOu)
+	entry, _ := FetchUser(user)
+	cn := strings.Split(entry.DN, ",")[0]
+	movReq := ldap.NewModifyDNRequest(entry.DN, cn, true, newOu)
 	if err := LdapConn.ModifyDN(movReq); err != nil {
 		log.Log().Error("Failed to move userDN: %s\n", err)
 	}
@@ -289,16 +285,69 @@ func NewUser(entry *ldap.Entry) *LdapAttributes {
 	}
 }
 
-// ldap用户方法——修改用户信息
+// Updateldap用户方法——更新用户信息
+func (user *LdapAttributes) Update() {
+	entry, err := FetchUser(user)
+	if err != nil {
+		log.Log().Error("fetch user failed:%s", err)
+		panic(err)
+	}
+	if entry != nil {
+		modReq := ldap.NewModifyRequest(entry.DN, []ldap.Control{})
+		// 对用户的普通数据进行选择性更新
+		if user.Num != "" {
+			modReq.Replace("employeeNumber", []string{user.Num})
+		}
+		// 更新用户登录名 [涉及平台较多 需统一更新!!]
+		// if user.Sam != "" {
+		// 	modReq.Replace("sAMAccountName", []string{user.Sam})
+		// }
+		if user.Email != "" {
+			modReq.Replace("mail", []string{user.Email})
+		}
+		if user.Phone != "" {
+			modReq.Replace("mobile", []string{user.Phone})
+		}
+		if user.DisplayName != "" {
+			modReq.Replace("displayName", []string{user.DisplayName})
+		}
+		if user.Depart != "" {
+			modReq.Replace("department", []string{user.Depart})
+		}
+		if user.Company != "" {
+			modReq.Replace("company", []string{user.Company})
+		}
+		if user.Title != "" {
+			modReq.Replace("title", []string{user.Title})
+		}
+		if user.AccountCtl != "" {
+			modReq.Replace("accountExpires", []string{strconv.FormatInt(user.Expire, 10)})
+		}
+
+		if err := LdapConn.Modify(modReq); err != nil {
+			log.Log().Error("error update user information:%s\n", err)
+		}
+		// 对用户DN进行更新 必须放在修改其他普通数据之后 [不会影响用户使用体验]
+		if user.Dn != "" && !strings.EqualFold(strings.SplitN(entry.DN, ",", 2)[1], user.Dn) {
+			CheckOuTree(user.Dn)
+			user.MoveDn(user.Dn)
+		}
+	} else {
+		log.Log().Error("无此用户")
+	}
+}
+
+// ldap用户方法——手动修改用户信息
 func (user *LdapAttributes) ModifyInfo() {
-	u, err := FetchUser(user)
+	entry, err := FetchUser(user)
+
 	if err != nil {
 		log.Log().Error("fetch user failed:%s", err)
 	}
-	modReq := ldap.NewModifyRequest(u.DN, []ldap.Control{})
+	modReq := ldap.NewModifyRequest(entry.DN, []ldap.Control{})
 	// 对用户的普通数据进行选择性更新
 	if user.Num != "" {
-		modReq.Replace("employeeNumber", []string{user.Company})
+		modReq.Replace("employeeNumber", []string{user.Num})
 	}
 	if user.Sam != "" {
 		modReq.Replace("sAMAccountName", []string{user.Sam})
@@ -327,10 +376,9 @@ func (user *LdapAttributes) ModifyInfo() {
 	}
 
 	// 对用户DN进行更新 必须放在修改其他普通数据之后
-	if user.Dn != "" && !strings.EqualFold(strings.SplitN(u.DN, ",", 2)[1], user.Dn) {
-		// 将用户转类型后处理
+	if user.Dn != "" && !strings.EqualFold(strings.SplitN(entry.DN, ",", 2)[1], user.Dn) {
 		CheckOuTree(user.Dn)
-		NewUser(u).MoveDn(user.Dn)
+		user.MoveDn(user.Dn)
 	}
 }
 
@@ -377,7 +425,6 @@ func CheckOuTree(newOu string) {
 			// 查询dn树中每一层是否都存在
 			isOuExist := IsOuExist(dn)
 			if !isOuExist { // 如果不存在则新增
-				fmt.Println(dn)
 				AddOu(dn) // 为了安全 充分测试后再启用
 			}
 		}

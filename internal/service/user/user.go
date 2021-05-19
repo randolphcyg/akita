@@ -94,35 +94,42 @@ func (service *HrDataService) HrToLdap(h HrDataService) serializer.Response {
 	hrUsers := hr.FetchHrData(hrConn)
 
 	// 全量遍历HR接口数据用户 并 更新LDAP用户
+	var userStat, dn string
+	var expire int64
+
 	for _, user := range hrUsers {
-		if strings.EqualFold(user.Name, "张三") { // 暂时测试一位用户
-			// 取ldap连接
-			var userStat string
-			if user.Stat == "在职" {
-				userStat = "544"
-			} else {
-				userStat = "546"
-			}
-			depart := strings.Split(user.Department, ".")[len(strings.Split(user.Department, "."))-1]
-			user := &ldap.LdapAttributes{
-				Num:         user.Eid,
-				Sam:         user.Eid,
-				DisplayName: user.Name,
-				Email:       user.Mail,
-				Phone:       user.Mobile,
-				Dn:          ldap.DepartToDn(user.Department),
-				AccountCtl:  userStat,
-				Expire:      ldap.ExpireTime(int64(30)),
-				Sn:          user.Name,
-				Name:        user.Name,
-				GivenName:   user.Name,
-				Company:     user.CompanyName,
-				Depart:      depart,
-				Title:       user.Title,
-			}
-			user.ModifyInfo() // 修改用户信息
-			// fmt.Println(addRes)
+		if user.Stat == "离职" { //离职员工
+			userStat = "546"
+			dn = "OU=disabled," + ldap.LdapCfg.BaseDn
+			expire = 0 // 账号失效
+		} else { // 在职员工
+			userStat = "544"
+			dn = ldap.DepartToDn(user.Department)
+			expire = ldap.ExpireTime(-1) // 账号永久有效
 		}
+		depart := strings.Split(user.Department, ".")[len(strings.Split(user.Department, "."))-1]
+		name := []rune(user.Name)
+
+		// 将hr数据转换为ldap信息格式
+		user := &ldap.LdapAttributes{
+			Num:         user.Eid,
+			Sam:         user.Eid,
+			DisplayName: user.Name,
+			Email:       user.Mail,
+			Phone:       user.Mobile,
+			Dn:          dn,
+			PwdLastSet:  "0", // 用户下次必须修改密码 0
+			AccountCtl:  userStat,
+			Expire:      expire,
+			Sn:          string(name[0]),
+			Name:        user.Name,
+			GivenName:   string(name[1:]),
+			Company:     user.CompanyName,
+			Depart:      depart,
+			Title:       user.Title,
+		}
+		// 更新用户信息 [注意对外部员工OU路径要插入本公司/合作伙伴一层中!!!]
+		user.Update()
 	}
-	return serializer.Response{Data: 1111, Msg: "更新成功"}
+	return serializer.Response{Data: 1, Msg: "更新成功"}
 }
