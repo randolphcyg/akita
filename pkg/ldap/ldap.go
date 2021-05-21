@@ -60,8 +60,9 @@ var attrs = []string{
 }
 
 var (
-	LdapCfg  *model.LdapCfg
-	LdapConn *ldap.Conn
+	LdapConn  *ldap.Conn
+	LdapCfg   *model.LdapCfg
+	LdapField *model.LdapField
 )
 
 // Init 实例化一个 ldapConn
