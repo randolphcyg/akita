@@ -9,9 +9,6 @@ import (
 	"gitee.com/RandolphCYG/akita/pkg/ldap"
 	"gitee.com/RandolphCYG/akita/pkg/log"
 	"gitee.com/RandolphCYG/akita/pkg/serializer"
-	"gitee.com/RandolphCYG/akita/pkg/wework/api"
-	"gitee.com/RandolphCYG/akita/pkg/wework/order"
-	"github.com/goinggo/mapstructure"
 )
 
 // LdapUserService LDAP用户查询条件
@@ -44,100 +41,8 @@ func (service *LdapUserService) FetchUser(url string) serializer.Response {
 	return serializer.Response{Data: LdapUsers}
 }
 
-// 将原始工单转换为UUAP创建工单详情结构体 以后这种方法通用与原始工单的解析
-func originalOrderToUuapCreateOrder(weworkOrder map[string]interface{}) (weworkOrderDetails order.WeworkOrderDetails) {
-	if err := mapstructure.Decode(weworkOrder, &weworkOrderDetails); err != nil {
-		log.Log().Error("原始工单转换错误:%v", err)
-	}
-	return
-}
-
-// 创建用户
+// 创建用户-管理员接口
 func (service *LdapUserService) AddUser(u LdapUserService) serializer.Response {
-	// service层处理前端数据，并将数据传给pkg的ldap组件，然后ldap组件处理有关ldap用户的通用逻辑
-	// TODO: 这边改成从tabby接受工单request请求
-	sp_no := 202105250041
-	// 实例化 API 类 TODO: 这边将企业微信配置保存到数据库，系统初始化时加载到环境变量中
-	corpAPI := api.NewCorpAPI("XXXXXXX", "XXXXXXX")
-	// 发送消息
-	response, err := corpAPI.GetApprovalDetail(map[string]interface{}{
-		"sp_no": sp_no,
-	})
-
-	if err != nil {
-		log.Log().Error("%v", err)
-	}
-	// log.Log().Info("%v", response["info"])
-
-	var weworkOrder order.WeworkOrder
-	// 反序列化工单详情
-	if err := mapstructure.Decode(response["info"], &weworkOrder); err != nil {
-		log.Log().Error("%v", err)
-	}
-	// 清洗工单
-	orderData := make(map[string]interface{})
-	orderData["spName"] = weworkOrder.SpName
-	orderData["partyid"] = weworkOrder.Applyer.Partyid
-	orderData["userid"] = weworkOrder.Applyer.Userid
-	for _, con := range weworkOrder.ApplyData.Contents {
-		switch con.Control {
-		case "Number":
-			orderData[con.Title[0].Text] = con.Value.NewNumber
-		case "Text":
-			orderData[con.Title[0].Text] = con.Value.Text
-		case "Textarea":
-			orderData[con.Title[0].Text] = con.Value.Text
-		case "Date":
-			orderData[con.Title[0].Text] = con.Value.Date.STimestamp
-		case "Selector":
-			if con.Value.Selector.Type == "multi" { // 多选
-				tempSelectors := make([]string, len(con.Value.Selector.Options)-2)
-				for _, value := range con.Value.Selector.Options {
-					tempSelectors = append(tempSelectors, value.Value[0].Text)
-				}
-				orderData[con.Title[0].Text] = tempSelectors
-			} else { // 单选
-				orderData[con.Title[0].Text] = con.Value.Selector.Options[0].Value[0].Text
-			}
-		case "Tips": // 忽略说明类型
-			continue
-		case "Contact":
-			orderData[con.Title[0].Text] = con.Value.Members
-		default:
-			log.Log().Error("包含未处理工单项类型：%v，请及时补充后端逻辑!", con.Control)
-		}
-	}
-
-	log.Log().Info("res:%v", orderData)
-	// 将原始工单结构体转换为对应要求工单数据
-	weworkOrderDetails := originalOrderToUuapCreateOrder(orderData)
-	log.Log().Info("%v", weworkOrderDetails)
-
-	company := "XX公司" // 这个数据工单是没有的 需要考虑如何添加
-	name := []rune(weworkOrderDetails.Name)
-	user := &ldap.LdapAttributes{
-		Dn:          "CN=" + string(name) + weworkOrderDetails.Eid + "," + ldap.DepartToDn(weworkOrderDetails.Depart),
-		Num:         weworkOrderDetails.Eid,
-		Sam:         weworkOrderDetails.Eid,
-		AccountCtl:  "544",
-		Expire:      ldap.ExpireTime(int64(-1)), // 永不过期
-		Sn:          string(name[0]),
-		PwdLastSet:  "0",
-		DisplayName: string(name),
-		GivenName:   string(name[1:]),
-		Email:       weworkOrderDetails.Mail,
-		Phone:       weworkOrderDetails.Mobile,
-		Company:     company,
-		Depart:      strings.Split(weworkOrderDetails.Depart, ".")[0],
-		Title:       weworkOrderDetails.Title,
-	}
-	log.Log().Info("%v", user)
-	//  TODO 未完善前置逻辑 暂时注释掉创建功能
-	// res := ldap.AddUser(user)
-	// for index, r := range res {
-	// 	fmt.Println(index, r)
-	// }
-	// TODO 后面一步骤是创建成功发送企业微信消息
 
 	return serializer.Response{Data: 0, Msg: "UUAP账号创建成功"}
 }

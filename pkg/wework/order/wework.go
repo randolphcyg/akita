@@ -1,5 +1,18 @@
 package order
 
+import (
+	"strings"
+
+	"gitee.com/RandolphCYG/akita/internal/model"
+	"gitee.com/RandolphCYG/akita/pkg/log"
+	"github.com/goinggo/mapstructure"
+)
+
+// 全局变量
+var (
+	WeworkCfg *model.WeworkCfg
+)
+
 // 企业微信工单结构体
 type WeworkOrder struct {
 	SpNo       string `mapstructure:"sp_no"`       // 审批编号
@@ -139,21 +152,87 @@ type WeworkOrder struct {
 
 // 处理后的工单详情 这里维护与企业微信工单对应关系
 type WeworkOrderDetails struct {
-	SpName   string `mapstructure:"spName"`
-	Partyid  string `mapstructure:"partyid"`
-	Userid   string `mapstructure:"userid"`
-	Remarks  string `mapstructure:"备注"`
-	Name     string `mapstructure:"姓名"`
-	Title    string `mapstructure:"岗位"`
-	Eid      string `mapstructure:"工号"`
-	Mobile   string `mapstructure:"手机"`
-	Contacts []struct {
-		Userid string `mapstructure:"userid"`
-		Name   string `mapstructure:"name"`
-	} `mapstructure:"相同角色同事"`
-	Role          []string `mapstructure:"角色"`
-	ActExpireDate string   `mapstructure:"账号到期时间"`
-	ActExpire     string   `mapstructure:"过期时间"`
-	Mail          string   `mapstructure:"邮箱"`
-	Depart        string   `mapstructure:"部门"`
+	SpName  string `mapstructure:"spName"`
+	Partyid string `mapstructure:"partyid"`
+	Userid  string `mapstructure:"userid"`
+	Remarks string `mapstructure:"备注"`
+	Name    string `mapstructure:"姓名"`
+	Title   string `mapstructure:"岗位"`
+	Eid     string `mapstructure:"工号"`
+	Mobile  string `mapstructure:"手机"`
+	Mail    string `mapstructure:"邮箱"`
+	Depart  string `mapstructure:"部门"`
+}
+
+// 找回密码工单
+type WeworkOrderResetUuapPwd struct {
+	Name string `mapstructure:"姓名"`
+	Uuap string `mapstructure:"UUAP账号"`
+}
+
+// 将企业微信原始工单转换为对应工单
+func RawOrderToObj(rawInfo interface{}) (orderData map[string]interface{}, err error) {
+	var weworkOrder WeworkOrder
+	// 反序列化工单详情
+	if err = mapstructure.Decode(rawInfo, &weworkOrder); err != nil {
+		log.Log().Error("Occur error when deserialize map to struct:%v", err)
+		return
+	}
+
+	// 判断工单状态 可以拓展操作
+	if weworkOrder.SpStatus != 2 {
+		log.Log().Error("工单不是已审批状态!")
+		return
+	}
+
+	// 清洗工单
+	orderData = make(map[string]interface{})
+	orderData["spName"] = weworkOrder.SpName
+	orderData["partyid"] = weworkOrder.Applyer.Partyid
+	orderData["userid"] = weworkOrder.Applyer.Userid
+	for _, con := range weworkOrder.ApplyData.Contents {
+		switch con.Control {
+		case "Number":
+			orderData[con.Title[0].Text] = con.Value.NewNumber
+		case "Text":
+			orderData[con.Title[0].Text] = strings.ToLower(strings.TrimSpace(con.Value.Text)) // 字符串去除空格并转为小写
+		case "Textarea":
+			orderData[con.Title[0].Text] = strings.ToLower(strings.TrimSpace(con.Value.Text)) // 字符串去除空格并转为小写
+		case "Date":
+			orderData[con.Title[0].Text] = con.Value.Date.STimestamp
+		case "Selector":
+			if con.Value.Selector.Type == "multi" { // 多选
+				tempSelectors := make([]string, len(con.Value.Selector.Options)-2)
+				for _, value := range con.Value.Selector.Options {
+					tempSelectors = append(tempSelectors, value.Value[0].Text)
+				}
+				orderData[con.Title[0].Text] = tempSelectors
+			} else { // 单选
+				orderData[con.Title[0].Text] = con.Value.Selector.Options[0].Value[0].Text
+			}
+		case "Tips": // 忽略说明类型
+			continue
+		case "Contact":
+			orderData[con.Title[0].Text] = con.Value.Members
+		default:
+			log.Log().Error("包含未处理工单项类型：%v，请及时补充后端逻辑!", con.Control)
+		}
+	}
+	return
+}
+
+// 将原始工单转换为UUAP创建工单详情结构体 以后这种方法通用与原始工单的解析
+func OriginalOrderToUuapCreateOrder(weworkOrder map[string]interface{}) (weworkOrderDetails WeworkOrderDetails) {
+	if err := mapstructure.Decode(weworkOrder, &weworkOrderDetails); err != nil {
+		log.Log().Error("原始工单转换错误:%v", err)
+	}
+	return
+}
+
+// 将原始工单转换为UUAP密码找回结构体
+func OriginalOrderToUuapResetPwdOrder(weworkOrder map[string]interface{}) (weworkOrderDetails WeworkOrderResetUuapPwd) {
+	if err := mapstructure.Decode(weworkOrder, &weworkOrderDetails); err != nil {
+		log.Log().Error("原始工单转换错误:%v", err)
+	}
+	return
 }

@@ -24,7 +24,7 @@ func Init(cfg string) {
 	log.Log().Info("#######初始化数据库:%v", &c.Database)
 	model.Init(&c.Database)
 	// 数据迁移
-	model.DB.AutoMigrate(&model.LdapCfg{}, &model.LdapField{}, &hr.HrDataConn{})
+	model.DB.AutoMigrate(&model.LdapCfg{}, &model.LdapField{}, &hr.HrDataConn{}, &model.WeworkCfg{})
 	if result := model.DB.Limit(1).Find(&model.LdapCfg{}); result.RowsAffected == 0 {
 		log.Log().Info("#######数据迁移...")
 		model.DB.Create(&c.LdapCfg)
@@ -37,5 +37,19 @@ func Init(cfg string) {
 	// 初始化ldap连接
 	log.Log().Info("#######初始化ldap连接...")
 	Conn, _ := model.GetAllLdapConn() // 直接查询
-	ldap.Init(&Conn)
+	err = ldap.Init(&Conn)
+	if err != nil {
+		log.Log().Error("初始化ldap连接错误：%v", err)
+	}
+
+	// 初始化企业微信配置信息
+	log.Log().Info("#######初始化企业微信连接...")
+	err = model.GetWeworkOrderCfg()
+	if err != nil {
+		log.Log().Error("初始化企业微信审批配置信息错误：%v", err)
+	}
+	err = model.GetWeworkUuapCfg()
+	if err != nil {
+		log.Log().Error("初始化企业微信UUAP公告应用配置信息错误：%v", err)
+	}
 }

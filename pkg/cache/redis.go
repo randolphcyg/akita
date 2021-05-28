@@ -69,8 +69,8 @@ func Init(c *Config) (err error) {
 // }
 
 // Serializer 序列化 将go结构体对象转换为字节流
-func Serializer(value interface{}) (result []byte, err error) {
-	result, err = json.Marshal(value)
+func Serializer(value interface{}) (res []byte, err error) {
+	res, err = json.Marshal(value)
 	return
 }
 
@@ -86,16 +86,16 @@ func Serializer(value interface{}) (result []byte, err error) {
 // }
 
 // Deserializer 反序列化 将字节流转换为go结构体对象
-func Deserializer(value []byte, result interface{}) (interface{}, error) {
-	err := json.Unmarshal(value, &result)
+func Deserializer(value []byte, res interface{}) (interface{}, error) {
+	err := json.Unmarshal(value, &res)
 	if err != nil {
 		log.Log().Error("get data failed, err:%v\n", err)
 		return nil, err
 	}
-	return result, nil
+	return res, nil
 }
 
-// Set 覆盖更新缓存中的键值
+// Set 存string
 func Set(key string, value interface{}) (err error) {
 	err = RedisClient.Set(ctx, key, value, 0).Err()
 	if err != nil {
@@ -105,14 +105,82 @@ func Set(key string, value interface{}) (err error) {
 	return
 }
 
-// Get 从缓存取数据
-func Get(key string, value interface{}) (result interface{}, err error) {
+// Get 取string
+func Get(key string, value interface{}) (res interface{}, err error) {
 	strCmd := RedisClient.Get(ctx, key)
 	byteValue, _ := strCmd.Bytes()
-	result, err = Serializer(byteValue)
+	res, err = Serializer(byteValue)
 	if err != nil {
 		log.Log().Error("deserializer data failed, err:%v\n", err)
 		return
+	}
+	return
+}
+
+/*
+以下是对hash操作的封装 将上下文参数隐藏 错误上抛
+*/
+// HSet hash 存储
+func HSet(key string, field string, value interface{}) (res bool, err error) {
+	RedisClient.Del(ctx, key) // 先删除
+	res, err = RedisClient.HMSet(ctx, key, map[string]interface{}{field: value}).Result()
+	if err != nil {
+		log.Log().Error("Occur error when batch set a filed:%v", err)
+	}
+	return
+}
+
+// HMSet hash 批量存储
+func HMSet(key string, data map[string]interface{}) (res bool, err error) {
+	RedisClient.Del(ctx, key) // 先删除
+	res, err = RedisClient.HMSet(ctx, key, data).Result()
+	if err != nil {
+		log.Log().Error("Occur error when batch set fileds:%v", err)
+	}
+	return
+}
+
+// HDel hash 删除
+func HDel(key string) (res int64, err error) {
+	res, err = RedisClient.Del(ctx, key).Result()
+	if err != nil {
+		log.Log().Error("Occur error when delete key:%v", err)
+	}
+	return
+}
+
+// HGet hash 获取某个元素
+func HGet(key string, field string) (res string, err error) {
+	res, err = RedisClient.HGet(ctx, key, field).Result()
+	if err != nil {
+		log.Log().Error("Occur error when get an element:%v", err)
+	}
+	return
+}
+
+// HGetAll hash 获取全部元素
+func HGetAll(key string) (data map[string]string, err error) {
+	data, err = RedisClient.HGetAll(ctx, key).Result()
+	if err != nil {
+		log.Log().Error("Occur error when get all elements:%v", err)
+	}
+	return
+}
+
+// HExists 判断元素是否存在
+func HExists(key string, field string) (res bool, err error) {
+	res, err = RedisClient.HExists(ctx, key, field).Result()
+	if err != nil {
+		log.Log().Error("Occur error when determine whether the element exists:%v", err)
+	}
+	return
+}
+
+// HLen hash 获取长度
+func HLen(key string) (res int64, err error) {
+	res, err = RedisClient.HLen(ctx, key).Result()
+	if err != nil {
+		log.Log().Error("Occur error when determine whether the element exists:%v", err)
 	}
 	return
 }

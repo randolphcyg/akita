@@ -78,18 +78,21 @@ func Init(c *model.LdapCfg) (err error) {
 	// 建立ldap连接
 	LdapConn, err = ldap.DialURL(c.ConnUrl)
 	// 设置超时时间
-	// LdapConn.SetTimeout(time.Duration(conn.Timeout))
+	// LdapConn.SetTimeout(time.Duration(c.Timeout))
 	if err != nil {
 		log.Log().Error("dial ldap url failed,err:%v", err)
+		return
 	}
 	// defer l.Close()
 	// 重新连接TLS
 	if err = LdapConn.StartTLS(&tls.Config{InsecureSkipVerify: true}); err != nil {
 		log.Log().Error("start tls failed,err:%v", err)
+		return
 	}
 	// 与只读用户绑定
 	if err = LdapConn.Bind(LdapCfg.AdminAccount, LdapCfg.Password); err != nil {
 		log.Log().Error("admin user auth failed,err:%v", err)
+		return
 	}
 	return
 }
@@ -162,7 +165,8 @@ func ExpireTime(expireDays int64) (expireTimestamp int64) {
 }
 
 // 新增用户
-func AddUser(user *LdapAttributes) (AddLdapUsersRes []bool) {
+func AddUser(user *LdapAttributes) (pwd string, err error) {
+	// 初始化创建用户请求
 	addReq := ldap.NewAddRequest(user.Dn, nil)                                                 // 指定新用户的dn 会同时给cn name字段赋值
 	addReq.Attribute("objectClass", []string{"top", "organizationalPerson", "user", "person"}) // 必填字段 否则报错 LDAP Result Code 65 "Object Class Violation"
 	addReq.Attribute("employeeNumber", []string{user.Num})                                     // 工号 暂时没用到
@@ -179,16 +183,29 @@ func AddUser(user *LdapAttributes) (AddLdapUsersRes []bool) {
 	addReq.Attribute("department", []string{user.Depart})
 	addReq.Attribute("title", []string{user.Title})
 
-	if err := LdapConn.Add(addReq); err != nil {
+	if err = LdapConn.Add(addReq); err != nil {
 		if ldap.IsErrorWithCode(err, 68) {
-			log.Log().Error("User already exist: %s", err)
+			return
 		} else {
 			log.Log().Error("User insert error: %s", err)
 		}
-		AddLdapUsersRes = append(AddLdapUsersRes, false)
 		return
 	}
-	AddLdapUsersRes = append(AddLdapUsersRes, true)
+
+	// 初始化复杂密码 pwdEncoded为
+	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
+	pwd = util.RandStringBytesMaskImprSrcUnsafe(8)                       // 密码字符串
+	pwdEncoded, err := utf16.NewEncoder().String(fmt.Sprintf("%q", pwd)) // 密码字符字面值
+	if err != nil {
+		log.Log().Error("初始化复杂密码时转码错误:%s\n", err)
+	}
+	modReq := ldap.NewModifyRequest(user.Dn, []ldap.Control{})
+	modReq.Replace("unicodePwd", []string{pwdEncoded})
+
+	if err = LdapConn.Modify(modReq); err != nil {
+		log.Log().Error("初始化复杂密码执行报错:%s\n", err)
+		return
+	}
 	return
 }
 
@@ -435,6 +452,10 @@ func CheckOuTree(newOu string) {
 // 将部门架构转换为LDAP的DN地址
 func DepartToDn(depart string) (dn string) {
 	ous := strings.Split(depart, ".")
+	// if !strings.Contains(depart, ".") {
+	// 	ous = strings.Split("合作伙伴."+depart, ".")
+	// }
+
 	var reversedOus []string = []string{}
 	for i := range ous {
 		reversedOus = append(reversedOus, ous[len(ous)-i-1])
