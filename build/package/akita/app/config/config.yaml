@@ -1,0 +1,42 @@
+system:
+  Mode: debug
+  Addr: 0.0.0.0:8099
+  Debug: true
+  
+database:
+  Type: mysql
+  UserName: root
+  Password: 密码
+  Addr: 生产数据库地址:3306
+  Name: akita
+  ShowLog: true                   # 是否打印SQL日志
+  MaxIdleConn: 10                 # 最大闲置的连接数,0意味着使用默认的大小2, 小于0表示不使用连接池
+  MaxOpenConn: 60                 # 最大打开的连接数, 需要小于数据库配置中的max_connections数
+  ConnMaxLifeTime: 60m            # 单个连接最大存活时间,建议设置比数据库超时时长(wait_timeout)稍小一些
+
+redis:
+  Addr: 生产缓存库地址:6379
+  Password: ""
+  DB: 4
+  PoolSize: 12000
+  DialTimeout: 60s
+  ReadTimeout: 500ms
+  WriteTimeout: 500ms
+
+ldapCfg:
+  ConnUrl:       ldap://生产LDAP地址:389
+  BaseDn:        DC=XXX,DC=com
+  AdminAccount:  CN=Administrator,CN=Users,DC=xxx,DC=com
+  Password:      密码
+  SslEncryption: False
+  Timeout:       5
+
+email:
+  Host: SMTP_HOST       # SMTP地址
+  Port: 25              # 端口
+  Username: USER        # 用户名
+  Password: PASSWORD    # 密码
+  Name: SRE           # 发送者名称
+  Address: SEND_EMAIL   # 发送者邮箱
+  ReplyTo: EMAIL       # 回复地址
+  KeepAlive: 30         # 连接保持时长

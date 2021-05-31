@@ -38,7 +38,7 @@ func (service *Order) HandleOrders(o *Order) serializer.Response {
 	}
 
 	// 将原始工单结构体转换为对应要求工单数据 工单分流
-	if orderData["spName"] == "UUAP账号申请工单" {
+	if orderData["spName"] == "UUAP账号申请" {
 		weworkOrder := order.OriginalOrderToUuapCreateOrder(orderData)
 		orderUuapCreate(weworkOrder)
 	} else if orderData["spName"] == "UUAP密码找回" {
@@ -100,5 +100,6 @@ func orderUuapCreate(weworkOrderDetails order.WeworkOrderDetails) (err error) {
 	if err != nil {
 		log.Log().Error("发送企业微信通知错误：%v", err)
 	}
+	log.Log().Info("已经发送企业微信消息给【" + weworkOrderDetails.Userid + "】")
 	return
 }
