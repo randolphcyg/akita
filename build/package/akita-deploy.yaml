@@ -2,14 +2,14 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: akita-server
+  name: akita
   namespace: 【命名空间】
   labels:
-    app: akita-server
+    app: akita
 spec:
   selector:
     matchLabels:
-      app: akita-server
+      app: akita
   replicas: 1
   revisionHistoryLimit: 10
   minReadySeconds: 5
@@ -21,12 +21,12 @@ spec:
   template:
     metadata:
       labels:
-        app: akita-server
+        app: akita
     spec:
       containers:
       - image: 【镜像仓库地址】/akita:0.0.1
         imagePullPolicy: IfNotPresent
-        name: akita-server
+        name: akita
         ports:
         - containerPort: 8099
           protocol: TCP
@@ -42,3 +42,10 @@ spec:
             port: 8099
           initialDelaySeconds: 10
           timeoutSeconds: 3
+        readinessProbe:
+          httpGet:
+            path: /api/v1/site/ping
+            port: 8099
+          initialDelaySeconds: 10
+          periodSeconds: 60
+          timeoutSeconds: 2
