@@ -91,18 +91,30 @@ type WeworkOrder struct {
 				}
 				// 明细控件（control参数为Table）
 				Children []struct {
-					List []struct {
-						Control string `mapstructure:"control"`
-						Id      string `mapstructure:"id"`
-						Title   []struct {
-							Text string `mapstructure:"text"`
-							Lang string `mapstructure:"lang"`
-						} `mapstructure:"title"`
-						Value []struct {
-							Text string `mapstructure:"text"`
-						} `mapstructure:"value"`
-					} `mapstructure:"list"`
+					Id      string `mapstructure:"id"`
+					Control string `mapstructure:"control"`
+					Title   []struct {
+						Text string `mapstructure:"text"`
+						Lang string `mapstructure:"lang"`
+					} `mapstructure:"title"`
+
+					Value []struct {
+						Children []struct {
+							List []struct {
+								Control string `mapstructure:"control"`
+								Id      string `mapstructure:"id"`
+								Title   []struct {
+									Text string `mapstructure:"text"`
+									Lang string `mapstructure:"lang"`
+								} `mapstructure:"title"`
+								// 		Value   []struct {
+								// 			Text string `mapstructure:"text"`
+								// 		} `mapstructure:"value"`
+							} `mapstructure:"list"`
+						} `mapstructure:"children"`
+					} `mapstructure:"value"`
 				} `mapstructure:"children"`
+
 				// 时长组件（control参数为DateRange）
 				DateRange struct {
 					Type        string `mapstructure:"type"`
@@ -150,8 +162,8 @@ type WeworkOrder struct {
 	} `mapstructure:"comments"`
 }
 
-// 将企业微信原始工单转换为对应工单
-func RawOrderToObj(rawInfo interface{}) (orderData map[string]interface{}, err error) {
+// 解析企业微信原始工单
+func ParseRawOrder(rawInfo interface{}) (orderData map[string]interface{}, err error) {
 	var weworkOrder WeworkOrder
 	// 反序列化工单详情
 	if err = mapstructure.Decode(rawInfo, &weworkOrder); err != nil {
@@ -194,6 +206,8 @@ func RawOrderToObj(rawInfo interface{}) (orderData map[string]interface{}, err e
 			continue
 		case "Contact":
 			orderData[con.Title[0].Text] = con.Value.Members
+		case "Table":
+			log.Log().Info("%v", con)
 		default:
 			log.Log().Error("包含未处理工单项类型：%v，请及时补充后端逻辑!", con.Control)
 		}
@@ -216,7 +230,7 @@ type WeworkOrderDetailsUuapRegister struct {
 }
 
 // 原始工单转换为UUAP注册工单结构体
-func OriginalToUuapRegister(weworkOrder map[string]interface{}) (orderDetails WeworkOrderDetailsUuapRegister) {
+func RawToUuapRegister(weworkOrder map[string]interface{}) (orderDetails WeworkOrderDetailsUuapRegister) {
 	if err := mapstructure.Decode(weworkOrder, &orderDetails); err != nil {
 		log.Log().Error("原始工单转换错误:%v", err)
 	}
@@ -224,7 +238,7 @@ func OriginalToUuapRegister(weworkOrder map[string]interface{}) (orderDetails We
 }
 
 // UUAP密码找回 工单详情
-type WeworkOrderDetailsUuapPwdReset struct {
+type WeworkOrderDetailsUuapPwdRetrieve struct {
 	SpName string `mapstructure:"spName"`
 	Userid string `mapstructure:"userid"`
 	Name   string `mapstructure:"姓名"`
@@ -232,7 +246,25 @@ type WeworkOrderDetailsUuapPwdReset struct {
 }
 
 // 原始工单转换为UUAP密码找回结构体
-func OriginalToUuapResetPwd(weworkOrder map[string]interface{}) (orderDetails WeworkOrderDetailsUuapPwdReset) {
+func RawToUuapPwdRetrieve(weworkOrder map[string]interface{}) (orderDetails WeworkOrderDetailsUuapPwdRetrieve) {
+	if err := mapstructure.Decode(weworkOrder, &orderDetails); err != nil {
+		log.Log().Error("原始工单转换错误:%v", err)
+	}
+	return
+}
+
+// UUAP账号注销 工单详情
+type WeworkOrderDetailsUuapDisable struct {
+	SpName string `mapstructure:"spName"`
+	Userid string `mapstructure:"userid"`
+	People []struct {
+		Name string `mapstructure:"姓名"`
+		Uuap string `mapstructure:"工号"`
+	}
+}
+
+// 原始工单转换为UUAP账号注销结构体
+func RawToUuapPwdDisable(weworkOrder map[string]interface{}) (orderDetails WeworkOrderDetailsUuapDisable) {
 	if err := mapstructure.Decode(weworkOrder, &orderDetails); err != nil {
 		log.Log().Error("原始工单转换错误:%v", err)
 	}

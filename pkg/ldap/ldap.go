@@ -1,7 +1,6 @@
 package ldap
 
 import (
-	"crypto/tls"
 	"fmt"
 	"strconv"
 	"strings"
@@ -85,10 +84,10 @@ func Init(c *model.LdapCfg) (err error) {
 	}
 	// defer l.Close()
 	// 重新连接TLS
-	if err = LdapConn.StartTLS(&tls.Config{InsecureSkipVerify: true}); err != nil {
-		log.Log().Error("start tls failed,err:%v", err)
-		return
-	}
+	// if err = LdapConn.StartTLS(&tls.Config{InsecureSkipVerify: true}); err != nil {
+	// 	log.Log().Error("start tls failed,err:%v", err)
+	// 	return
+	// }
 	// 与只读用户绑定
 	if err = LdapConn.Bind(LdapCfg.AdminAccount, LdapCfg.Password); err != nil {
 		log.Log().Error("admin user auth failed,err:%v", err)
@@ -210,7 +209,7 @@ func AddUser(user *LdapAttributes) (pwd string, err error) {
 }
 
 // 密码找回
-func (user *LdapAttributes) ResetPwd() (sam string, newPwd string, err error) {
+func (user *LdapAttributes) RetrievePwd() (sam string, newPwd string, err error) {
 	entry, _ := FetchUser(user)
 	sam = entry.GetAttributeValue("sAMAccountName")
 	// 初始化复杂密码

@@ -30,23 +30,28 @@ func (service *Order) HandleOrders(o *Order) serializer.Response {
 	if err != nil {
 		log.Log().Error("Occur error when get approval detail:%v", err)
 	}
-	// 将企业微信原始工单转换为对应工单
-	orderData, err := order.RawOrderToObj(response["info"])
+	// 解析企业微信原始工单
+	orderData, err := order.ParseRawOrder(response["info"])
 	if err != nil {
 		log.Log().Error("%v", err)
-		return serializer.Err(-1, "Occur error when handle original wework order:%v", err)
+		return serializer.Err(-1, "Occur error when handle raw wework order:%v", err)
 	}
 	// 工单分流 将原始工单结构体转换为对应要求工单数据
 	switch orderData["spName"] {
 	case "UUAP账号注册":
 		{
-			weworkOrder := order.OriginalToUuapRegister(orderData)
+			weworkOrder := order.RawToUuapRegister(orderData)
 			handleOrderUuapRegister(weworkOrder)
 		}
 	case "UUAP密码找回":
 		{
-			weworkOrder := order.OriginalToUuapResetPwd(orderData)
-			handleOrderUuapPwdReset(weworkOrder)
+			weworkOrder := order.RawToUuapPwdRetrieve(orderData)
+			handleOrderUuapPwdRetrieve(weworkOrder)
+		}
+	case "UUAP账号注销":
+		{
+			weworkOrder := order.RawToUuapPwdDisable(orderData)
+			handleOrderUuapDisable(weworkOrder)
 		}
 	default:
 		log.Log().Error("无任何匹配工单,请检查tabby工单名称列表是否有此工单~")
@@ -105,24 +110,21 @@ func handleOrderUuapRegister(order order.WeworkOrderDetailsUuapRegister) (err er
 }
 
 // UUAP密码找回 工单
-func handleOrderUuapPwdReset(order order.WeworkOrderDetailsUuapPwdReset) (err error) {
-	log.Log().Info("%v", order)
-
+func handleOrderUuapPwdRetrieve(order order.WeworkOrderDetailsUuapPwdRetrieve) (err error) {
 	user := &ldap.LdapAttributes{
 		Num:         order.Uuap,
 		Name:        order.Name,
 		DisplayName: order.Name,
 	}
 
-	sam, newPwd, err := user.ResetPwd()
+	sam, newPwd, err := user.RetrievePwd()
 	if err != nil {
 		log.Log().Error("%s", err)
 	}
-	log.Log().Info(newPwd)
 
 	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
 	// 创建成功发送企业微信消息 将企业微信MD消息模板缓存在redis
-	createUuapWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_pwd_reset")
+	createUuapWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_pwd_retrieve")
 	if err != nil {
 		log.Log().Error("读取企业微信消息模板错误:%v", err)
 	}
@@ -138,5 +140,11 @@ func handleOrderUuapPwdReset(order order.WeworkOrderDetailsUuapPwdReset) (err er
 		log.Log().Error("发送企业微信通知错误：%v", err)
 	}
 	log.Log().Info("已经发送企业微信消息给【" + order.Userid + "】")
+	return
+}
+
+// UUAP账号注销 工单 TODO
+func handleOrderUuapDisable(order order.WeworkOrderDetailsUuapDisable) (err error) {
+	log.Log().Info("%v", order)
 	return
 }
