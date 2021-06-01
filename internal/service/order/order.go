@@ -19,7 +19,7 @@ type Order struct {
 	SpNo string `json:"sp_no"`
 }
 
-// 处理工单
+// 企业微信工单处理总入口
 func (service *Order) HandleOrders(o *Order) serializer.Response {
 	// 实例化 API 类 企业微信配置保存到数据库，系统初始化时加载到环境变量中
 	corpAPI := api.NewCorpAPI(model.WeworkOrderCfg.CorpId, model.WeworkOrderCfg.AppSecret)
@@ -34,46 +34,46 @@ func (service *Order) HandleOrders(o *Order) serializer.Response {
 	orderData, err := order.RawOrderToObj(response["info"])
 	if err != nil {
 		log.Log().Error("%v", err)
-		return serializer.Err(-1, "处理原始企业微信工单报错!", err)
+		return serializer.Err(-1, "Occur error when handle original wework order:%v", err)
 	}
-
-	// 将原始工单结构体转换为对应要求工单数据 工单分流
-	if orderData["spName"] == "UUAP账号申请" {
-		weworkOrder := order.OriginalOrderToUuapCreateOrder(orderData)
-		orderUuapCreate(weworkOrder)
-	} else if orderData["spName"] == "UUAP密码找回" {
-		weworkOrder := order.OriginalOrderToUuapResetPwdOrder(orderData)
-		orderUuapPwdReset(weworkOrder)
+	// 工单分流 将原始工单结构体转换为对应要求工单数据
+	switch orderData["spName"] {
+	case "UUAP账号注册":
+		{
+			weworkOrder := order.OriginalToUuapRegister(orderData)
+			handleOrderUuapRegister(weworkOrder)
+		}
+	case "UUAP密码找回":
+		{
+			weworkOrder := order.OriginalToUuapResetPwd(orderData)
+			handleOrderUuapPwdReset(weworkOrder)
+		}
+	default:
+		log.Log().Error("无任何匹配工单,请检查tabby工单名称列表是否有此工单~")
 	}
 
 	return serializer.Response{Data: 0, Msg: "thanks,tabby! 工单处理中..."}
 }
 
-// 工单-UUAP重置密码 TODO：具体实现贯通测试
-func orderUuapPwdReset(o order.WeworkOrderResetUuapPwd) (err error) {
-	log.Log().Info(o.Uuap)
-	return
-}
-
-// 工单-UUAP创建用户
-func orderUuapCreate(weworkOrderDetails order.WeworkOrderDetails) (err error) {
+// UUAP账号注册 工单
+func handleOrderUuapRegister(order order.WeworkOrderDetailsUuapRegister) (err error) {
 	// 组装LDAP用户数据
-	name := []rune(weworkOrderDetails.Name)
+	name := []rune(order.Name)
 	user := &ldap.LdapAttributes{
-		Dn:          "CN=" + string(name) + weworkOrderDetails.Eid + "," + ldap.DepartToDn(weworkOrderDetails.Depart),
-		Num:         weworkOrderDetails.Eid,
-		Sam:         weworkOrderDetails.Eid,
+		Dn:          "CN=" + string(name) + order.Eid + "," + ldap.DepartToDn(order.Depart),
+		Num:         order.Eid,
+		Sam:         order.Eid,
 		AccountCtl:  "544",
 		Expire:      ldap.ExpireTime(int64(-1)), // 永不过期
 		Sn:          string(name[0]),
 		PwdLastSet:  "0",
 		DisplayName: string(name),
 		GivenName:   string(name[1:]),
-		Email:       weworkOrderDetails.Mail,
-		Phone:       weworkOrderDetails.Mobile,
-		Company:     strings.Split(weworkOrderDetails.Depart, ".")[0],
-		Depart:      strings.Split(weworkOrderDetails.Depart, ".")[strings.Count(weworkOrderDetails.Depart, ".")],
-		Title:       weworkOrderDetails.Title,
+		Email:       order.Mail,
+		Phone:       order.Mobile,
+		Company:     strings.Split(order.Depart, ".")[0],
+		Depart:      strings.Split(order.Depart, ".")[strings.Count(order.Depart, ".")],
+		Title:       order.Title,
 	}
 
 	// 创建LDAP用户 生成初始密码
@@ -85,21 +85,58 @@ func orderUuapCreate(weworkOrderDetails order.WeworkOrderDetails) (err error) {
 
 	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
 	// 创建成功发送企业微信消息 将企业微信MD消息模板缓存在redis
-	createUuapWeworkMsgTemplate, err := cache.HGet("wework_templates", "uuap_create_ww_template")
+	createUuapWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_uuap_register")
 	if err != nil {
 		log.Log().Error("读取企业微信消息模板错误:%v", err)
 	}
 	_, err = corpAPIMsg.MessageSend(map[string]interface{}{
-		"touser":  weworkOrderDetails.Userid,
+		"touser":  order.Userid,
 		"msgtype": "markdown",
 		"agentid": model.WeworkUuapCfg.AppId,
 		"markdown": map[string]interface{}{
-			"content": fmt.Sprintf(createUuapWeworkMsgTemplate, weworkOrderDetails.Eid, pwd),
+			"content": fmt.Sprintf(createUuapWeworkMsgTemplate, order.SpName, order.Eid, pwd),
 		},
 	})
 	if err != nil {
 		log.Log().Error("发送企业微信通知错误：%v", err)
 	}
-	log.Log().Info("已经发送企业微信消息给【" + weworkOrderDetails.Userid + "】")
+	log.Log().Info("已经发送企业微信消息给【" + order.Userid + "】")
+	return
+}
+
+// UUAP密码找回 工单
+func handleOrderUuapPwdReset(order order.WeworkOrderDetailsUuapPwdReset) (err error) {
+	log.Log().Info("%v", order)
+
+	user := &ldap.LdapAttributes{
+		Num:         order.Uuap,
+		Name:        order.Name,
+		DisplayName: order.Name,
+	}
+
+	sam, newPwd, err := user.ResetPwd()
+	if err != nil {
+		log.Log().Error("%s", err)
+	}
+	log.Log().Info(newPwd)
+
+	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
+	// 创建成功发送企业微信消息 将企业微信MD消息模板缓存在redis
+	createUuapWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_pwd_reset")
+	if err != nil {
+		log.Log().Error("读取企业微信消息模板错误:%v", err)
+	}
+	_, err = corpAPIMsg.MessageSend(map[string]interface{}{
+		"touser":  order.Userid,
+		"msgtype": "markdown",
+		"agentid": model.WeworkUuapCfg.AppId,
+		"markdown": map[string]interface{}{
+			"content": fmt.Sprintf(createUuapWeworkMsgTemplate, order.SpName, sam, newPwd),
+		},
+	})
+	if err != nil {
+		log.Log().Error("发送企业微信通知错误：%v", err)
+	}
+	log.Log().Info("已经发送企业微信消息给【" + order.Userid + "】")
 	return
 }

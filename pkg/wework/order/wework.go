@@ -150,26 +150,6 @@ type WeworkOrder struct {
 	} `mapstructure:"comments"`
 }
 
-// 处理后的工单详情 这里维护与企业微信工单对应关系
-type WeworkOrderDetails struct {
-	SpName  string `mapstructure:"spName"`
-	Partyid string `mapstructure:"partyid"`
-	Userid  string `mapstructure:"userid"`
-	Remarks string `mapstructure:"备注"`
-	Name    string `mapstructure:"姓名"`
-	Title   string `mapstructure:"岗位"`
-	Eid     string `mapstructure:"工号"`
-	Mobile  string `mapstructure:"手机"`
-	Mail    string `mapstructure:"邮箱"`
-	Depart  string `mapstructure:"部门"`
-}
-
-// 找回密码工单
-type WeworkOrderResetUuapPwd struct {
-	Name string `mapstructure:"姓名"`
-	Uuap string `mapstructure:"UUAP账号"`
-}
-
 // 将企业微信原始工单转换为对应工单
 func RawOrderToObj(rawInfo interface{}) (orderData map[string]interface{}, err error) {
 	var weworkOrder WeworkOrder
@@ -221,17 +201,39 @@ func RawOrderToObj(rawInfo interface{}) (orderData map[string]interface{}, err e
 	return
 }
 
-// 将原始工单转换为UUAP创建工单详情结构体 以后这种方法通用与原始工单的解析
-func OriginalOrderToUuapCreateOrder(weworkOrder map[string]interface{}) (weworkOrderDetails WeworkOrderDetails) {
-	if err := mapstructure.Decode(weworkOrder, &weworkOrderDetails); err != nil {
+// UUAP账号注册 工单详情
+type WeworkOrderDetailsUuapRegister struct {
+	SpName  string `mapstructure:"spName"`
+	Partyid string `mapstructure:"partyid"`
+	Userid  string `mapstructure:"userid"`
+	Remarks string `mapstructure:"备注"`
+	Name    string `mapstructure:"姓名"`
+	Title   string `mapstructure:"岗位"`
+	Eid     string `mapstructure:"工号"`
+	Mobile  string `mapstructure:"手机"`
+	Mail    string `mapstructure:"邮箱"`
+	Depart  string `mapstructure:"部门"`
+}
+
+// 原始工单转换为UUAP注册工单结构体
+func OriginalToUuapRegister(weworkOrder map[string]interface{}) (orderDetails WeworkOrderDetailsUuapRegister) {
+	if err := mapstructure.Decode(weworkOrder, &orderDetails); err != nil {
 		log.Log().Error("原始工单转换错误:%v", err)
 	}
 	return
 }
 
-// 将原始工单转换为UUAP密码找回结构体
-func OriginalOrderToUuapResetPwdOrder(weworkOrder map[string]interface{}) (weworkOrderDetails WeworkOrderResetUuapPwd) {
-	if err := mapstructure.Decode(weworkOrder, &weworkOrderDetails); err != nil {
+// UUAP密码找回 工单详情
+type WeworkOrderDetailsUuapPwdReset struct {
+	SpName string `mapstructure:"spName"`
+	Userid string `mapstructure:"userid"`
+	Name   string `mapstructure:"姓名"`
+	Uuap   string `mapstructure:"工号"`
+}
+
+// 原始工单转换为UUAP密码找回结构体
+func OriginalToUuapResetPwd(weworkOrder map[string]interface{}) (orderDetails WeworkOrderDetailsUuapPwdReset) {
+	if err := mapstructure.Decode(weworkOrder, &orderDetails); err != nil {
 		log.Log().Error("原始工单转换错误:%v", err)
 	}
 	return

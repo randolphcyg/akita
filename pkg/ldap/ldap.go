@@ -192,7 +192,7 @@ func AddUser(user *LdapAttributes) (pwd string, err error) {
 		return
 	}
 
-	// 初始化复杂密码 pwdEncoded为
+	// 初始化复杂密码
 	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
 	pwd = util.RandStringBytesMaskImprSrcUnsafe(8)                       // 密码字符串
 	pwdEncoded, err := utf16.NewEncoder().String(fmt.Sprintf("%q", pwd)) // 密码字符字面值
@@ -204,6 +204,27 @@ func AddUser(user *LdapAttributes) (pwd string, err error) {
 
 	if err = LdapConn.Modify(modReq); err != nil {
 		log.Log().Error("初始化复杂密码执行报错:%s\n", err)
+		return
+	}
+	return
+}
+
+// 密码找回
+func (user *LdapAttributes) ResetPwd() (sam string, newPwd string, err error) {
+	entry, _ := FetchUser(user)
+	sam = entry.GetAttributeValue("sAMAccountName")
+	// 初始化复杂密码
+	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
+	newPwd = util.RandStringBytesMaskImprSrcUnsafe(8)                       // 密码字符串
+	pwdEncoded, err := utf16.NewEncoder().String(fmt.Sprintf("%q", newPwd)) // 密码字符字面值
+	if err != nil {
+		log.Log().Error("重置密码时转码错误:%s\n", err)
+	}
+	modReq := ldap.NewModifyRequest(entry.DN, []ldap.Control{})
+	modReq.Replace("unicodePwd", []string{pwdEncoded})
+
+	if err = LdapConn.Modify(modReq); err != nil {
+		log.Log().Error("重置密码执行报错:%s\n", err)
 		return
 	}
 	return
@@ -228,11 +249,13 @@ func (user *LdapAttributes) ModifyPwd(newUserPwd string) (err error) {
 	return
 }
 
-// 根据cn查询用户
+/* 根据cn查询用户 注意: cn查询不到则会返回管理员用户
+ * 这里的查询条件必须保证每个用户必须有
+ * 根据cn查询用户 [sam登录名字段也出现了不同的版本 邮箱\手机号都可能更换掉 真实姓名存在重复可能]
+ */
 func FetchUser(user *LdapAttributes) (result *ldap.Entry, err error) {
-	// 这里的查询条件必须保证每个用户必须有
-	// 根据cn查询用户 [sam登录名字段也出现了不同的版本 邮箱\手机号都可能更换掉 真实姓名存在重复可能]
 	ldapFilterCn := "(cn=" + user.Name + user.Num + ")"
+	log.Log().Error(ldapFilterCn)
 	searchFilter := "(objectClass=organizationalPerson)"
 
 	if user.Name != "" && user.Num != "" {
