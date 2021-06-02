@@ -1,6 +1,7 @@
 package ldap
 
 import (
+	"crypto/tls"
 	"fmt"
 	"strconv"
 	"strings"
@@ -76,18 +77,17 @@ func Init(c *model.LdapCfg) (err error) {
 	}
 	// 建立ldap连接
 	LdapConn, err = ldap.DialURL(c.ConnUrl)
-	// 设置超时时间
-	// LdapConn.SetTimeout(time.Duration(c.Timeout))
 	if err != nil {
 		log.Log().Error("dial ldap url failed,err:%v", err)
 		return
 	}
-	// defer l.Close()
+
 	// 重新连接TLS
-	// if err = LdapConn.StartTLS(&tls.Config{InsecureSkipVerify: true}); err != nil {
-	// 	log.Log().Error("start tls failed,err:%v", err)
-	// 	return
-	// }
+	if err = LdapConn.StartTLS(&tls.Config{InsecureSkipVerify: true}); err != nil {
+		log.Log().Error("start tls failed,err:%v", err)
+		return
+	}
+
 	// 与只读用户绑定
 	if err = LdapConn.Bind(LdapCfg.AdminAccount, LdapCfg.Password); err != nil {
 		log.Log().Error("admin user auth failed,err:%v", err)
@@ -193,7 +193,8 @@ func AddUser(user *LdapAttributes) (pwd string, err error) {
 
 	// 初始化复杂密码
 	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
-	pwd = util.RandStringBytesMaskImprSrcUnsafe(8)                       // 密码字符串
+	pwd = util.PwdGenerator(8) // 密码字符串
+	log.Log().Info(pwd)
 	pwdEncoded, err := utf16.NewEncoder().String(fmt.Sprintf("%q", pwd)) // 密码字符字面值
 	if err != nil {
 		log.Log().Error("初始化复杂密码时转码错误:%s\n", err)
@@ -214,7 +215,7 @@ func (user *LdapAttributes) RetrievePwd() (sam string, newPwd string, err error)
 	sam = entry.GetAttributeValue("sAMAccountName")
 	// 初始化复杂密码
 	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
-	newPwd = util.RandStringBytesMaskImprSrcUnsafe(8)                       // 密码字符串
+	newPwd = util.PwdGenerator(8)                                           // 密码字符串
 	pwdEncoded, err := utf16.NewEncoder().String(fmt.Sprintf("%q", newPwd)) // 密码字符字面值
 	if err != nil {
 		log.Log().Error("重置密码时转码错误:%s\n", err)
