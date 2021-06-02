@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"gitee.com/RandolphCYG/akita/bootstrap"
 	"gitee.com/RandolphCYG/akita/internal/model"
 	"gitee.com/RandolphCYG/akita/pkg/hr"
 	"gitee.com/RandolphCYG/akita/pkg/ldap"
@@ -99,7 +100,7 @@ func (service *HrDataService) HrToLdap(h HrDataService) serializer.Response {
 	for _, user := range hrUsers {
 		if user.Stat == "离职" { //离职员工
 			userStat = "546"
-			dn = "OU=disabled," + ldap.LdapCfg.BaseDn
+			dn = "OU=disabled," + bootstrap.LdapCfg.BaseDn
 			expire = 0 // 账号失效
 		} else { // 在职员工
 			userStat = "544"

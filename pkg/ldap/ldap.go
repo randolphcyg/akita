@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"gitee.com/RandolphCYG/akita/bootstrap"
 	"gitee.com/RandolphCYG/akita/internal/model"
 	"gitee.com/RandolphCYG/akita/pkg/log"
 	"gitee.com/RandolphCYG/akita/pkg/util"
@@ -98,6 +99,11 @@ func Init(c *model.LdapCfg) (err error) {
 
 // 多条件查询用户 返回符合搜索条件的用户列表
 func FetchLdapUsers(user *LdapAttributes) (result []*ldap.Entry) {
+	// 初始化连接
+	err := Init(&bootstrap.LdapCfg)
+	if err != nil {
+		log.Log().Error("Occur error when get ldap connection:%v", err)
+	}
 	// 多查询条件
 	ldapFilterNum := "(employeeNumber=" + user.Num + ")"
 	ldapFilterSam := "(sAMAccountName=" + user.Sam + ")"
@@ -137,7 +143,7 @@ func FetchLdapUsers(user *LdapAttributes) (result []*ldap.Entry) {
 	searchFilter = "(&" + searchFilter + ")"
 
 	searchRequest := ldap.NewSearchRequest(
-		LdapCfg.BaseDn,
+		bootstrap.LdapCfg.BaseDn,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
 		searchFilter,
 		attrs,
@@ -165,6 +171,11 @@ func ExpireTime(expireDays int64) (expireTimestamp int64) {
 
 // 新增用户
 func AddUser(user *LdapAttributes) (pwd string, err error) {
+	// 初始化连接
+	err = Init(&bootstrap.LdapCfg)
+	if err != nil {
+		log.Log().Error("Occur error when get ldap connection:%v", err)
+	}
 	// 初始化创建用户请求
 	addReq := ldap.NewAddRequest(user.Dn, nil)                                                 // 指定新用户的dn 会同时给cn name字段赋值
 	addReq.Attribute("objectClass", []string{"top", "organizationalPerson", "user", "person"}) // 必填字段 否则报错 LDAP Result Code 65 "Object Class Violation"
@@ -193,8 +204,7 @@ func AddUser(user *LdapAttributes) (pwd string, err error) {
 
 	// 初始化复杂密码
 	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
-	pwd = util.PwdGenerator(8) // 密码字符串
-	log.Log().Info(pwd)
+	pwd = util.PwdGenerator(8)                                           // 密码字符串
 	pwdEncoded, err := utf16.NewEncoder().String(fmt.Sprintf("%q", pwd)) // 密码字符字面值
 	if err != nil {
 		log.Log().Error("初始化复杂密码时转码错误:%s\n", err)
@@ -211,6 +221,11 @@ func AddUser(user *LdapAttributes) (pwd string, err error) {
 
 // 密码找回
 func (user *LdapAttributes) RetrievePwd() (sam string, newPwd string, err error) {
+	// 初始化连接
+	err = Init(&bootstrap.LdapCfg)
+	if err != nil {
+		log.Log().Error("Occur error when get ldap connection:%v", err)
+	}
 	entry, _ := FetchUser(user)
 	sam = entry.GetAttributeValue("sAMAccountName")
 	// 初始化复杂密码
@@ -232,6 +247,11 @@ func (user *LdapAttributes) RetrievePwd() (sam string, newPwd string, err error)
 
 // 修改用户密码 这种修改密码的方法有延迟性 大约五分钟，新旧密码都能使用
 func (user *LdapAttributes) ModifyPwd(newUserPwd string) (err error) {
+	// 初始化连接
+	err = Init(&bootstrap.LdapCfg)
+	if err != nil {
+		log.Log().Error("Occur error when get ldap connection:%v", err)
+	}
 	entry, _ := FetchUser(user)
 	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
 	pwdEncoded, err := utf16.NewEncoder().String(fmt.Sprintf("%q", newUserPwd))
@@ -254,6 +274,12 @@ func (user *LdapAttributes) ModifyPwd(newUserPwd string) (err error) {
  * 根据cn查询用户 [sam登录名字段也出现了不同的版本 邮箱\手机号都可能更换掉 真实姓名存在重复可能]
  */
 func FetchUser(user *LdapAttributes) (result *ldap.Entry, err error) {
+	// 初始化连接
+	err = Init(&bootstrap.LdapCfg)
+	if err != nil {
+		log.Log().Error("Occur error when get ldap connection:%v", err)
+	}
+
 	ldapFilterCn := "(cn=" + user.Name + user.Num + ")"
 	log.Log().Error(ldapFilterCn)
 	searchFilter := "(objectClass=organizationalPerson)"
@@ -264,7 +290,7 @@ func FetchUser(user *LdapAttributes) (result *ldap.Entry, err error) {
 	searchFilter = "(&" + searchFilter + ")"
 
 	searchRequest := ldap.NewSearchRequest(
-		LdapCfg.BaseDn,
+		bootstrap.LdapCfg.BaseDn,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
 		searchFilter,
 		attrs,
@@ -284,6 +310,12 @@ func FetchUser(user *LdapAttributes) (result *ldap.Entry, err error) {
 
 // ldap用户方法——修改dn
 func (user *LdapAttributes) ModifyDn(cn string) {
+	// 初始化连接
+	err := Init(&bootstrap.LdapCfg)
+	if err != nil {
+		log.Log().Error("Occur error when get ldap connection:%v", err)
+	}
+
 	entry, _ := FetchUser(user)
 	cn = "CN=" + cn
 	modReq := ldap.NewModifyDNRequest(entry.DN, cn, true, "")
@@ -294,6 +326,11 @@ func (user *LdapAttributes) ModifyDn(cn string) {
 
 // ldap用户方法——移动dn
 func (user *LdapAttributes) MoveDn(newOu string) {
+	// 初始化连接
+	err := Init(&bootstrap.LdapCfg)
+	if err != nil {
+		log.Log().Error("Occur error when get ldap connection:%v", err)
+	}
 	entry, _ := FetchUser(user)
 	cn := strings.Split(entry.DN, ",")[0]
 	movReq := ldap.NewModifyDNRequest(entry.DN, cn, true, newOu)
@@ -305,6 +342,11 @@ func (user *LdapAttributes) MoveDn(newOu string) {
 
 // 将ldap库的entry类型转换为自定义类型LdapAttributes
 func NewUser(entry *ldap.Entry) *LdapAttributes {
+	// 初始化连接
+	err := Init(&bootstrap.LdapCfg)
+	if err != nil {
+		log.Log().Error("Occur error when get ldap connection:%v", err)
+	}
 	expire, _ := strconv.ParseInt(entry.GetAttributeValue("accountExpires"), 10, 64)
 	return &LdapAttributes{
 		Num:         entry.GetAttributeValue("employeeNumber"),
@@ -328,6 +370,11 @@ func NewUser(entry *ldap.Entry) *LdapAttributes {
 
 // Updateldap用户方法——更新用户信息
 func (user *LdapAttributes) Update() {
+	// 初始化连接
+	err := Init(&bootstrap.LdapCfg)
+	if err != nil {
+		log.Log().Error("Occur error when get ldap connection:%v", err)
+	}
 	entry, err := FetchUser(user)
 	if err != nil {
 		log.Log().Error("fetch user failed:%s", err)
@@ -380,6 +427,11 @@ func (user *LdapAttributes) Update() {
 
 // ldap用户方法——手动修改用户信息
 func (user *LdapAttributes) ModifyInfo() {
+	// 初始化连接
+	err := Init(&bootstrap.LdapCfg)
+	if err != nil {
+		log.Log().Error("Occur error when get ldap connection:%v", err)
+	}
 	entry, err := FetchUser(user)
 
 	if err != nil {
@@ -425,8 +477,13 @@ func (user *LdapAttributes) ModifyInfo() {
 
 // 查询OU是否存在
 func IsOuExist(newOu string) (isOuExist bool) {
+	// 初始化连接
+	err := Init(&bootstrap.LdapCfg)
+	if err != nil {
+		log.Log().Error("Occur error when get ldap connection:%v", err)
+	}
 	searchRequest := ldap.NewSearchRequest(
-		LdapCfg.BaseDn,
+		bootstrap.LdapCfg.BaseDn,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
 		"(&(objectClass=organizationalUnit)(distinguishedName="+newOu+"))",
 		attrs,
@@ -447,6 +504,11 @@ func IsOuExist(newOu string) (isOuExist bool) {
 
 // 新增OU 只处理当前OU，不考虑父子OU
 func AddOu(newOu string) {
+	// 初始化连接
+	err := Init(&bootstrap.LdapCfg)
+	if err != nil {
+		log.Log().Error("Occur error when get ldap connection:%v", err)
+	}
 	// 新增逻辑
 	addReq := ldap.NewAddRequest(newOu, []ldap.Control{})
 	addReq.Attribute("objectClass", []string{"top", "organizationalUnit"})
@@ -475,15 +537,12 @@ func CheckOuTree(newOu string) {
 // 将部门架构转换为LDAP的DN地址
 func DepartToDn(depart string) (dn string) {
 	ous := strings.Split(depart, ".")
-	// if !strings.Contains(depart, ".") {
-	// 	ous = strings.Split("合作伙伴."+depart, ".")
-	// }
 
 	var reversedOus []string = []string{}
 	for i := range ous {
 		reversedOus = append(reversedOus, ous[len(ous)-i-1])
 	}
 	dn = strings.Join(reversedOus, ",OU=")
-	dn = "OU=" + dn + "," + LdapCfg.BaseDn
+	dn = "OU=" + dn + "," + bootstrap.LdapCfg.BaseDn
 	return
 }

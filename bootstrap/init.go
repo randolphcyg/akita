@@ -4,10 +4,13 @@ import (
 	"gitee.com/RandolphCYG/akita/internal/conf"
 	"gitee.com/RandolphCYG/akita/pkg/cache"
 	"gitee.com/RandolphCYG/akita/pkg/hr"
-	"gitee.com/RandolphCYG/akita/pkg/ldap"
 	"gitee.com/RandolphCYG/akita/pkg/log"
 
 	"gitee.com/RandolphCYG/akita/internal/model"
+)
+
+var (
+	LdapCfg model.LdapCfg
 )
 
 // Init 初始化启动
@@ -36,11 +39,7 @@ func Init(cfg string) {
 
 	// 初始化ldap连接
 	log.Log().Info("#######初始化ldap连接...")
-	Conn, _ := model.GetAllLdapConn() // 直接查询
-	err = ldap.Init(&Conn)
-	if err != nil {
-		log.Log().Error("初始化ldap连接错误：%v", err)
-	}
+	LdapCfg, _ = model.GetAllLdapConn() // 直接查询
 
 	// 初始化企业微信配置信息
 	log.Log().Info("#######初始化企业微信连接...")
