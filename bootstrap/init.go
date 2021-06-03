@@ -10,7 +10,8 @@ import (
 )
 
 var (
-	LdapCfg model.LdapCfg
+	LdapCfg   model.LdapCfg
+	LdapField model.LdapField
 )
 
 // Init 初始化启动
@@ -40,6 +41,8 @@ func Init(cfg string) {
 	// 初始化ldap连接
 	log.Log().Info("#######初始化ldap连接...")
 	LdapCfg, _ = model.GetAllLdapConn() // 直接查询
+	// 初始化ldap字段配置
+	LdapField, _ = model.GetLdapFieldByConnUrl(LdapCfg.ConnUrl)
 
 	// 初始化企业微信配置信息
 	log.Log().Info("#######初始化企业微信连接...")

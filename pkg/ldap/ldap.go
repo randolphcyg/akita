@@ -534,7 +534,7 @@ func CheckOuTree(newOu string) {
 	}
 }
 
-// 将部门架构转换为LDAP的DN地址
+// 将部门架构 aaa.bbb.ccc 转换为LDAP的DN地址 OU=ccc,OU=bbb,OU=aaa,DC=XXX,DC=COM
 func DepartToDn(depart string) (dn string) {
 	ous := strings.Split(depart, ".")
 

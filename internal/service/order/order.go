@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	"gitee.com/RandolphCYG/akita/bootstrap"
 	"gitee.com/RandolphCYG/akita/internal/model"
+	"gitee.com/RandolphCYG/akita/internal/service/conn"
 	"gitee.com/RandolphCYG/akita/pkg/cache"
 	"gitee.com/RandolphCYG/akita/pkg/ldap"
 	"gitee.com/RandolphCYG/akita/pkg/log"
@@ -63,13 +65,34 @@ func (service *Order) HandleOrders(o *Order) serializer.Response {
 // UUAP账号注册 工单
 func handleOrderUuapRegister(order order.WeworkOrderDetailsUuapRegister) (err error) {
 	// 组装LDAP用户数据
+	companyTypes, err := conn.Str2CompanyTypes(bootstrap.LdapField.CompanyType)
+	if err != nil {
+		log.Log().Error("Occur error when deserialize str:%v", err)
+	}
+
+	companyName := strings.Split(order.Depart, ".")[0]
+	isCompanyOutside := companyTypes[companyName].IsOuter
+	prefix := companyTypes[companyName].Prefix
+	dn := ""
 	name := []rune(order.Name)
+	sam := order.Eid
+	expire := ldap.ExpireTime(int64(-1)) // 永不过期
+	// 外部公司个性化用户名与OU位置
+	if isCompanyOutside == 1 {
+		log.Log().Info(prefix)
+		sam = prefix + sam
+		dn = "CN=" + string(name) + order.Eid + "," + "OU=" + companyName + "," + bootstrap.LdapField.BaseDnOuter
+		expire = ldap.ExpireTime(int64(90)) // 90天过期
+	} else { // 本公司默认逻辑
+		dn = "CN=" + string(name) + order.Eid + "," + ldap.DepartToDn(order.Depart)
+	}
+
 	user := &ldap.LdapAttributes{
-		Dn:          "CN=" + string(name) + order.Eid + "," + ldap.DepartToDn(order.Depart),
-		Num:         order.Eid,
-		Sam:         order.Eid,
+		Dn:          dn,
+		Num:         sam,
+		Sam:         sam,
 		AccountCtl:  "544",
-		Expire:      ldap.ExpireTime(int64(-1)), // 永不过期
+		Expire:      expire,
 		Sn:          string(name[0]),
 		PwdLastSet:  "0",
 		DisplayName: string(name),

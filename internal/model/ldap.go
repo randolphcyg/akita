@@ -23,10 +23,10 @@ type LdapCfg struct {
 	Password string `json:"password" gorm:"type:varchar(255);not null;comment:密码"`
 }
 
-// 公司名-英文前缀映射关系
-type CompPreMap struct {
-	Company string `json:"company"`
-	Prefix  string `json:"prefix"`
+// 公司类型
+type CompanyType struct {
+	IsOuter int    `json:"is_outer"` // 是否外部 0-不是 1-是; 仅自己公司为0 其他全为1
+	Prefix  string `json:"prefix"`   // 用户名前缀 外部公司才有
 }
 
 // LdapField LDAP服务器字段配置
@@ -59,9 +59,10 @@ type LdapField struct {
 	SearchFilterOu string `json:"search_filter_ou" gorm:"type:varchar(255);comment:组织过滤规则"`
 	// 禁用用户DN
 	BaseDnDisabled string `json:"base_dn_disabled" gorm:"type:varchar(255);comment:禁用用户DN"`
-	// 公司英文前缀
-	CompanyPrefixs      string       `json:"company_prefixs" gorm:"type:varchar(255);comment:公司英文前缀"`
-	CompanyPrefixsSlice []CompPreMap `gorm:"-"` // 非数据库字段 用来处理复杂数据结构
+	// 公司类型
+	BaseDnOuter  string                 `json:"base_dn_outer" gorm:"type:varchar(255);comment:外部用户DN"`
+	CompanyType  string                 `json:"company_type" gorm:"type:varchar(255);comment:公司类型"`
+	CompanyTypes map[string]CompanyType `json:"company_types" gorm:"-"` // 非数据库字段 用来处理复杂数据结构
 
 	// 用户组字段
 	// 用户组对象类

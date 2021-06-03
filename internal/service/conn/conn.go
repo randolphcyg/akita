@@ -145,8 +145,9 @@ type LdapFieldService struct {
 	// 禁用用户DN
 	BaseDnDisabled string `json:"base_dn_disabled" gorm:"type:varchar(255);comment:禁用用户DN"`
 	// 公司英文前缀
-	CompanyPrefixs      string             `json:"company_prefixs" gorm:"type:varchar(255);comment:公司英文前缀"`
-	CompanyPrefixsSlice []model.CompPreMap `gorm:"-"` // 非数据库字段 用来处理复杂数据结构
+	BaseDnOuter  string                       `json:"base_dn_outer" gorm:"type:varchar(255);comment:外部用户DN"`
+	CompanyType  string                       `json:"company_type" gorm:"type:varchar(255);comment:公司类型"`
+	CompanyTypes map[string]model.CompanyType `json:"company_types" gorm:"-"` // 非数据库字段 用来处理复杂数据结构
 
 	// 用户组字段
 	// 用户组对象类
@@ -159,27 +160,25 @@ type LdapFieldService struct {
 	UserGroupDescription string `json:"user_group_description" gorm:"type:varchar(255);not null;comment:用户组描述"`
 }
 
-// 序列化 公司前缀映射关系切片转字符串存储
-func CompanyPrefixs2String(m []model.CompPreMap) (string, error) {
+// 序列化 公司类型 切片转字符串存储
+func CompanyTypes2Str(m map[string]model.CompanyType) (string, error) {
 	bs, err := json.Marshal(m)
 	return string(bs), err
 }
 
-// 反序列化 公司前缀映射关系字符串转切片使用
-func string2CompanyPrefixs(m string) ([]model.CompPreMap, error) {
-	var compPreMap []model.CompPreMap
-	err := json.Unmarshal([]byte(m), &compPreMap)
-	return compPreMap, err
+// 反序列化 公司类型 字符串转切片使用
+func Str2CompanyTypes(m string) (companyType map[string]model.CompanyType, err error) {
+	err = json.Unmarshal([]byte(m), &companyType)
+	return companyType, err
 }
 
-// 增
+// 新增
 func (service *LdapFieldService) AddField(f *LdapFieldService) serializer.Response {
-	compPreMaps := f.CompanyPrefixsSlice
-
-	companyPrefixsStr, err := CompanyPrefixs2String(compPreMaps)
+	companyTypesStr, err := CompanyTypes2Str(f.CompanyTypes)
 	if err != nil {
 		return serializer.Err(-1, "序列化错误", err)
 	}
+
 	field := &model.LdapField{
 		BaseDnDisabled:       f.BaseDnDisabled,
 		BasicPullNode:        f.BasicPullNode,
@@ -196,7 +195,8 @@ func (service *LdapFieldService) AddField(f *LdapFieldService) serializer.Respon
 		UserGroupFilter:      f.UserGroupFilter,
 		UserGroupName:        f.UserGroupName,
 		Username:             f.Username,
-		CompanyPrefixs:       companyPrefixsStr,
+		BaseDnOuter:          f.BaseDnOuter,
+		CompanyType:          companyTypesStr,
 	}
 
 	if err := model.DB.Create(field).Error; err != nil {
@@ -218,8 +218,7 @@ func (service *LdapFieldService) DeleteField(url string) serializer.Response {
 
 // 改
 func (service *LdapFieldService) UpdateField(f *LdapFieldService) serializer.Response {
-	compPreMaps := f.CompanyPrefixsSlice
-	companyPrefixsStr, err := CompanyPrefixs2String(compPreMaps)
+	companyTypesStr, err := CompanyTypes2Str(f.CompanyTypes)
 	if err != nil {
 		return serializer.Err(-1, "序列化错误", err)
 	}
@@ -239,7 +238,8 @@ func (service *LdapFieldService) UpdateField(f *LdapFieldService) serializer.Res
 		UserGroupFilter:      f.UserGroupFilter,
 		UserGroupName:        f.UserGroupName,
 		Username:             f.Username,
-		CompanyPrefixs:       companyPrefixsStr,
+		BaseDnOuter:          f.BaseDnOuter,
+		CompanyType:          companyTypesStr,
 	}
 
 	if err := model.DB.Where("conn_url = ?", f.ConnUrl).Save(&field).Error; err != nil {
@@ -257,11 +257,11 @@ func (service *LdapFieldService) FetchField(url string) serializer.Response {
 		return serializer.DBErr("反序列化失败", res.Error)
 	}
 
-	companyPrefixsSlice, err := string2CompanyPrefixs(field.CompanyPrefixs)
+	companyTypes, err := Str2CompanyTypes(field.CompanyType)
 	if err != nil {
 		return serializer.Err(-2, "反序列化失败", err)
 	}
-	field.CompanyPrefixsSlice = companyPrefixsSlice
+	field.CompanyTypes = companyTypes
 
 	if err != nil {
 		return serializer.DBErr("不存在任何ldap连接的字段明细信息!", err)
