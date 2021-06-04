@@ -280,11 +280,10 @@ func FetchUser(user *LdapAttributes) (result *ldap.Entry, err error) {
 		log.Log().Error("Occur error when get ldap connection:%v", err)
 	}
 
-	ldapFilterCn := "(cn=" + user.Name + user.Num + ")"
-	log.Log().Error(ldapFilterCn)
+	ldapFilterCn := "(cn=" + user.DisplayName + user.Num + ")"
 	searchFilter := "(objectClass=organizationalPerson)"
 
-	if user.Name != "" && user.Num != "" {
+	if user.DisplayName != "" && user.Num != "" {
 		searchFilter += ldapFilterCn
 	}
 	searchFilter = "(&" + searchFilter + ")"
@@ -325,18 +324,19 @@ func (user *LdapAttributes) ModifyDn(cn string) {
 }
 
 // ldap用户方法——移动dn
-func (user *LdapAttributes) MoveDn(newOu string) {
+func (user *LdapAttributes) MoveDn(newOu string) (err error) {
 	// 初始化连接
-	err := Init(&bootstrap.LdapCfg)
+	err = Init(&bootstrap.LdapCfg)
 	if err != nil {
 		log.Log().Error("Occur error when get ldap connection:%v", err)
 	}
 	entry, _ := FetchUser(user)
 	cn := strings.Split(entry.DN, ",")[0]
 	movReq := ldap.NewModifyDNRequest(entry.DN, cn, true, newOu)
-	if err := LdapConn.ModifyDN(movReq); err != nil {
+	if err = LdapConn.ModifyDN(movReq); err != nil {
 		log.Log().Error("Failed to move userDN: %s\n", err)
 	}
+	return
 
 }
 
@@ -369,9 +369,9 @@ func NewUser(entry *ldap.Entry) *LdapAttributes {
 }
 
 // Updateldap用户方法——更新用户信息
-func (user *LdapAttributes) Update() {
+func (user *LdapAttributes) Update() (err error) {
 	// 初始化连接
-	err := Init(&bootstrap.LdapCfg)
+	err = Init(&bootstrap.LdapCfg)
 	if err != nil {
 		log.Log().Error("Occur error when get ldap connection:%v", err)
 	}
@@ -418,17 +418,18 @@ func (user *LdapAttributes) Update() {
 		// 对用户DN进行更新 必须放在修改其他普通数据之后 [不会影响用户使用体验]
 		if user.Dn != "" && !strings.EqualFold(strings.SplitN(entry.DN, ",", 2)[1], user.Dn) {
 			CheckOuTree(user.Dn)
-			user.MoveDn(user.Dn)
+			err = user.MoveDn(user.Dn)
 		}
 	} else {
 		log.Log().Error("无此用户")
 	}
+	return
 }
 
 // ldap用户方法——手动修改用户信息
-func (user *LdapAttributes) ModifyInfo() {
+func (user *LdapAttributes) ModifyInfo() (err error) {
 	// 初始化连接
-	err := Init(&bootstrap.LdapCfg)
+	err = Init(&bootstrap.LdapCfg)
 	if err != nil {
 		log.Log().Error("Occur error when get ldap connection:%v", err)
 	}
@@ -465,14 +466,15 @@ func (user *LdapAttributes) ModifyInfo() {
 	}
 
 	if err := LdapConn.Modify(modReq); err != nil {
-		log.Log().Error("error modify user information:%s\n", err)
+		log.Log().Error("Occur error when modify user's information:%s\n", err)
 	}
 
 	// 对用户DN进行更新 必须放在修改其他普通数据之后
 	if user.Dn != "" && !strings.EqualFold(strings.SplitN(entry.DN, ",", 2)[1], user.Dn) {
 		CheckOuTree(user.Dn)
-		user.MoveDn(user.Dn)
+		err = user.MoveDn(user.Dn)
 	}
+	return
 }
 
 // 查询OU是否存在
@@ -544,5 +546,32 @@ func DepartToDn(depart string) (dn string) {
 	}
 	dn = strings.Join(reversedOus, ",OU=")
 	dn = "OU=" + dn + "," + bootstrap.LdapCfg.BaseDn
+	return
+}
+
+// ldap用户方法——禁用用户
+func (user *LdapAttributes) Disable() (err error) {
+	// 初始化连接
+	err = Init(&bootstrap.LdapCfg)
+	if err != nil {
+		log.Log().Error("Occur error when get ldap connection:%v", err)
+	}
+
+	entry, err := FetchUser(user)
+	if err != nil {
+		log.Log().Error("fetch user failed:%s", err)
+	}
+
+	modReq := ldap.NewModifyRequest(entry.DN, []ldap.Control{})
+	// 对用户的普通数据进行选择性更新
+	modReq.Replace("userAccountControl", []string{"546"})
+	if err = LdapConn.Modify(modReq); err != nil {
+		log.Log().Error("Occur error when disable user:%s\n", err)
+		return
+	}
+
+	// 对用户DN进行更新
+	CheckOuTree(bootstrap.LdapField.BaseDnDisabled)
+	err = user.MoveDn(bootstrap.LdapField.BaseDnDisabled)
 	return
 }

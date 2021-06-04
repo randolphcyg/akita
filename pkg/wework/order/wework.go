@@ -257,10 +257,8 @@ func RawToUuapPwdRetrieve(weworkOrder map[string]interface{}) (orderDetails Wewo
 type WeworkOrderDetailsUuapDisable struct {
 	SpName string `mapstructure:"spName"`
 	Userid string `mapstructure:"userid"`
-	People []struct {
-		Name string `mapstructure:"姓名"`
-		Uuap string `mapstructure:"工号"`
-	}
+	Name   string `mapstructure:"姓名"`
+	Uuap   string `mapstructure:"工号"`
 }
 
 // 原始工单转换为UUAP账号注销结构体

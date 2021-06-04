@@ -23,6 +23,13 @@ type Order struct {
 
 // 企业微信工单处理总入口
 func (service *Order) HandleOrders(o *Order) serializer.Response {
+	// 判断工单是否存在 若存在则不处理，若不存在则保存一份 处理失败情况要记录到表中
+	result, orderExecuteRecord := model.FetchOrder(o.SpNo)
+	if result.RowsAffected == 1 && orderExecuteRecord.ExecuteStatus {
+		log.Log().Warning("【" + o.SpNo + "】该工单已经处理过，忽略此次操作~")
+		return serializer.Response{Data: 0, Msg: "thanks,tabby! 【" + o.SpNo + "】该工单已经处理过，忽略此次操作~"}
+	}
+
 	// 实例化 API 类 企业微信配置保存到数据库，系统初始化时加载到环境变量中
 	corpAPI := api.NewCorpAPI(model.WeworkOrderCfg.CorpId, model.WeworkOrderCfg.AppSecret)
 	// 获取审批工单详情
@@ -43,20 +50,36 @@ func (service *Order) HandleOrders(o *Order) serializer.Response {
 	case "UUAP账号注册":
 		{
 			weworkOrder := order.RawToUuapRegister(orderData)
-			handleOrderUuapRegister(weworkOrder)
+			err = handleOrderUuapRegister(weworkOrder)
 		}
 	case "UUAP密码找回":
 		{
 			weworkOrder := order.RawToUuapPwdRetrieve(orderData)
-			handleOrderUuapPwdRetrieve(weworkOrder)
+			err = handleOrderUuapPwdRetrieve(weworkOrder)
 		}
 	case "UUAP账号注销":
 		{
 			weworkOrder := order.RawToUuapPwdDisable(orderData)
-			handleOrderUuapDisable(weworkOrder)
+			err = handleOrderUuapDisable(weworkOrder)
 		}
 	default:
 		log.Log().Error("无任何匹配工单,请检查tabby工单名称列表是否有此工单~")
+	}
+	// 统一处理工单处理情况
+	if result.RowsAffected == 1 && !orderExecuteRecord.ExecuteStatus { // 非首次执行 重试
+		if err != nil { // 工单执行出现错误
+			log.Log().Error("Occur error when handle previous wework order:%v", err)
+			model.UpdateOrder(o.SpNo, false, fmt.Sprintf("%v", err))
+		} else {
+			model.UpdateOrder(o.SpNo, true, fmt.Sprintf("%v", err))
+		}
+	} else if result.RowsAffected == 0 { // 首次执行
+		if err != nil { // 工单执行出现错误
+			log.Log().Error("Occur error when handle fresh wework order:%v", err)
+			model.CreateOrder(o.SpNo, false, fmt.Sprintf("%v", err))
+		} else {
+			model.CreateOrder(o.SpNo, true, fmt.Sprintf("%v", err))
+		}
 	}
 
 	return serializer.Response{Data: 0, Msg: "thanks,tabby! 工单处理中..."}
@@ -128,7 +151,7 @@ func handleOrderUuapRegister(order order.WeworkOrderDetailsUuapRegister) (err er
 	if err != nil {
 		log.Log().Error("发送企业微信通知错误：%v", err)
 	}
-	log.Log().Info("已经发送企业微信消息给【" + order.Userid + "】")
+	log.Log().Info("已经发送UUAP账号注册企业微信消息给【" + order.Userid + "】")
 	return
 }
 
@@ -136,13 +159,12 @@ func handleOrderUuapRegister(order order.WeworkOrderDetailsUuapRegister) (err er
 func handleOrderUuapPwdRetrieve(order order.WeworkOrderDetailsUuapPwdRetrieve) (err error) {
 	user := &ldap.LdapAttributes{
 		Num:         order.Uuap,
-		Name:        order.Name,
 		DisplayName: order.Name,
 	}
 
 	sam, newPwd, err := user.RetrievePwd()
 	if err != nil {
-		log.Log().Error("%s", err)
+		log.Log().Error("Occur error when retrieve pwd:%s", err)
 	}
 
 	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
@@ -162,12 +184,17 @@ func handleOrderUuapPwdRetrieve(order order.WeworkOrderDetailsUuapPwdRetrieve) (
 	if err != nil {
 		log.Log().Error("发送企业微信通知错误：%v", err)
 	}
-	log.Log().Info("已经发送企业微信消息给【" + order.Userid + "】")
+	log.Log().Info("已经发送UUAP密码找回企业微信消息给【" + order.Userid + "】")
 	return
 }
 
-// UUAP账号注销 工单 TODO
+// UUAP账号注销 工单
 func handleOrderUuapDisable(order order.WeworkOrderDetailsUuapDisable) (err error) {
-	log.Log().Info("%v", order)
+	user := &ldap.LdapAttributes{
+		Num:         order.Uuap,
+		DisplayName: order.Name,
+	}
+
+	err = user.Disable()
 	return
 }

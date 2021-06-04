@@ -18,7 +18,7 @@ var (
 func Init(cfg string) {
 	// 初始化应用 等出releases版本再写版本检查
 	InitApplication()
-	// 初始化系统配置
+	// 初始化系统配置 TODO 各配置热加载
 	c, err := conf.Init(cfg)
 	if err != nil {
 		panic(err)
@@ -28,7 +28,7 @@ func Init(cfg string) {
 	log.Log().Info("#######初始化数据库:%v", &c.Database)
 	model.Init(&c.Database)
 	// 数据迁移
-	model.DB.AutoMigrate(&model.LdapCfg{}, &model.LdapField{}, &hr.HrDataConn{}, &model.WeworkCfg{})
+	model.DB.AutoMigrate(&model.LdapCfg{}, &model.LdapField{}, &hr.HrDataConn{}, &model.WeworkCfg{}, &model.WeworkOrder{})
 	if result := model.DB.Limit(1).Find(&model.LdapCfg{}); result.RowsAffected == 0 {
 		log.Log().Info("#######数据迁移...")
 		model.DB.Create(&c.LdapCfg)
@@ -41,6 +41,7 @@ func Init(cfg string) {
 	// 初始化ldap连接
 	log.Log().Info("#######初始化ldap连接...")
 	LdapCfg, _ = model.GetAllLdapConn() // 直接查询
+	log.Log().Info("#######ldap配置:%v", LdapCfg)
 	// 初始化ldap字段配置
 	LdapField, _ = model.GetLdapFieldByConnUrl(LdapCfg.ConnUrl)
 
