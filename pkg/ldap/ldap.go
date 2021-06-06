@@ -11,7 +11,7 @@ import (
 	"gitee.com/RandolphCYG/akita/internal/model"
 	"gitee.com/RandolphCYG/akita/pkg/log"
 	"gitee.com/RandolphCYG/akita/pkg/util"
-	"github.com/go-ldap/ldap"
+	"github.com/go-ldap/ldap/v3"
 	"golang.org/x/text/encoding/unicode"
 )
 
@@ -226,6 +226,7 @@ func (user *LdapAttributes) RetrievePwd() (sam string, newPwd string, err error)
 	if err != nil {
 		log.Log().Error("Occur error when get ldap connection:%v", err)
 	}
+
 	entry, _ := FetchUser(user)
 	sam = entry.GetAttributeValue("sAMAccountName")
 	// 初始化复杂密码
@@ -299,7 +300,7 @@ func FetchUser(user *LdapAttributes) (result *ldap.Entry, err error) {
 	// 这里LdapConn 为nil
 	sr, err := LdapConn.Search(searchRequest)
 	if err != nil {
-		log.Log().Error("fetch user error%s", err)
+		log.Log().Error("Occur when fetch user:%s", err)
 	}
 	if len(sr.Entries) > 0 && len(sr.Entries[0].Attributes) > 0 {
 		result = sr.Entries[0]
