@@ -341,6 +341,7 @@ func (user *LdapAttributes) MoveDn(newOu string) (err error) {
 	movReq := ldap.NewModifyDNRequest(entry.DN, cn, true, newOu)
 	if err = LdapConn.ModifyDN(movReq); err != nil {
 		log.Log().Error("Failed to move userDN: %s\n", err)
+		return
 	}
 	return
 

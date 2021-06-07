@@ -202,7 +202,29 @@ func handleOrderUuapDisable(order order.WeworkOrderDetailsUuapDisable) (err erro
 	}
 
 	err = user.Disable()
+	if err != nil {
+		log.Log().Error("%v", err)
+		return
+	}
 
+	// 续期成功发送企业微信消息
+	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
+	renewalUuapWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_uuap_disable")
+	if err != nil {
+		log.Log().Error("读取企业微信消息模板错误:%v", err)
+	}
+	_, err = corpAPIMsg.MessageSend(map[string]interface{}{
+		"touser":  order.Userid,
+		"msgtype": "markdown",
+		"agentid": model.WeworkUuapCfg.AppId,
+		"markdown": map[string]interface{}{
+			"content": fmt.Sprintf(renewalUuapWeworkMsgTemplate, order.SpName, user.DisplayName),
+		},
+	})
+	if err != nil {
+		log.Log().Error("发送企业微信通知错误：%v", err)
+	}
+	log.Log().Info("企业微信消息发送成功！工单【" + order.SpName + "】用户【" + order.Userid + "】")
 	return
 }
 

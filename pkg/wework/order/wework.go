@@ -182,6 +182,11 @@ func ParseRawOrder(rawInfo interface{}) (orderData map[string]interface{}, err e
 	orderData["spName"] = weworkOrder.SpName
 	orderData["partyid"] = weworkOrder.Applyer.Partyid
 	orderData["userid"] = weworkOrder.Applyer.Userid
+	// 抄送人
+	if len(weworkOrder.Notifyer) >= 1 {
+		orderData["notifyer"] = weworkOrder.Notifyer
+	}
+	// 处理工单数据
 	for _, con := range weworkOrder.ApplyData.Contents {
 		switch con.Control {
 		case "Number":
