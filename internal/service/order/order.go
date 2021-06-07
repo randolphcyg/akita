@@ -157,7 +157,7 @@ func handleOrderUuapRegister(order order.WeworkOrderDetailsUuapRegister) (err er
 	if err != nil {
 		log.Log().Error("发送企业微信通知错误：%v", err)
 	}
-	log.Log().Info("已经发送UUAP账号注册企业微信消息给【" + order.Userid + "】")
+	log.Log().Info("企业微信消息发送成功！工单【" + order.SpName + "】用户【" + order.Userid + "】")
 	return
 }
 
