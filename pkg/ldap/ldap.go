@@ -175,6 +175,7 @@ func AddUser(user *LdapAttributes) (pwd string, err error) {
 	err = Init(&bootstrap.LdapCfg)
 	if err != nil {
 		log.Log().Error("Occur error when get ldap connection:%v", err)
+		return
 	}
 	// 初始化创建用户请求
 	addReq := ldap.NewAddRequest(user.Dn, nil)                                                 // 指定新用户的dn 会同时给cn name字段赋值
@@ -225,6 +226,7 @@ func (user *LdapAttributes) RetrievePwd() (sam string, newPwd string, err error)
 	err = Init(&bootstrap.LdapCfg)
 	if err != nil {
 		log.Log().Error("Occur error when get ldap connection:%v", err)
+		return
 	}
 
 	entry, _ := FetchUser(user)
@@ -252,6 +254,7 @@ func (user *LdapAttributes) ModifyPwd(newUserPwd string) (err error) {
 	err = Init(&bootstrap.LdapCfg)
 	if err != nil {
 		log.Log().Error("Occur error when get ldap connection:%v", err)
+		return
 	}
 	entry, _ := FetchUser(user)
 	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
@@ -279,6 +282,7 @@ func FetchUser(user *LdapAttributes) (result *ldap.Entry, err error) {
 	err = Init(&bootstrap.LdapCfg)
 	if err != nil {
 		log.Log().Error("Occur error when get ldap connection:%v", err)
+		return
 	}
 
 	ldapFilterCn := "(cn=" + user.DisplayName + user.Num + ")"
@@ -330,6 +334,7 @@ func (user *LdapAttributes) MoveDn(newOu string) (err error) {
 	err = Init(&bootstrap.LdapCfg)
 	if err != nil {
 		log.Log().Error("Occur error when get ldap connection:%v", err)
+		return
 	}
 	entry, _ := FetchUser(user)
 	cn := strings.Split(entry.DN, ",")[0]
@@ -375,11 +380,12 @@ func (user *LdapAttributes) Update() (err error) {
 	err = Init(&bootstrap.LdapCfg)
 	if err != nil {
 		log.Log().Error("Occur error when get ldap connection:%v", err)
+		return
 	}
 	entry, err := FetchUser(user)
 	if err != nil {
-		log.Log().Error("fetch user failed:%s", err)
-		panic(err)
+		log.Log().Error("Occur error when fetch user:%s", err)
+		return
 	}
 	if entry != nil {
 		modReq := ldap.NewModifyRequest(entry.DN, []ldap.Control{})
@@ -437,7 +443,8 @@ func (user *LdapAttributes) ModifyInfo() (err error) {
 	entry, err := FetchUser(user)
 
 	if err != nil {
-		log.Log().Error("fetch user failed:%s", err)
+		log.Log().Error("Occur error when fetch user:%s", err)
+		return
 	}
 	modReq := ldap.NewModifyRequest(entry.DN, []ldap.Control{})
 	// 对用户的普通数据进行选择性更新
@@ -556,11 +563,13 @@ func (user *LdapAttributes) Disable() (err error) {
 	err = Init(&bootstrap.LdapCfg)
 	if err != nil {
 		log.Log().Error("Occur error when get ldap connection:%v", err)
+		return
 	}
 
 	entry, err := FetchUser(user)
 	if err != nil {
-		log.Log().Error("fetch user failed:%s", err)
+		log.Log().Error("Occur error when fetch user:%s", err)
+		return
 	}
 
 	modReq := ldap.NewModifyRequest(entry.DN, []ldap.Control{})
@@ -574,5 +583,31 @@ func (user *LdapAttributes) Disable() (err error) {
 	// 对用户DN进行更新
 	CheckOuTree(bootstrap.LdapField.BaseDnDisabled)
 	err = user.MoveDn(bootstrap.LdapField.BaseDnDisabled)
+	return
+}
+
+// ldap用户方法——账号续期
+func (user *LdapAttributes) Renewal() (err error) {
+	expireTimeStampStr := strconv.FormatInt(user.Expire, 10)
+	// 初始化连接
+	err = Init(&bootstrap.LdapCfg)
+	if err != nil {
+		log.Log().Error("Occur error when get ldap connection:%v", err)
+		return
+	}
+
+	entry, err := FetchUser(user)
+	if err != nil {
+		log.Log().Error("Occur error when fetch user:%s", err)
+		return
+	}
+
+	modReq := ldap.NewModifyRequest(entry.DN, []ldap.Control{})
+	// 修改账号过期时间字段
+	modReq.Replace("accountExpires", []string{expireTimeStampStr})
+	if err = LdapConn.Modify(modReq); err != nil {
+		log.Log().Error("Occur error when renewal user:%s\n", err)
+		return
+	}
 	return
 }

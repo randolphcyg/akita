@@ -268,3 +268,20 @@ func RawToUuapPwdDisable(weworkOrder map[string]interface{}) (orderDetails Wewor
 	}
 	return
 }
+
+// UUAP账号续期 工单详情
+type WeworkOrderDetailsUuapRenewal struct {
+	SpName string `mapstructure:"spName"`
+	Userid string `mapstructure:"userid"`
+	Name   string `mapstructure:"姓名"`
+	Uuap   string `mapstructure:"工号"`
+	Days   string `mapstructure:"续期天数"`
+}
+
+// 原始工单转换为UUAP账号续期结构体
+func RawToUuapRenewal(weworkOrder map[string]interface{}) (orderDetails WeworkOrderDetailsUuapRenewal) {
+	if err := mapstructure.Decode(weworkOrder, &orderDetails); err != nil {
+		log.Log().Error("原始工单转换错误:%v", err)
+	}
+	return
+}

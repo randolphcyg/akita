@@ -2,6 +2,7 @@ package order
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"gitee.com/RandolphCYG/akita/bootstrap"
@@ -61,6 +62,11 @@ func (service *Order) HandleOrders(o *Order) serializer.Response {
 		{
 			weworkOrder := order.RawToUuapPwdDisable(orderData)
 			err = handleOrderUuapDisable(weworkOrder)
+		}
+	case "UUAP账号续期":
+		{
+			weworkOrder := order.RawToUuapRenewal(orderData)
+			err = handleOrderUuapRenewal(weworkOrder)
 		}
 	default:
 		log.Log().Error("无任何匹配工单,请检查tabby工单名称列表是否有此工单~")
@@ -134,8 +140,8 @@ func handleOrderUuapRegister(order order.WeworkOrderDetailsUuapRegister) (err er
 		return
 	}
 
+	// 创建成功发送企业微信消息
 	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
-	// 创建成功发送企业微信消息 将企业微信MD消息模板缓存在redis
 	createUuapWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_uuap_register")
 	if err != nil {
 		log.Log().Error("读取企业微信消息模板错误:%v", err)
@@ -167,8 +173,8 @@ func handleOrderUuapPwdRetrieve(order order.WeworkOrderDetailsUuapPwdRetrieve) (
 		log.Log().Error("Occur error when retrieve pwd:%s", err)
 	}
 
+	// 创建成功发送企业微信消息
 	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
-	// 创建成功发送企业微信消息 将企业微信MD消息模板缓存在redis
 	createUuapWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_pwd_retrieve")
 	if err != nil {
 		log.Log().Error("读取企业微信消息模板错误:%v", err)
@@ -178,13 +184,13 @@ func handleOrderUuapPwdRetrieve(order order.WeworkOrderDetailsUuapPwdRetrieve) (
 		"msgtype": "markdown",
 		"agentid": model.WeworkUuapCfg.AppId,
 		"markdown": map[string]interface{}{
-			"content": fmt.Sprintf(createUuapWeworkMsgTemplate, order.SpName, sam, newPwd),
+			"content": fmt.Sprintf(createUuapWeworkMsgTemplate, order.SpName, user.DisplayName, sam, newPwd),
 		},
 	})
 	if err != nil {
 		log.Log().Error("发送企业微信通知错误：%v", err)
 	}
-	log.Log().Info("已经发送UUAP密码找回企业微信消息给【" + order.Userid + "】")
+	log.Log().Info("企业微信消息发送成功！工单【" + order.SpName + "】用户【" + order.Userid + "】")
 	return
 }
 
@@ -196,5 +202,42 @@ func handleOrderUuapDisable(order order.WeworkOrderDetailsUuapDisable) (err erro
 	}
 
 	err = user.Disable()
+
+	return
+}
+
+// UUAP账号续期 工单
+func handleOrderUuapRenewal(order order.WeworkOrderDetailsUuapRenewal) (err error) {
+	days, _ := strconv.ParseInt(order.Days, 10, 64)
+	user := &ldap.LdapAttributes{
+		Num:         order.Uuap,
+		DisplayName: order.Name,
+		Expire:      ldap.ExpireTime(days),
+	}
+
+	err = user.Renewal()
+	if err != nil {
+		log.Log().Error("%v", err)
+		return
+	}
+
+	// 续期成功发送企业微信消息
+	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
+	renewalUuapWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_uuap_renewal")
+	if err != nil {
+		log.Log().Error("读取企业微信消息模板错误:%v", err)
+	}
+	_, err = corpAPIMsg.MessageSend(map[string]interface{}{
+		"touser":  order.Userid,
+		"msgtype": "markdown",
+		"agentid": model.WeworkUuapCfg.AppId,
+		"markdown": map[string]interface{}{
+			"content": fmt.Sprintf(renewalUuapWeworkMsgTemplate, order.SpName, user.DisplayName, order.Days),
+		},
+	})
+	if err != nil {
+		log.Log().Error("发送企业微信通知错误：%v", err)
+	}
+	log.Log().Info("企业微信消息发送成功！工单【" + order.SpName + "】用户【" + order.Userid + "】")
 	return
 }
