@@ -10,10 +10,10 @@ import (
 	"gitee.com/RandolphCYG/akita/internal/service/conn"
 	"gitee.com/RandolphCYG/akita/pkg/cache"
 	"gitee.com/RandolphCYG/akita/pkg/ldap"
-	"gitee.com/RandolphCYG/akita/pkg/log"
 	"gitee.com/RandolphCYG/akita/pkg/serializer"
 	"gitee.com/RandolphCYG/akita/pkg/wework/api"
 	"gitee.com/RandolphCYG/akita/pkg/wework/order"
+	log "github.com/sirupsen/logrus"
 )
 
 // Order 企业微信工单查询条件
@@ -27,7 +27,7 @@ func (service *Order) HandleOrders(o *Order) serializer.Response {
 	// 判断工单是否存在 若存在则不处理，若不存在则保存一份 处理失败情况要记录到表中
 	result, orderExecuteRecord := model.FetchOrder(o.SpNo)
 	if result.RowsAffected == 1 && orderExecuteRecord.ExecuteStatus {
-		log.Log().Warning("【" + o.SpNo + "】该工单已经处理过，忽略此次操作~")
+		log.Warning("【" + o.SpNo + "】该工单已经处理过，忽略此次操作~")
 		return serializer.Response{Data: 0, Msg: "thanks,tabby! 【" + o.SpNo + "】该工单已经处理过，忽略此次操作~"}
 	}
 
@@ -38,13 +38,13 @@ func (service *Order) HandleOrders(o *Order) serializer.Response {
 		"sp_no": o.SpNo,
 	})
 	if err != nil {
-		log.Log().Error("Occur error when get approval detail:%v", err)
+		log.Error("Fail to get approval detail,err: ", err)
 	}
 	// 解析企业微信原始工单
 	orderData, err := order.ParseRawOrder(response["info"])
 	if err != nil {
-		log.Log().Error("%v", err)
-		return serializer.Err(-1, "Occur error when handle raw wework order:%v", err)
+		log.Error(err)
+		return serializer.Err(-1, "Fail to handle raw wework order,err: ", err)
 	}
 	// 工单分流 将原始工单结构体转换为对应要求工单数据
 	switch orderData["spName"] {
@@ -69,19 +69,19 @@ func (service *Order) HandleOrders(o *Order) serializer.Response {
 			err = handleOrderUuapRenewal(weworkOrder)
 		}
 	default:
-		log.Log().Error("无任何匹配工单,请检查tabby工单名称列表是否有此工单~")
+		log.Error("Akita server has no handdler with this kind of order, please handle it manually!")
 	}
 	// 统一处理工单处理情况
 	if result.RowsAffected == 1 && !orderExecuteRecord.ExecuteStatus { // 非首次执行 重试
 		if err != nil { // 工单执行出现错误
-			log.Log().Error("Occur error when handle previous wework order:%v", err)
+			log.Error("Fail to handle previous wework order,err: ", err)
 			model.UpdateOrder(o.SpNo, false, fmt.Sprintf("%v", err))
 		} else {
 			model.UpdateOrder(o.SpNo, true, fmt.Sprintf("%v", err))
 		}
 	} else if result.RowsAffected == 0 { // 首次执行
 		if err != nil { // 工单执行出现错误
-			log.Log().Error("Occur error when handle fresh wework order:%v", err)
+			log.Error("Fail to handle fresh wework order,err: ", err)
 			model.CreateOrder(o.SpNo, false, fmt.Sprintf("%v", err))
 		} else {
 			model.CreateOrder(o.SpNo, true, fmt.Sprintf("%v", err))
@@ -96,7 +96,7 @@ func handleOrderUuapRegister(order order.WeworkOrderDetailsUuapRegister) (err er
 	// 组装LDAP用户数据
 	companyTypes, err := conn.Str2CompanyTypes(bootstrap.LdapField.CompanyType)
 	if err != nil {
-		log.Log().Error("Occur error when deserialize str:%v", err)
+		log.Error("Fail to deserialize str,err: ", err)
 	}
 
 	companyName := strings.Split(order.Depart, ".")[0]
@@ -108,7 +108,6 @@ func handleOrderUuapRegister(order order.WeworkOrderDetailsUuapRegister) (err er
 	expire := ldap.ExpireTime(int64(-1)) // 永不过期
 	// 外部公司个性化用户名与OU位置
 	if isCompanyOutside == 1 {
-		log.Log().Info(prefix)
 		sam = prefix + sam
 		dn = "CN=" + string(name) + order.Eid + "," + "OU=" + companyName + "," + bootstrap.LdapField.BaseDnOuter
 		expire = ldap.ExpireTime(int64(90)) // 90天过期
@@ -136,7 +135,7 @@ func handleOrderUuapRegister(order order.WeworkOrderDetailsUuapRegister) (err er
 	// 创建LDAP用户 生成初始密码
 	pwd, err := ldap.AddUser(user)
 	if err != nil {
-		log.Log().Error("User already exist: %s", err)
+		log.Error("User already exist: ", err)
 		return
 	}
 
@@ -144,7 +143,7 @@ func handleOrderUuapRegister(order order.WeworkOrderDetailsUuapRegister) (err er
 	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
 	createUuapWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_uuap_register")
 	if err != nil {
-		log.Log().Error("读取企业微信消息模板错误:%v", err)
+		log.Error("读取企业微信消息模板错误: ", err)
 	}
 	_, err = corpAPIMsg.MessageSend(map[string]interface{}{
 		"touser":  order.Userid,
@@ -155,9 +154,10 @@ func handleOrderUuapRegister(order order.WeworkOrderDetailsUuapRegister) (err er
 		},
 	})
 	if err != nil {
-		log.Log().Error("发送企业微信通知错误：%v", err)
+		log.Error("Fail to send wework msg,err: ", err)
+		// TODO 发送企业微信消息错误，应当考虑重发逻辑
 	}
-	log.Log().Info("企业微信消息发送成功！工单【" + order.SpName + "】用户【" + order.Userid + "】")
+	log.Info("企业微信消息发送成功！工单【" + order.SpName + "】用户【" + order.Userid + "】")
 	return
 }
 
@@ -170,14 +170,14 @@ func handleOrderUuapPwdRetrieve(order order.WeworkOrderDetailsUuapPwdRetrieve) (
 
 	sam, newPwd, err := user.RetrievePwd()
 	if err != nil {
-		log.Log().Error("Occur error when retrieve pwd:%s", err)
+		log.Error("Fail to retrieve pwd,err: ", err)
 	}
 
 	// 创建成功发送企业微信消息
 	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
 	createUuapWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_pwd_retrieve")
 	if err != nil {
-		log.Log().Error("读取企业微信消息模板错误:%v", err)
+		log.Error("读取企业微信消息模板错误: ", err)
 	}
 	_, err = corpAPIMsg.MessageSend(map[string]interface{}{
 		"touser":  order.Userid,
@@ -188,9 +188,9 @@ func handleOrderUuapPwdRetrieve(order order.WeworkOrderDetailsUuapPwdRetrieve) (
 		},
 	})
 	if err != nil {
-		log.Log().Error("发送企业微信通知错误：%v", err)
+		log.Error("Fail to send wework msg,err: ", err)
 	}
-	log.Log().Info("企业微信消息发送成功！工单【" + order.SpName + "】用户【" + order.Userid + "】")
+	log.Info("企业微信消息发送成功！工单【" + order.SpName + "】用户【" + order.Userid + "】")
 	return
 }
 
@@ -203,7 +203,7 @@ func handleOrderUuapDisable(order order.WeworkOrderDetailsUuapDisable) (err erro
 
 	err = user.Disable()
 	if err != nil {
-		log.Log().Error("%v", err)
+		log.Error(err)
 		return
 	}
 
@@ -211,7 +211,7 @@ func handleOrderUuapDisable(order order.WeworkOrderDetailsUuapDisable) (err erro
 	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
 	renewalUuapWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_uuap_disable")
 	if err != nil {
-		log.Log().Error("读取企业微信消息模板错误:%v", err)
+		log.Error("读取企业微信消息模板错误: ", err)
 	}
 	_, err = corpAPIMsg.MessageSend(map[string]interface{}{
 		"touser":  order.Userid,
@@ -222,9 +222,9 @@ func handleOrderUuapDisable(order order.WeworkOrderDetailsUuapDisable) (err erro
 		},
 	})
 	if err != nil {
-		log.Log().Error("发送企业微信通知错误：%v", err)
+		log.Error("Fail to send wework msg,err: ", err)
 	}
-	log.Log().Info("企业微信消息发送成功！工单【" + order.SpName + "】用户【" + order.Userid + "】")
+	log.Info("企业微信消息发送成功！工单【" + order.SpName + "】用户【" + order.Userid + "】")
 	return
 }
 
@@ -239,7 +239,7 @@ func handleOrderUuapRenewal(order order.WeworkOrderDetailsUuapRenewal) (err erro
 
 	err = user.Renewal()
 	if err != nil {
-		log.Log().Error("%v", err)
+		log.Error(err)
 		return
 	}
 
@@ -247,7 +247,7 @@ func handleOrderUuapRenewal(order order.WeworkOrderDetailsUuapRenewal) (err erro
 	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
 	renewalUuapWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_uuap_renewal")
 	if err != nil {
-		log.Log().Error("读取企业微信消息模板错误:%v", err)
+		log.Error("读取企业微信消息模板错误: ", err)
 	}
 	_, err = corpAPIMsg.MessageSend(map[string]interface{}{
 		"touser":  order.Userid,
@@ -258,8 +258,8 @@ func handleOrderUuapRenewal(order order.WeworkOrderDetailsUuapRenewal) (err erro
 		},
 	})
 	if err != nil {
-		log.Log().Error("发送企业微信通知错误：%v", err)
+		log.Error("Fail to send wework msg,err: ", err)
 	}
-	log.Log().Info("企业微信消息发送成功！工单【" + order.SpName + "】用户【" + order.Userid + "】")
+	log.Info("企业微信消息发送成功！工单【" + order.SpName + "】用户【" + order.Userid + "】")
 	return
 }

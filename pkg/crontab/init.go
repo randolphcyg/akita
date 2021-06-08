@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"gitee.com/RandolphCYG/akita/internal/model"
-	"gitee.com/RandolphCYG/akita/pkg/log"
+	"github.com/cloudflare/cfssl/log"
 	"github.com/robfig/cron/v3"
 )
 
@@ -18,7 +18,7 @@ var Cron *cron.Cron
 
 // Init 初始化定时任务
 func Init() {
-	log.Log().Info("初始化定时任务...")
+	log.Info("初始化定时任务...")
 	// 先开启秒级，写不标准crontab命令测试
 	Cron := cron.New(cron.WithSeconds())
 	// spec1 := "*/3 * * * * *"
@@ -45,16 +45,16 @@ func Init() {
 func Reload() {
 	if Cron != nil {
 		Cron.Stop()
-		log.Log().Warning("停止定时任务...")
+		log.Warning("停止定时任务...")
 	}
 	Init()
 }
 
 // 测试秒级别定时任务 回头改成不支持秒级别的
 func task1() {
-	log.Log().Debug("每隔3秒执行一次")
+	log.Debug("每隔3秒执行一次")
 }
 
 func task2() {
-	log.Log().Debug("每隔5秒执行")
+	log.Debug("每隔5秒执行")
 }

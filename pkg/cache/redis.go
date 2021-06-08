@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"time"
 
-	"gitee.com/RandolphCYG/akita/pkg/log"
 	"github.com/go-redis/redis/v8"
+	log "github.com/sirupsen/logrus"
 )
 
 /*
@@ -89,7 +89,7 @@ func Serializer(value interface{}) (res []byte, err error) {
 func Deserializer(value []byte, res interface{}) (interface{}, error) {
 	err := json.Unmarshal(value, &res)
 	if err != nil {
-		log.Log().Error("get data failed, err:%v\n", err)
+		log.Error("Fail to get deserializer data,err: ", err)
 		return nil, err
 	}
 	return res, nil
@@ -99,7 +99,7 @@ func Deserializer(value []byte, res interface{}) (interface{}, error) {
 func Set(key string, value interface{}) (err error) {
 	err = RedisClient.Set(ctx, key, value, 0).Err()
 	if err != nil {
-		log.Log().Error("cache data failed, err:%v\n", err)
+		log.Error("Fail to cache data,err: ", err)
 		return
 	}
 	return
@@ -111,7 +111,7 @@ func Get(key string, value interface{}) (res interface{}, err error) {
 	byteValue, _ := strCmd.Bytes()
 	res, err = Serializer(byteValue)
 	if err != nil {
-		log.Log().Error("deserializer data failed, err:%v\n", err)
+		log.Error("Fail to deserializer data,err: ", err)
 		return
 	}
 	return
@@ -125,7 +125,7 @@ func HSet(key string, field string, value interface{}) (res bool, err error) {
 	RedisClient.Del(ctx, key) // 先删除
 	res, err = RedisClient.HMSet(ctx, key, map[string]interface{}{field: value}).Result()
 	if err != nil {
-		log.Log().Error("Occur error when batch set a filed:%v", err)
+		log.Error("Fail to batch set a filed,err: ", err)
 	}
 	return
 }
@@ -135,7 +135,7 @@ func HMSet(key string, data map[string]interface{}) (res bool, err error) {
 	RedisClient.Del(ctx, key) // 先删除
 	res, err = RedisClient.HMSet(ctx, key, data).Result()
 	if err != nil {
-		log.Log().Error("Occur error when batch set fileds:%v", err)
+		log.Error("Fail to batch set fileds,err: ", err)
 	}
 	return
 }
@@ -144,7 +144,7 @@ func HMSet(key string, data map[string]interface{}) (res bool, err error) {
 func HDel(key string) (res int64, err error) {
 	res, err = RedisClient.Del(ctx, key).Result()
 	if err != nil {
-		log.Log().Error("Occur error when delete key:%v", err)
+		log.Error("Fail to delete key,err: ", err)
 	}
 	return
 }
@@ -153,7 +153,7 @@ func HDel(key string) (res int64, err error) {
 func HGet(key string, field string) (res string, err error) {
 	res, err = RedisClient.HGet(ctx, key, field).Result()
 	if err != nil {
-		log.Log().Error("Occur error when get an element:%v", err)
+		log.Error("Fail to get an element,err: ", err)
 	}
 	return
 }
@@ -162,7 +162,7 @@ func HGet(key string, field string) (res string, err error) {
 func HGetAll(key string) (data map[string]string, err error) {
 	data, err = RedisClient.HGetAll(ctx, key).Result()
 	if err != nil {
-		log.Log().Error("Occur error when get all elements:%v", err)
+		log.Error("Fail to get all elements,err: ", err)
 	}
 	return
 }
@@ -171,7 +171,7 @@ func HGetAll(key string) (data map[string]string, err error) {
 func HExists(key string, field string) (res bool, err error) {
 	res, err = RedisClient.HExists(ctx, key, field).Result()
 	if err != nil {
-		log.Log().Error("Occur error when determine whether the element exists:%v", err)
+		log.Error("Fail to determine whether the element exists,err: ", err)
 	}
 	return
 }
@@ -180,7 +180,7 @@ func HExists(key string, field string) (res bool, err error) {
 func HLen(key string) (res int64, err error) {
 	res, err = RedisClient.HLen(ctx, key).Result()
 	if err != nil {
-		log.Log().Error("Occur error when determine whether the element exists:%v", err)
+		log.Error("Fail to determine whether the element exists,err: ", err)
 	}
 	return
 }

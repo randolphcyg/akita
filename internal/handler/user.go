@@ -2,7 +2,6 @@ package handler
 
 import (
 	"gitee.com/RandolphCYG/akita/internal/service/user"
-	"gitee.com/RandolphCYG/akita/pkg/log"
 	"github.com/gin-gonic/gin"
 )
 
@@ -11,7 +10,6 @@ func UserLogin(ctx *gin.Context) {
 	var service user.UserLoginService
 	if err := ctx.ShouldBindJSON(&service); err == nil {
 		res := service.Login(ctx)
-		log.Log().Error("err:%v\n", err)
 		ctx.JSON(200, res)
 	} else {
 		// 错误消息先直接写在这里

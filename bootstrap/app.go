@@ -45,7 +45,7 @@ func InitApplication() {
 // 		present, err1 := version.NewVersion(conf.BackendVersion)
 // 		latest, err2 := version.NewVersion(list[0].Tag)
 // 		if err1 == nil && err2 == nil && latest.GreaterThan(present) {
-// 			util.Log().Info("有新的版本 [%s] 可用,下载：%s", list[0].Name, list[0].URL)
+// 			util.Log().Info("有新的版本 [%s] 可用,下载 %s", list[0].Name, list[0].URL)
 // 		}
 // 	}
 

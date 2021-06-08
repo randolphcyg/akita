@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gitee.com/RandolphCYG/akita/pkg/log"
+	log "github.com/sirupsen/logrus"
 )
 
 // 对应的虚拟IP段是 10.11.0.2 10.11.255.253 最小和最大可以分配的虚拟IP对应的uint64
@@ -21,7 +21,7 @@ func VipToOct(addr string) (vipOct uint64) {
 			fieldInt <<= fieldMaps[index]
 			vipOct += fieldInt
 		} else {
-			log.Log().Error("convert ip failed,err:%v\n", err)
+			log.Error("Fail to convert ip,err: ", err)
 		}
 	}
 	return vipOct
@@ -30,7 +30,7 @@ func VipToOct(addr string) (vipOct uint64) {
 // OctToVip 将十进制整数IP转换成IP地址字符串
 func OctToVip(vipOct uint64) (addr string) {
 	if vipOct < VIPMIN && vipOct > VIPMAX {
-		log.Log().Error("传入错误十进制整数，检查是否所有虚拟IP都分配出去")
+		log.Error("传入错误十进制整数，检查是否所有虚拟IP都分配出去!")
 		return
 	} else {
 		var vips [4]string

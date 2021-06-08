@@ -8,8 +8,8 @@ import (
 	"gitee.com/RandolphCYG/akita/internal/model"
 	"gitee.com/RandolphCYG/akita/pkg/hr"
 	"gitee.com/RandolphCYG/akita/pkg/ldap"
-	"gitee.com/RandolphCYG/akita/pkg/log"
 	"gitee.com/RandolphCYG/akita/pkg/serializer"
+	log "github.com/sirupsen/logrus"
 )
 
 // LdapUserService LDAP用户查询条件
@@ -83,7 +83,7 @@ func (service *HrDataService) HrToLdap(h HrDataService) serializer.Response {
 	// 获取HR接口数据
 	var hrDataConn hr.HrDataConn
 	if result := model.DB.First(&hrDataConn); result.Error != nil {
-		log.Log().Error("没有外部HR数据连接信息")
+		log.Error("Fail to get HR data connection cfg!")
 	}
 
 	hrConn := &hr.HrDataConn{

@@ -3,7 +3,7 @@ package model
 import (
 	"gitee.com/RandolphCYG/akita/pkg/cache"
 	"gitee.com/RandolphCYG/akita/pkg/hr"
-	"gitee.com/RandolphCYG/akita/pkg/log"
+	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
@@ -37,10 +37,10 @@ func GetUserByEmail(email string) (User, error) {
 
 // TaskSyncHrUsers2Cache 定时任务 将用户定时更新到缓存库
 func TaskSyncHrUsers2Cache() {
-	log.Log().Debug("开始执行定时同步用户定时任务...")
+	log.Debug("开始执行定时同步用户定时任务...")
 	var hrDataConn hr.HrDataConn
 	if result := DB.First(&hrDataConn); result.Error != nil {
-		log.Log().Error("没有外部HR数据连接信息")
+		log.Error("没有外部HR数据连接信息")
 	}
 
 	hrConn := &hr.HrDataConn{
