@@ -354,6 +354,7 @@ func NewUser(entry *ldap.Entry) *LdapAttributes {
 	if err != nil {
 		log.Error("Fail to get ldap connection,err: ", err)
 	}
+	// 将用户过期字段转换为int64
 	expire, _ := strconv.ParseInt(entry.GetAttributeValue("accountExpires"), 10, 64)
 	return &LdapAttributes{
 		Num:         entry.GetAttributeValue("employeeNumber"),

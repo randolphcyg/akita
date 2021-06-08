@@ -2,13 +2,16 @@ package user
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
+	"time"
 
 	"gitee.com/RandolphCYG/akita/bootstrap"
 	"gitee.com/RandolphCYG/akita/internal/model"
 	"gitee.com/RandolphCYG/akita/pkg/hr"
 	"gitee.com/RandolphCYG/akita/pkg/ldap"
 	"gitee.com/RandolphCYG/akita/pkg/serializer"
+	"gitee.com/RandolphCYG/akita/pkg/util"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -35,9 +38,17 @@ func (service *LdapUserService) FetchUser(url string) serializer.Response {
 	// 初始化连接
 	user := &ldap.LdapAttributes{}
 	LdapUsers := ldap.FetchLdapUsers(user)
+	currentTime := time.Now()
 	for _, user := range LdapUsers {
-		fmt.Println(user.DN)
-		break
+
+		expire, _ := strconv.ParseInt(user.GetAttributeValue("accountExpires"), 10, 64)
+		unixTime := util.NtToUnix(expire)
+		expireDays := util.FormatLdapExpireDays(util.SubDays(unixTime, currentTime))
+		if expireDays != 106752 { // 正常的账号
+			if expireDays < 7 { // 七天内过期的账号
+				fmt.Println(user.GetAttributeValue("sAMAccountName"), user.GetAttributeValue("displayName"), expireDays, "天")
+			}
+		}
 	}
 	return serializer.Response{Data: LdapUsers}
 }
