@@ -135,7 +135,9 @@ func handleOrderUuapRegister(order order.WeworkOrderDetailsUuapRegister) (err er
 	// 创建LDAP用户 生成初始密码
 	pwd, err := ldap.AddUser(user)
 	if err != nil {
-		log.Error("User already exist: ", err)
+		log.Error("Fail to create user,err: ", err)
+		// 此处的错误一般是账号已经存在 为了防止其他错误，这里输出日志
+		err = handleOrderUuapDuplicateRegister(user, order)
 		return
 	}
 
@@ -157,7 +159,41 @@ func handleOrderUuapRegister(order order.WeworkOrderDetailsUuapRegister) (err er
 		log.Error("Fail to send wework msg,err: ", err)
 		// TODO 发送企业微信消息错误，应当考虑重发逻辑
 	}
-	log.Info("企业微信消息发送成功！工单【" + order.SpName + "】用户【" + order.Userid + "】")
+	log.Info("企业微信消息发送成功！工单【" + order.SpName + "】用户【" + order.Userid + "】状态【初次注册】")
+	return
+}
+
+// 重复提交注册申请
+func handleOrderUuapDuplicateRegister(user *ldap.LdapAttributes, order order.WeworkOrderDetailsUuapRegister) (err error) {
+	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
+	createUuapWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_uuap_duplicate_register")
+	if err != nil {
+		log.Error("读取企业微信消息模板错误: ", err)
+	}
+
+	// 初始化连接
+	err = ldap.Init(&bootstrap.LdapCfg)
+	if err != nil {
+		log.Error("Fail to get ldap connection,err: ", err)
+		return
+	}
+
+	entry, _ := ldap.FetchUser(user)
+	sam := entry.GetAttributeValue("sAMAccountName")
+
+	_, err = corpAPIMsg.MessageSend(map[string]interface{}{
+		"touser":  order.Userid,
+		"msgtype": "markdown",
+		"agentid": model.WeworkUuapCfg.AppId,
+		"markdown": map[string]interface{}{
+			"content": fmt.Sprintf(createUuapWeworkMsgTemplate, order.SpName, order.Name, sam),
+		},
+	})
+	if err != nil {
+		log.Error("Fail to send wework msg,err: ", err)
+		// TODO 发送企业微信消息错误，应当考虑重发逻辑
+	}
+	log.Info("企业微信消息发送成功！工单【" + order.SpName + "】用户【" + order.Userid + "】状态【已注册过的用户】")
 	return
 }
 

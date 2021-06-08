@@ -16,7 +16,7 @@ func InitRouter() *gin.Engine {
 		return InitDebugRouter()
 	} else if conf.Conf.System.Mode == "release" {
 		log.Info("Current running mode: release")
-		return InitTestRouter()
+		return InitProRouter()
 	} else if conf.Conf.System.Mode == "test" {
 		log.Info("Current running mode: test")
 		return InitTestRouter()
