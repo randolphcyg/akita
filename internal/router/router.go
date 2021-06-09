@@ -70,6 +70,7 @@ func InitDebugRouter() *gin.Engine {
 		ldapUser := v1.Group("ldap/user")
 		ldapUser.GET("fetch", handler.FetchLdapUser) // 根据conn_url查询LDAP用户 /api/v1/ldap/user/fetch?conn_url=ldap://192.168.5.55:390
 		ldapUser.GET("create", handler.CreateLdapUser)
+		ldapUser.GET("start", handler.FetchExpireLdapUser) // 触发定时任务
 
 		hrData := v1.Group("hr")
 		// 通过查询hr数据接口确定是否包含某员工
@@ -129,6 +130,7 @@ func InitProRouter() *gin.Engine {
 		ldapUser := v1.Group("ldap/user")
 		ldapUser.GET("fetch", handler.FetchLdapUser) // 根据conn_url查询LDAP用户 /api/v1/ldap/user/fetch?conn_url=ldap://192.168.5.55:390
 		ldapUser.GET("create", handler.CreateLdapUser)
+		ldapUser.GET("start", handler.FetchExpireLdapUser) // 触发定时任务
 
 		hrData := v1.Group("hr")
 		// 通过查询hr数据接口确定是否包含某员工
@@ -187,6 +189,7 @@ func InitTestRouter() *gin.Engine {
 		ldapUser := v1.Group("ldap/user")
 		ldapUser.GET("fetch", handler.FetchLdapUser) // 根据conn_url查询LDAP用户 /api/v1/ldap/user/fetch?conn_url=ldap://192.168.5.55:390
 		ldapUser.GET("create", handler.CreateLdapUser)
+		ldapUser.GET("start", handler.FetchExpireLdapUser) // 触发定时任务
 
 		hrData := v1.Group("hr")
 		// 通过查询hr数据接口确定是否包含某员工

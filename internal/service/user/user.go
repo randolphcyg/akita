@@ -7,11 +7,13 @@ import (
 
 	"gitee.com/RandolphCYG/akita/bootstrap"
 	"gitee.com/RandolphCYG/akita/internal/model"
+	"gitee.com/RandolphCYG/akita/internal/service/order"
 	"gitee.com/RandolphCYG/akita/pkg/hr"
 	"gitee.com/RandolphCYG/akita/pkg/ldap"
 	"gitee.com/RandolphCYG/akita/pkg/serializer"
 	"gitee.com/RandolphCYG/akita/pkg/util"
 
+	"github.com/jasonlvhit/gocron"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -38,8 +40,16 @@ func (service *LdapUserService) FetchUser(url string) serializer.Response {
 	// 初始化连接
 	user := &ldap.LdapAttributes{}
 	LdapUsers := ldap.FetchLdapUsers(user)
+	return serializer.Response{Data: LdapUsers}
+}
+
+// 查询并处理过期用户逻辑 【定时任务】
+func FetchAndHandleExpireUser() (handledExpireUsers []*ldap.LdapAttributes) {
+	// 初始化连接
+	user := &ldap.LdapAttributes{}
+	LdapUsers := ldap.FetchLdapUsers(user)
 	currentTime := time.Now()
-	handledExpireUsers := make([]*ldap.LdapAttributes, 0, 10)
+	// handledExpireUsers := make([]*ldap.LdapAttributes, 0, 10)  // TODO 预留防止更改传参
 	for _, user := range LdapUsers {
 		expire, _ := strconv.ParseInt(user.GetAttributeValue("accountExpires"), 10, 64)
 		unixTime := util.NtToUnix(expire)
@@ -48,13 +58,23 @@ func (service *LdapUserService) FetchUser(url string) serializer.Response {
 			if -3 <= expireDays && expireDays <= 3 { // 未/已经过期 3 天内的账号
 				ldapUser := ldap.NewUser(user) // 初始化速度较慢 适用定时异步任务处理少量数据
 				handledExpireUsers = append(handledExpireUsers, ldapUser)
-				// order.HandleOrderUuapExpired(ldapUser, expireDays) // 处理过期账号 TODO 邮件测试通过 当完成定时模块时开放此功能
+				order.HandleOrderUuapExpired(ldapUser, expireDays) // 处理过期账号
 				log.Info(ldapUser, "过期天数: ", expireDays)
 			}
 		}
 	}
+	return
+}
 
-	return serializer.Response{Data: handledExpireUsers}
+// 触发定时任务
+func (service *LdapUserService) FetchExpireUser() serializer.Response {
+	go func() {
+		gocron.Every(1).Day().At("9:30").Do(FetchAndHandleExpireUser) // 每天早上九点半发信息
+		_, nextTime := gocron.NextRun()
+		log.Info("定时任务下次触发时间：", nextTime)
+		<-gocron.Start()
+	}()
+	return serializer.Response{Data: 0}
 }
 
 // 创建用户-管理员接口

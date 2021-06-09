@@ -32,6 +32,17 @@ func FetchLdapUser(ctx *gin.Context) {
 	}
 }
 
+// FetchExpireLdapUser 查询并处理过期的LDAP用户
+func FetchExpireLdapUser(ctx *gin.Context) {
+	var service user.LdapUserService
+	if err := ctx.ShouldBindUri(&service); err == nil {
+		res := service.FetchExpireUser()
+		ctx.JSON(200, res)
+	} else {
+		ctx.JSON(200, err)
+	}
+}
+
 // CreateLdapUser 创建ldap用户
 func CreateLdapUser(ctx *gin.Context) {
 	var service user.LdapUserService
