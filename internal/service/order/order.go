@@ -9,6 +9,7 @@ import (
 	"gitee.com/RandolphCYG/akita/internal/model"
 	"gitee.com/RandolphCYG/akita/internal/service/conn"
 	"gitee.com/RandolphCYG/akita/pkg/cache"
+	"gitee.com/RandolphCYG/akita/pkg/email"
 	"gitee.com/RandolphCYG/akita/pkg/ldap"
 	"gitee.com/RandolphCYG/akita/pkg/serializer"
 	"gitee.com/RandolphCYG/akita/pkg/wework/api"
@@ -103,16 +104,16 @@ func handleOrderUuapRegister(order order.WeworkOrderDetailsUuapRegister) (err er
 	isCompanyOutside := companyTypes[companyName].IsOuter
 	prefix := companyTypes[companyName].Prefix
 	dn := ""
-	name := []rune(order.Name)
+	displayName := []rune(order.DisplayName)
 	sam := order.Eid
 	expire := ldap.ExpireTime(int64(-1)) // 永不过期
 	// 外部公司个性化用户名与OU位置
 	if isCompanyOutside == 1 {
 		sam = prefix + sam
-		dn = "CN=" + string(name) + order.Eid + "," + "OU=" + companyName + "," + bootstrap.LdapField.BaseDnOuter
+		dn = "CN=" + string(displayName) + order.Eid + "," + "OU=" + companyName + "," + bootstrap.LdapField.BaseDnOuter
 		expire = ldap.ExpireTime(int64(90)) // 90天过期
 	} else { // 本公司默认逻辑
-		dn = "CN=" + string(name) + order.Eid + "," + ldap.DepartToDn(order.Depart)
+		dn = "CN=" + string(displayName) + order.Eid + "," + ldap.DepartToDn(order.Depart)
 	}
 
 	user := &ldap.LdapAttributes{
@@ -121,10 +122,10 @@ func handleOrderUuapRegister(order order.WeworkOrderDetailsUuapRegister) (err er
 		Sam:         sam,
 		AccountCtl:  "544",
 		Expire:      expire,
-		Sn:          string(name[0]),
+		Sn:          string(displayName[0]),
 		PwdLastSet:  "0",
-		DisplayName: string(name),
-		GivenName:   string(name[1:]),
+		DisplayName: string(displayName),
+		GivenName:   string(displayName[1:]),
 		Email:       order.Mail,
 		Phone:       order.Mobile,
 		Company:     strings.Split(order.Depart, ".")[0],
@@ -166,7 +167,7 @@ func handleOrderUuapRegister(order order.WeworkOrderDetailsUuapRegister) (err er
 // 重复提交注册申请
 func handleOrderUuapDuplicateRegister(user *ldap.LdapAttributes, order order.WeworkOrderDetailsUuapRegister) (err error) {
 	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
-	createUuapWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_uuap_duplicate_register")
+	duplicateRegisterUuapWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_uuap_duplicate_register")
 	if err != nil {
 		log.Error("读取企业微信消息模板错误: ", err)
 	}
@@ -186,7 +187,7 @@ func handleOrderUuapDuplicateRegister(user *ldap.LdapAttributes, order order.Wew
 		"msgtype": "markdown",
 		"agentid": model.WeworkUuapCfg.AppId,
 		"markdown": map[string]interface{}{
-			"content": fmt.Sprintf(createUuapWeworkMsgTemplate, order.SpName, order.Name, sam),
+			"content": fmt.Sprintf(duplicateRegisterUuapWeworkMsgTemplate, order.SpName, order.DisplayName, sam),
 		},
 	})
 	if err != nil {
@@ -200,8 +201,8 @@ func handleOrderUuapDuplicateRegister(user *ldap.LdapAttributes, order order.Wew
 // UUAP密码找回 工单
 func handleOrderUuapPwdRetrieve(order order.WeworkOrderDetailsUuapPwdRetrieve) (err error) {
 	user := &ldap.LdapAttributes{
-		Num:         order.Uuap,
-		DisplayName: order.Name,
+		Num:         order.Eid,
+		DisplayName: order.DisplayName,
 	}
 
 	sam, newPwd, err := user.RetrievePwd()
@@ -211,7 +212,7 @@ func handleOrderUuapPwdRetrieve(order order.WeworkOrderDetailsUuapPwdRetrieve) (
 
 	// 创建成功发送企业微信消息
 	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
-	createUuapWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_pwd_retrieve")
+	retrieveUuapPwdWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_pwd_retrieve")
 	if err != nil {
 		log.Error("读取企业微信消息模板错误: ", err)
 	}
@@ -220,7 +221,7 @@ func handleOrderUuapPwdRetrieve(order order.WeworkOrderDetailsUuapPwdRetrieve) (
 		"msgtype": "markdown",
 		"agentid": model.WeworkUuapCfg.AppId,
 		"markdown": map[string]interface{}{
-			"content": fmt.Sprintf(createUuapWeworkMsgTemplate, order.SpName, user.DisplayName, sam, newPwd),
+			"content": fmt.Sprintf(retrieveUuapPwdWeworkMsgTemplate, order.SpName, user.DisplayName, sam, newPwd),
 		},
 	})
 	if err != nil {
@@ -233,8 +234,8 @@ func handleOrderUuapPwdRetrieve(order order.WeworkOrderDetailsUuapPwdRetrieve) (
 // UUAP账号注销 工单
 func handleOrderUuapDisable(order order.WeworkOrderDetailsUuapDisable) (err error) {
 	user := &ldap.LdapAttributes{
-		Num:         order.Uuap,
-		DisplayName: order.Name,
+		Num:         order.Eid,
+		DisplayName: order.DisplayName,
 	}
 
 	err = user.Disable()
@@ -268,8 +269,8 @@ func handleOrderUuapDisable(order order.WeworkOrderDetailsUuapDisable) (err erro
 func handleOrderUuapRenewal(order order.WeworkOrderDetailsUuapRenewal) (err error) {
 	days, _ := strconv.ParseInt(order.Days, 10, 64)
 	user := &ldap.LdapAttributes{
-		Num:         order.Uuap,
-		DisplayName: order.Name,
+		Num:         order.Eid,
+		DisplayName: order.DisplayName,
 		Expire:      ldap.ExpireTime(days),
 	}
 
@@ -297,5 +298,30 @@ func handleOrderUuapRenewal(order order.WeworkOrderDetailsUuapRenewal) (err erro
 		log.Error("Fail to send wework msg,err: ", err)
 	}
 	log.Info("企业微信消息发送成功！工单【" + order.SpName + "】用户【" + order.Userid + "】")
+	return
+}
+
+// 过期用户处理
+func HandleOrderUuapExpired(user *ldap.LdapAttributes, expireDays int) (err error) {
+	expireUuapEmailMsgTemplate, err := cache.HGet("email_templates", "email_template_uuap_expired")
+	if err != nil {
+		log.Error("读取已过期邮件消息模板错误: ", err)
+	}
+	notExpireUuapEmailMsgTemplate, err := cache.HGet("email_templates", "email_template_uuap_not_expired")
+	if err != nil {
+		log.Error("读取未过期邮件消息模板错误: ", err)
+	}
+
+	if 0 <= expireDays && expireDays <= 3 { // 3 天内将要过期的账号 连续提醒三天
+		address := []string{user.Email}
+		htmlContent := fmt.Sprintf(notExpireUuapEmailMsgTemplate, user.DisplayName, user.Sam, strconv.Itoa(expireDays))
+		email.SendMailHtml(address, "UUAP账号过期通知", htmlContent)
+		log.Info("邮箱消息发送成功！用户【" + user.DisplayName + "】账号【" + user.Sam + "】状态【即将过期】")
+	} else if -3 <= expireDays && expireDays < 0 { // 已经过期 3 天内的账号 连续提醒三天
+		address := []string{user.Email}
+		htmlContent := fmt.Sprintf(expireUuapEmailMsgTemplate, user.DisplayName, user.Sam, strconv.Itoa(-expireDays))
+		email.SendMailHtml(address, "UUAP密码已过期通知", htmlContent)
+		log.Info("邮箱消息发送成功！用户【" + user.DisplayName + "】账号【" + user.Sam + "】状态【已经过期】")
+	}
 	return
 }

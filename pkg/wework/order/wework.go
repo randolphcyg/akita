@@ -222,16 +222,16 @@ func ParseRawOrder(rawInfo interface{}) (orderData map[string]interface{}, err e
 
 // UUAP账号注册 工单详情
 type WeworkOrderDetailsUuapRegister struct {
-	SpName  string `mapstructure:"spName"`
-	Partyid string `mapstructure:"partyid"`
-	Userid  string `mapstructure:"userid"`
-	Remarks string `mapstructure:"备注"`
-	Name    string `mapstructure:"姓名"`
-	Title   string `mapstructure:"岗位"`
-	Eid     string `mapstructure:"工号"`
-	Mobile  string `mapstructure:"手机"`
-	Mail    string `mapstructure:"邮箱"`
-	Depart  string `mapstructure:"部门"`
+	SpName      string `mapstructure:"spName"`
+	Partyid     string `mapstructure:"partyid"`
+	Userid      string `mapstructure:"userid"`
+	Remarks     string `mapstructure:"备注"`
+	DisplayName string `mapstructure:"姓名"`
+	Title       string `mapstructure:"岗位"`
+	Eid         string `mapstructure:"工号"`
+	Mobile      string `mapstructure:"手机"`
+	Mail        string `mapstructure:"邮箱"`
+	Depart      string `mapstructure:"部门"`
 }
 
 // 原始工单转换为UUAP注册工单结构体
@@ -244,10 +244,10 @@ func RawToUuapRegister(weworkOrder map[string]interface{}) (orderDetails WeworkO
 
 // UUAP密码找回 工单详情
 type WeworkOrderDetailsUuapPwdRetrieve struct {
-	SpName string `mapstructure:"spName"`
-	Userid string `mapstructure:"userid"`
-	Name   string `mapstructure:"姓名"`
-	Uuap   string `mapstructure:"工号"`
+	SpName      string `mapstructure:"spName"`
+	Userid      string `mapstructure:"userid"`
+	DisplayName string `mapstructure:"姓名"`
+	Eid         string `mapstructure:"工号"`
 }
 
 // 原始工单转换为UUAP密码找回结构体
@@ -260,10 +260,10 @@ func RawToUuapPwdRetrieve(weworkOrder map[string]interface{}) (orderDetails Wewo
 
 // UUAP账号注销 工单详情
 type WeworkOrderDetailsUuapDisable struct {
-	SpName string `mapstructure:"spName"`
-	Userid string `mapstructure:"userid"`
-	Name   string `mapstructure:"姓名"`
-	Uuap   string `mapstructure:"工号"`
+	SpName      string `mapstructure:"spName"`
+	Userid      string `mapstructure:"userid"`
+	DisplayName string `mapstructure:"姓名"`
+	Eid         string `mapstructure:"工号"`
 }
 
 // 原始工单转换为UUAP账号注销结构体
@@ -276,11 +276,11 @@ func RawToUuapPwdDisable(weworkOrder map[string]interface{}) (orderDetails Wewor
 
 // UUAP账号续期 工单详情
 type WeworkOrderDetailsUuapRenewal struct {
-	SpName string `mapstructure:"spName"`
-	Userid string `mapstructure:"userid"`
-	Name   string `mapstructure:"姓名"`
-	Uuap   string `mapstructure:"工号"`
-	Days   string `mapstructure:"续期天数"`
+	SpName      string `mapstructure:"spName"`
+	Userid      string `mapstructure:"userid"`
+	DisplayName string `mapstructure:"姓名"`
+	Eid         string `mapstructure:"工号"`
+	Days        string `mapstructure:"续期天数"`
 }
 
 // 原始工单转换为UUAP账号续期结构体

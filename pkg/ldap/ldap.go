@@ -114,7 +114,7 @@ func FetchLdapUsers(user *LdapAttributes) (result []*ldap.Entry) {
 	ldapFilterCompany := "(company=" + user.Company + ")"
 	ldapFilterTitle := "(title=" + user.Title + ")"
 
-	searchFilter := "(objectClass=organizationalPerson)"
+	searchFilter := "(&(objectClass=user)(mail=*))" // 有邮箱的用户 排除系统级别用户
 
 	if user.Num != "" {
 		searchFilter += ldapFilterNum
@@ -180,12 +180,12 @@ func AddUser(user *LdapAttributes) (pwd string, err error) {
 	// 初始化创建用户请求
 	addReq := ldap.NewAddRequest(user.Dn, nil)                                                 // 指定新用户的dn 会同时给cn name字段赋值
 	addReq.Attribute("objectClass", []string{"top", "organizationalPerson", "user", "person"}) // 必填字段 否则报错 LDAP Result Code 65 "Object Class Violation"
-	addReq.Attribute("employeeNumber", []string{user.Num})                                     // 工号 暂时没用到
+	addReq.Attribute("employeeNumber", []string{user.Num})                                     // 工号 必填 与显示姓名联合查询唯一用户
+	addReq.Attribute("displayName", []string{user.DisplayName})                                // 真实姓名 必填 与工号联合查询唯一用户
 	addReq.Attribute("sAMAccountName", []string{user.Sam})                                     // 登录名 必填
 	addReq.Attribute("UserAccountControl", []string{user.AccountCtl})                          // 账号控制 544 是启用用户
 	addReq.Attribute("accountExpires", []string{strconv.FormatInt(user.Expire, 10)})           // 账号过期时间 当前时间加一个时间差并转换为NT时间
 	addReq.Attribute("pwdLastSet", []string{user.PwdLastSet})                                  // 用户下次登录必须修改密码 0是永不过期
-	addReq.Attribute("displayName", []string{user.DisplayName})                                // 真实姓名 某些系统需要
 	addReq.Attribute("sn", []string{user.Sn})                                                  // 姓
 	addReq.Attribute("givenName", []string{user.GivenName})                                    // 名
 	addReq.Attribute("mail", []string{user.Email})                                             // 邮箱 必填
@@ -347,7 +347,7 @@ func (user *LdapAttributes) MoveDn(newOu string) (err error) {
 
 }
 
-// 将ldap库的entry类型转换为自定义类型LdapAttributes
+// 将 ldap.Entry 类型转换为自定义类型 LdapAttributes
 func NewUser(entry *ldap.Entry) *LdapAttributes {
 	// 初始化连接
 	err := Init(&bootstrap.LdapCfg)
@@ -359,7 +359,7 @@ func NewUser(entry *ldap.Entry) *LdapAttributes {
 	return &LdapAttributes{
 		Num:         entry.GetAttributeValue("employeeNumber"),
 		Sam:         entry.GetAttributeValue("sAMAccountName"),
-		DisplayName: entry.GetAttributeValue("distinguishedName"),
+		DisplayName: entry.GetAttributeValue("displayName"),
 		AccountCtl:  entry.GetAttributeValue("UserAccountControl"),
 		Expire:      expire,
 		PwdLastSet:  entry.GetAttributeValue("pwdLastSet"),
@@ -367,7 +367,6 @@ func NewUser(entry *ldap.Entry) *LdapAttributes {
 		WhenChanged: entry.GetAttributeValue("whenChanged"),
 		Email:       entry.GetAttributeValue("mail"),
 		Phone:       entry.GetAttributeValue("mobile"),
-		Name:        entry.GetAttributeValue("displayName"),
 		Sn:          entry.GetAttributeValue("sn"),
 		GivenName:   entry.GetAttributeValue("givenName"),
 		Company:     entry.GetAttributeValue("company"),

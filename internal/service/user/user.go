@@ -1,7 +1,6 @@
 package user
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -12,6 +11,7 @@ import (
 	"gitee.com/RandolphCYG/akita/pkg/ldap"
 	"gitee.com/RandolphCYG/akita/pkg/serializer"
 	"gitee.com/RandolphCYG/akita/pkg/util"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -39,18 +39,22 @@ func (service *LdapUserService) FetchUser(url string) serializer.Response {
 	user := &ldap.LdapAttributes{}
 	LdapUsers := ldap.FetchLdapUsers(user)
 	currentTime := time.Now()
+	handledExpireUsers := make([]*ldap.LdapAttributes, 0, 10)
 	for _, user := range LdapUsers {
-
 		expire, _ := strconv.ParseInt(user.GetAttributeValue("accountExpires"), 10, 64)
 		unixTime := util.NtToUnix(expire)
 		expireDays := util.FormatLdapExpireDays(util.SubDays(unixTime, currentTime))
-		if expireDays != 106752 { // 正常的账号
-			if expireDays < 7 { // 七天内过期的账号
-				fmt.Println(user.GetAttributeValue("sAMAccountName"), user.GetAttributeValue("displayName"), expireDays, "天")
+		if expireDays != 106752 { // 排除不过期的账号
+			if -3 <= expireDays && expireDays <= 3 { // 未/已经过期 3 天内的账号
+				ldapUser := ldap.NewUser(user) // 初始化速度较慢 适用定时异步任务处理少量数据
+				handledExpireUsers = append(handledExpireUsers, ldapUser)
+				// order.HandleOrderUuapExpired(ldapUser, expireDays) // 处理过期账号 TODO 邮件测试通过 当完成定时模块时开放此功能
+				log.Info(ldapUser, "过期天数: ", expireDays)
 			}
 		}
 	}
-	return serializer.Response{Data: LdapUsers}
+
+	return serializer.Response{Data: handledExpireUsers}
 }
 
 // 创建用户-管理员接口

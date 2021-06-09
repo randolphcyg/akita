@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"gitee.com/RandolphCYG/akita/internal/conf"
 	"gitee.com/RandolphCYG/akita/pkg/cache"
+	"gitee.com/RandolphCYG/akita/pkg/email"
 	"gitee.com/RandolphCYG/akita/pkg/hr"
 	log "github.com/sirupsen/logrus"
 
@@ -35,6 +36,9 @@ func Init(cfg string) {
 
 	// 初始化 redis
 	cache.Init(&c.Redis)
+
+	// 初始化 email
+	email.Init(&c.Email)
 
 	// 初始化ldap连接
 	LdapCfg, _ = model.GetAllLdapConn() // 直接查询
