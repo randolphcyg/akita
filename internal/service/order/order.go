@@ -69,6 +69,11 @@ func (service *Order) HandleOrders(o *Order) serializer.Response {
 			weworkOrder := order.RawToUuapRenewal(orderData)
 			err = handleOrderUuapRenewal(weworkOrder)
 		}
+	case "猪齿鱼项目权限":
+		{
+			weworkOrder := order.RawToC7nAuthority(orderData)
+			err = handleOrderC7nAuthority(weworkOrder)
+		}
 	default:
 		log.Error("Akita server has no handdler with this kind of order, please handle it manually!")
 	}
@@ -323,5 +328,23 @@ func HandleOrderUuapExpired(user *ldap.LdapAttributes, expireDays int) (err erro
 		email.SendMailHtml(address, "UUAP密码已过期通知", htmlContent)
 		log.Info("邮箱消息发送成功！用户【" + user.DisplayName + "】账号【" + user.Sam + "】状态【已经过期】")
 	}
+	return
+}
+
+// c7n权限处理 TODO 逻辑未完成
+func handleOrderC7nAuthority(order order.WeworkOrderDetailsC7nAuthority) (err error) {
+	// project, _ := c7n.FetchC7nProject("XXX")
+	// fmt.Println(project)
+	// user, _ := c7n.FtechC7nUser("XXX")
+	// fmt.Println(user)
+
+	// var c7nRoleIds []string
+	// // TODO 需要该项目该用户的旧角色作增操作
+	// role, _ := c7n.FetchC7nRoles("项目成员")
+	// c7nRoleIds = append(c7nRoleIds, role.Id)
+	// fmt.Println(c7nRoleIds)
+
+	// c7n.AssignC7nUserProjectRole(strconv.Itoa(project.Id), user.Id, c7nRoleIds)
+
 	return
 }

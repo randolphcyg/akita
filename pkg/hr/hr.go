@@ -1,7 +1,7 @@
 package hr
 
 import (
-	"github.com/asmcos/requests"
+	"github.com/kirinlabs/HttpRequest"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -56,7 +56,7 @@ type HrDataConn struct {
 
 // FetchToken 获取token
 func FetchToken(h *HrDataConn) (token HrToken) {
-	req := requests.Requests()
+	req := HttpRequest.NewRequest()
 	respFetchToken, err := req.Post(h.UrlGetToken)
 	if err != nil {
 		// 抛错
@@ -80,9 +80,9 @@ func FetchToken(h *HrDataConn) (token HrToken) {
 
 // FetchHrData 带着token去获取HR数据
 func FetchHrData(h *HrDataConn) (hrUsers []HrUser) {
-	req := requests.Requests()
+	req := HttpRequest.NewRequest()
 	hrToken := FetchToken(h)
-	header := requests.Header{
+	header := map[string]string{
 		"Authorization": hrToken.TokenType + " " + hrToken.AccessToken,
 		"Content-Type":  "application/json;charset=UTF-8",
 	}

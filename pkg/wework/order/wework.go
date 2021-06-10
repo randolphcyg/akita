@@ -290,3 +290,20 @@ func RawToUuapRenewal(weworkOrder map[string]interface{}) (orderDetails WeworkOr
 	}
 	return
 }
+
+// c7n项目权限 工单详情
+type WeworkOrderDetailsC7nAuthority struct {
+	SpName      string `mapstructure:"spName"`
+	Userid      string `mapstructure:"userid"`
+	DisplayName string `mapstructure:"姓名"`
+	Eid         string `mapstructure:"账号"`
+	Days        string `mapstructure:"项目名称"`
+}
+
+// 原始工单转换为 c7n项目权限 结构体
+func RawToC7nAuthority(weworkOrder map[string]interface{}) (orderDetails WeworkOrderDetailsC7nAuthority) {
+	if err := mapstructure.Decode(weworkOrder, &orderDetails); err != nil {
+		log.Error("Fail to convert raw oder,err: ", err)
+	}
+	return
+}

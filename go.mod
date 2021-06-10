@@ -3,7 +3,6 @@ module gitee.com/RandolphCYG/akita
 go 1.16
 
 require (
-	github.com/asmcos/requests v0.0.0-20210319030608-c839e8ae4946
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/gin-gonic/gin v1.7.2
 	github.com/go-ldap/ldap/v3 v3.3.0
@@ -12,7 +11,8 @@ require (
 	github.com/goinggo/mapstructure v0.0.0-20140717182941-194205d9b4a9
 	github.com/golang/protobuf v1.4.3 // indirect
 	github.com/jasonlvhit/gocron v0.0.1
-	github.com/jordan-wright/email v4.0.1-0.20210109023952-943e75fe5223+incompatible // indirect
+	github.com/jordan-wright/email v4.0.1-0.20210109023952-943e75fe5223+incompatible
+	github.com/kirinlabs/HttpRequest v1.1.1
 	github.com/lestrrat-go/file-rotatelogs v2.4.0+incompatible
 	github.com/lestrrat-go/strftime v1.0.4 // indirect
 	github.com/pkg/errors v0.9.1

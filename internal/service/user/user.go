@@ -163,7 +163,6 @@ func (service *HrDataService) HrToLdap(h HrDataService) serializer.Response {
 			Depart:      depart,
 			Title:       user.Title,
 		}
-		// 更新用户信息 [注意对外部员工OU路径要插入本公司/合作伙伴一层中!!!]
 		user.Update()
 	}
 	return serializer.Response{Data: 1, Msg: "更新成功"}
