@@ -1,6 +1,7 @@
 package user
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -40,6 +41,23 @@ func (service *LdapUserService) FetchUser(url string) serializer.Response {
 	// 初始化连接
 	user := &ldap.LdapAttributes{}
 	LdapUsers := ldap.FetchLdapUsers(user)
+	jndex := 1
+	for _, user := range LdapUsers {
+		// 速度慢
+		// ldapUser := ldap.NewUser(user)
+		// fmt.Println(ldapUser.DisplayName, ldapUser.Num, ldapUser.Sam, ldapUser.Email, ldapUser.Phone)
+		// 速度快 查询激活用户 判断带前缀的账号
+		if user.GetAttributeValue("userAccountControl") == "544" && (strings.HasPrefix(user.GetAttributeValue("sAMAccountName"), "X") || strings.HasPrefix(user.GetAttributeValue("sAMAccountName"), "XXXX")) {
+			fmt.Println(jndex,
+				user.GetAttributeValue("displayName"),
+				user.GetAttributeValue("employeeNumber"),
+				user.GetAttributeValue("sAMAccountName"),
+				strings.ToUpper(user.GetAttributeValue("mail")),
+				user.GetAttributeValue("mobile"),
+				user.GetAttributeValue("userAccountControl"))
+			jndex += 1
+		}
+	}
 	return serializer.Response{Data: LdapUsers}
 }
 
