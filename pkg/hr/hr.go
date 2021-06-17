@@ -87,7 +87,8 @@ func FetchHrData(h *HrDataConn) (hrUsers []HrUser) {
 		"Content-Type":  "application/json;charset=UTF-8",
 	}
 	// 发送请求
-	respFetchData, err := req.Post(h.UrlGetData, header)
+	req.SetHeaders(header)
+	respFetchData, err := req.Post(h.UrlGetData)
 	if err != nil {
 		log.Error("Fail to fetch hr data,err: ", err)
 		return

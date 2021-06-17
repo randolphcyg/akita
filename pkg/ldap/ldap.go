@@ -421,7 +421,7 @@ func (user *LdapAttributes) Update() (err error) {
 		}
 
 		if err := LdapConn.Modify(modReq); err != nil {
-			log.Error("error update user information:%s\n", err)
+			log.Error("error update user information: ", err)
 		}
 		// 对用户DN进行更新 必须放在修改其他普通数据之后 [不会影响用户使用体验]
 		if user.Dn != "" && !strings.EqualFold(strings.SplitN(entry.DN, ",", 2)[1], user.Dn) {
