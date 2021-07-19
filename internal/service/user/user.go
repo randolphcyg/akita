@@ -73,11 +73,16 @@ func FetchAndHandleExpireUser() (handledExpireUsers []*ldap.LdapAttributes) {
 		unixTime := util.NtToUnix(expire)
 		expireDays := util.FormatLdapExpireDays(util.SubDays(unixTime, currentTime))
 		if expireDays != 106752 { // 排除不过期的账号
-			if -3 <= expireDays && expireDays <= 3 { // 未/已经过期 3 天内的账号
+			if expireDays >= -7 && expireDays <= 14 { // 未/已经过期 7 天内的账号
 				ldapUser := ldap.NewUser(user) // 初始化速度较慢 适用定时异步任务处理少量数据
 				handledExpireUsers = append(handledExpireUsers, ldapUser)
+				fmt.Println(ldapUser, "过期天数: ", expireDays)
+				// log.Info(ldapUser, "过期天数: ", expireDays)
+				// order.HandleOrderUuapExpired(ldapUser, expireDays) // 处理过期账号
+				// if ldapUser.DisplayName == "蔡迎港" {
+				// 	log.Info(ldapUser, "过期天数: ", expireDays)
 				order.HandleOrderUuapExpired(ldapUser, expireDays) // 处理过期账号
-				log.Info(ldapUser, "过期天数: ", expireDays)
+				// }
 			}
 		}
 	}
@@ -87,7 +92,9 @@ func FetchAndHandleExpireUser() (handledExpireUsers []*ldap.LdapAttributes) {
 // 触发定时任务
 func (service *LdapUserService) FetchExpireUser() serializer.Response {
 	go func() {
-		gocron.Every(1).Day().At("9:30").Do(FetchAndHandleExpireUser) // 每天早上九点半发信息
+		gocron.Every(1).Day().At("10:00").Do(FetchAndHandleExpireUser) // 每天早上10点扫一遍
+		// gocron.Every(30).Second().Do(FetchAndHandleExpireUser)
+		// gocron.Every(1).Day().At("11:00").Do(FetchAndHandleExpireUser)
 		_, nextTime := gocron.NextRun()
 		log.Info("定时任务下次触发时间：", nextTime)
 		<-gocron.Start()

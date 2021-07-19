@@ -308,25 +308,35 @@ func handleOrderUuapRenewal(order order.WeworkOrderDetailsUuapRenewal) (err erro
 
 // 过期用户处理
 func HandleOrderUuapExpired(user *ldap.LdapAttributes, expireDays int) (err error) {
-	expireUuapEmailMsgTemplate, err := cache.HGet("email_templates", "email_template_uuap_expired")
+
+	emailTempUuaplateExpiring, err := cache.HGet("email_templates", "email_template_uuap_expiring")
+	if err != nil {
+		log.Error("读取即将过期邮件消息模板错误: ", err)
+	}
+	emailTemplateUuapExpired, err := cache.HGet("email_templates", "email_template_uuap_expired")
 	if err != nil {
 		log.Error("读取已过期邮件消息模板错误: ", err)
 	}
-	notExpireUuapEmailMsgTemplate, err := cache.HGet("email_templates", "email_template_uuap_not_expired")
+	emailTemplateUuapExpiredDisabled, err := cache.HGet("email_templates", "email_template_uuap_expired_disabled")
 	if err != nil {
-		log.Error("读取未过期邮件消息模板错误: ", err)
+		log.Error("读取已过期禁用邮件消息模板错误: ", err)
 	}
 
-	if 0 <= expireDays && expireDays <= 3 { // 3 天内将要过期的账号 连续提醒三天
+	if expireDays == 7 || expireDays == 13 { // 即将过期提醒 7|14天前
+		// fmt.Println(emailTempUuaplateExpiring)
 		address := []string{user.Email}
-		htmlContent := fmt.Sprintf(notExpireUuapEmailMsgTemplate, user.DisplayName, user.Sam, strconv.Itoa(expireDays))
-		email.SendMailHtml(address, "UUAP账号过期通知", htmlContent)
-		log.Info("邮箱消息发送成功！用户【" + user.DisplayName + "】账号【" + user.Sam + "】状态【即将过期】")
-	} else if -3 <= expireDays && expireDays < 0 { // 已经过期 3 天内的账号 连续提醒三天
+		htmlContent := fmt.Sprintf(emailTempUuaplateExpiring, user.DisplayName, user.Sam, strconv.Itoa(expireDays))
+		email.SendMailHtml(address, "UUAP账号即将过期通知", htmlContent)
+		log.Info("邮件发送成功！用户【" + user.DisplayName + "】账号【" + user.Sam + "】状态【即将过期】")
+	} else if expireDays == -7 { // 已经过期提醒 7天后
+		// fmt.Println(emailTemplateUuapExpired)
 		address := []string{user.Email}
-		htmlContent := fmt.Sprintf(expireUuapEmailMsgTemplate, user.DisplayName, user.Sam, strconv.Itoa(-expireDays))
-		email.SendMailHtml(address, "UUAP密码已过期通知", htmlContent)
-		log.Info("邮箱消息发送成功！用户【" + user.DisplayName + "】账号【" + user.Sam + "】状态【已经过期】")
+		htmlContent := fmt.Sprintf(emailTemplateUuapExpired, user.DisplayName, user.Sam, strconv.Itoa(expireDays))
+		email.SendMailHtml(address, "UUAP账号已过期通知", htmlContent)
+		log.Info("邮件发送成功！用户【" + user.DisplayName + "】账号【" + user.Sam + "】状态【已经过期】")
+	} else if expireDays == 30 { // 已经过期且禁用提醒 30天后
+		fmt.Println(emailTemplateUuapExpiredDisabled)
+		log.Info("邮件发送成功！用户【" + user.DisplayName + "】账号【" + user.Sam + "】状态【已经过期禁用】")
 	}
 	return
 }
