@@ -322,7 +322,7 @@ func HandleOrderUuapExpired(user *ldap.LdapAttributes, expireDays int) (err erro
 		log.Error("读取已过期禁用邮件消息模板错误: ", err)
 	}
 
-	if expireDays == 7 || expireDays == 13 { // 即将过期提醒 7|14天前
+	if expireDays == 7 || expireDays == 14 { // 即将过期提醒 7|14天前
 		// fmt.Println(emailTempUuaplateExpiring)
 		address := []string{user.Email}
 		htmlContent := fmt.Sprintf(emailTempUuaplateExpiring, user.DisplayName, user.Sam, strconv.Itoa(expireDays))
@@ -331,10 +331,10 @@ func HandleOrderUuapExpired(user *ldap.LdapAttributes, expireDays int) (err erro
 	} else if expireDays == -7 { // 已经过期提醒 7天后
 		// fmt.Println(emailTemplateUuapExpired)
 		address := []string{user.Email}
-		htmlContent := fmt.Sprintf(emailTemplateUuapExpired, user.DisplayName, user.Sam, strconv.Itoa(expireDays))
+		htmlContent := fmt.Sprintf(emailTemplateUuapExpired, user.DisplayName, user.Sam, strconv.Itoa(-expireDays)) // 此时过期天数为负值
 		email.SendMailHtml(address, "UUAP账号已过期通知", htmlContent)
 		log.Info("邮件发送成功！用户【" + user.DisplayName + "】账号【" + user.Sam + "】状态【已经过期】")
-	} else if expireDays == 30 { // 已经过期且禁用提醒 30天后
+	} else if expireDays == -30 { // 已经过期且禁用提醒 30天后
 		fmt.Println(emailTemplateUuapExpiredDisabled)
 		log.Info("邮件发送成功！用户【" + user.DisplayName + "】账号【" + user.Sam + "】状态【已经过期禁用】")
 	}
