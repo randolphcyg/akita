@@ -122,7 +122,6 @@ func Get(key string, value interface{}) (res interface{}, err error) {
 */
 // HSet hash 存储
 func HSet(key string, field string, value interface{}) (res bool, err error) {
-	RedisClient.Del(ctx, key) // 先删除
 	res, err = RedisClient.HMSet(ctx, key, map[string]interface{}{field: value}).Result()
 	if err != nil {
 		log.Error("Fail to batch set a filed,err: ", err)
@@ -132,7 +131,6 @@ func HSet(key string, field string, value interface{}) (res bool, err error) {
 
 // HMSet hash 批量存储
 func HMSet(key string, data map[string]interface{}) (res bool, err error) {
-	RedisClient.Del(ctx, key) // 先删除
 	res, err = RedisClient.HMSet(ctx, key, data).Result()
 	if err != nil {
 		log.Error("Fail to batch set fileds,err: ", err)

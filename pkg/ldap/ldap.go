@@ -2,6 +2,7 @@ package ldap
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -160,7 +161,7 @@ func FetchLdapUsers(user *LdapAttributes) (result []*ldap.Entry) {
 	return
 }
 
-// 用户过期期限处理 天数为-1 则过期时间为永久;否则 当前时间往后推迟 expireDays 天
+// ExpireTime 用户过期期限处理 天数为-1 则过期时间为永久;否则 当前时间往后推迟 expireDays 天
 func ExpireTime(expireDays int64) (expireTimestamp int64) {
 	expireTimestamp = 9223372036854775807
 	if expireDays != -1 {
@@ -169,7 +170,7 @@ func ExpireTime(expireDays int64) (expireTimestamp int64) {
 	return
 }
 
-// 新增用户
+// AddUser 新增用户
 func AddUser(user *LdapAttributes) (pwd string, err error) {
 	// 初始化连接
 	err = Init(&bootstrap.LdapCfg)
@@ -220,7 +221,7 @@ func AddUser(user *LdapAttributes) (pwd string, err error) {
 	return
 }
 
-// 密码找回
+// RetrievePwd 密码找回
 func (user *LdapAttributes) RetrievePwd() (sam string, newPwd string, err error) {
 	// 初始化连接
 	err = Init(&bootstrap.LdapCfg)
@@ -248,7 +249,7 @@ func (user *LdapAttributes) RetrievePwd() (sam string, newPwd string, err error)
 	return
 }
 
-// 修改用户密码 这种修改密码的方法有延迟性 大约五分钟，新旧密码都能使用
+// ModifyPwd 修改用户密码 这种修改密码的方法有延迟性 大约五分钟，新旧密码都能使用
 func (user *LdapAttributes) ModifyPwd(newUserPwd string) (err error) {
 	// 初始化连接
 	err = Init(&bootstrap.LdapCfg)
@@ -305,6 +306,7 @@ func FetchUser(user *LdapAttributes) (result *ldap.Entry, err error) {
 	sr, err := LdapConn.Search(searchRequest)
 	if err != nil {
 		log.Error("Fail to fetch user,err: ", err)
+		return
 	}
 	if len(sr.Entries) > 0 && len(sr.Entries[0].Attributes) > 0 {
 		result = sr.Entries[0]
@@ -312,7 +314,7 @@ func FetchUser(user *LdapAttributes) (result *ldap.Entry, err error) {
 	return
 }
 
-// ldap用户方法——修改dn
+// ModifyDn 修改dn
 func (user *LdapAttributes) ModifyDn(cn string) {
 	// 初始化连接
 	err := Init(&bootstrap.LdapCfg)
@@ -328,7 +330,7 @@ func (user *LdapAttributes) ModifyDn(cn string) {
 	}
 }
 
-// ldap用户方法——移动dn
+// MoveDn 移动dn
 func (user *LdapAttributes) MoveDn(newOu string) (err error) {
 	// 初始化连接
 	err = Init(&bootstrap.LdapCfg)
@@ -347,7 +349,7 @@ func (user *LdapAttributes) MoveDn(newOu string) (err error) {
 
 }
 
-// 将 ldap.Entry 类型转换为自定义类型 LdapAttributes
+// NewUser 将 ldap.Entry 类型转换为自定义类型 LdapAttributes
 func NewUser(entry *ldap.Entry) *LdapAttributes {
 	// 初始化连接
 	err := Init(&bootstrap.LdapCfg)
@@ -375,7 +377,7 @@ func NewUser(entry *ldap.Entry) *LdapAttributes {
 	}
 }
 
-// Updateldap用户方法——更新用户信息
+// Update 更新用户信息
 func (user *LdapAttributes) Update() (err error) {
 	// 初始化连接
 	err = Init(&bootstrap.LdapCfg)
@@ -388,53 +390,47 @@ func (user *LdapAttributes) Update() (err error) {
 		log.Error("Fail to fetch user,err: ", err)
 		return
 	}
-	if entry != nil {
-		modReq := ldap.NewModifyRequest(entry.DN, []ldap.Control{})
-		// 对用户的普通数据进行选择性更新
-		if user.Num != "" {
+
+	if entry != nil { // 当用户记录存在时
+		if user.Num != entry.GetAttributeValue("employeeNumber") &&
+			// user.Sam != entry.GetAttributeValue("sAMAccountName") &&
+			user.Email != entry.GetAttributeValue("mail") &&
+			user.Phone != entry.GetAttributeValue("mobile") &&
+			user.DisplayName != entry.GetAttributeValue("displayName") &&
+			user.Depart != entry.GetAttributeValue("department") &&
+			user.Company != entry.GetAttributeValue("company") &&
+			user.Title != entry.GetAttributeValue("title") &&
+			user.AccountCtl != entry.GetAttributeValue("UserAccountControl") {
+			// fmt.Println(user.DisplayName, strings.EqualFold(strings.SplitN(entry.DN, ",", 2)[1], user.Dn))
+			fmt.Println("更新用户普通信息")
+			modReq := ldap.NewModifyRequest(entry.DN, []ldap.Control{})
 			modReq.Replace("employeeNumber", []string{user.Num})
-		}
-		// 更新用户登录名 [涉及平台较多 需统一更新!!]
-		// if user.Sam != "" {
-		// 	modReq.Replace("sAMAccountName", []string{user.Sam})
-		// }
-		if user.Email != "" {
+			// modReq.Replace("sAMAccountName", []string{user.Sam})
 			modReq.Replace("mail", []string{user.Email})
-		}
-		if user.Phone != "" {
 			modReq.Replace("mobile", []string{user.Phone})
-		}
-		if user.DisplayName != "" {
 			modReq.Replace("displayName", []string{user.DisplayName})
-		}
-		if user.Depart != "" {
 			modReq.Replace("department", []string{user.Depart})
-		}
-		if user.Company != "" {
 			modReq.Replace("company", []string{user.Company})
-		}
-		if user.Title != "" {
 			modReq.Replace("title", []string{user.Title})
-		}
-		if user.AccountCtl != "" {
 			modReq.Replace("accountExpires", []string{strconv.FormatInt(user.Expire, 10)})
+
+			if err := LdapConn.Modify(modReq); err != nil {
+				log.Error("Fail to update user's infor: ", err)
+			}
 		}
 
-		if err := LdapConn.Modify(modReq); err != nil {
-			log.Error("error update user information: ", err)
-		}
-		// 对用户DN进行更新 必须放在修改其他普通数据之后 [不会影响用户使用体验]
+		// 若用户部门或状态发生变化 由部门1>>部门2 由部门1>>离职
 		if user.Dn != "" && !strings.EqualFold(strings.SplitN(entry.DN, ",", 2)[1], user.Dn) {
+			log.Info(user.DisplayName, strings.SplitN(entry.DN, ",", 2)[1], "  >>>>>  ", user.Dn)
 			CheckOuTree(user.Dn)
 			err = user.MoveDn(user.Dn)
+			return
 		}
-	} else {
-		log.Error("Fail to fetch user!")
 	}
 	return
 }
 
-// ldap用户方法——手动修改用户信息
+// ModifyInfo 手动修改用户信息
 func (user *LdapAttributes) ModifyInfo() (err error) {
 	// 初始化连接
 	err = Init(&bootstrap.LdapCfg)
@@ -513,7 +509,7 @@ func IsOuExist(newOu string) (isOuExist bool) {
 	return
 }
 
-// 新增OU 只处理当前OU，不考虑父子OU
+// AddOu 新增OU 只处理当前OU，不考虑父子OU
 func AddOu(newOu string) {
 	// 初始化连接
 	err := Init(&bootstrap.LdapCfg)
@@ -530,7 +526,7 @@ func AddOu(newOu string) {
 	}
 }
 
-// 新增OU树逻辑 判断OU树是否存在，若不存在 则层层新增
+// CheckOuTree 新增OU树逻辑 判断OU树是否存在，若不存在 则层层新增
 func CheckOuTree(newOu string) {
 	ous := strings.SplitN(newOu, ",", len(strings.Split(newOu, ","))-1)
 	for i := range ous {
@@ -545,8 +541,16 @@ func CheckOuTree(newOu string) {
 	}
 }
 
-// 将部门架构 aaa.bbb.ccc 转换为LDAP的DN地址 OU=ccc,OU=bbb,OU=aaa,DC=XXX,DC=COM
+// DepartToDn 将部门架构 aaa.bbb.ccc 转换为LDAP的DN地址 OU=ccc,OU=bbb,OU=aaa,DC=XXX,DC=COM
 func DepartToDn(depart string) (dn string) {
+	// 从内存中获取公司列表
+	var companies map[string]model.CompanyType
+	json.Unmarshal([]byte(bootstrap.LdapField.CompanyType), &companies)
+	// 如果是外部公司用户
+	if companies[strings.Split(depart, ".")[0]].IsOuter == 1 {
+		depart = DnToDepart(bootstrap.LdapField.BasicPullNode) + ".合作伙伴." + depart
+	}
+
 	ous := strings.Split(depart, ".")
 
 	var reversedOus []string = []string{}
@@ -556,6 +560,23 @@ func DepartToDn(depart string) (dn string) {
 	dn = strings.Join(reversedOus, ",OU=")
 	dn = "OU=" + dn + "," + bootstrap.LdapCfg.BaseDn
 	return
+}
+
+// DnToDepart 将DN地址转换为部门架构
+func DnToDepart(dn string) (depart string) {
+	rawDn := strings.Split(dn, ",")
+	rawDn = Reverse(rawDn[:len(rawDn)-2]) // 去掉DC 逆序
+	// 元素拼接，用.替换所有的OU=，去掉开始的.
+	depart = strings.Replace(strings.Join(rawDn, ""), "OU=", ".", -1)[1:]
+	return
+}
+
+// 切片逆序
+func Reverse(s []string) []string {
+	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
+		s[i], s[j] = s[j], s[i]
+	}
+	return s
 }
 
 // ldap用户方法——禁用用户

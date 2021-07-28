@@ -61,12 +61,14 @@ func router() *gin.Engine {
 		ldapUser := v1.Group("ldap/users")
 		ldapUser.GET("fetch", handler.FetchLdapUser) // 根据conn_url查询LDAP用户 /api/v1/ldap/user/fetch?conn_url=ldap://192.168.5.55:390
 		ldapUser.GET("create", handler.CreateLdapUser)
-		ldapUser.GET("start", handler.FetchExpireLdapUser) // 扫描过期用户 定时任务
+		ldapUser.GET("scan/expire/task", handler.ScanExpiredLdapUsersTask)     // 【定时任务】扫描过期用户
+		ldapUser.GET("scan/expire/manual", handler.ScanExpiredLdapUsersManual) // 扫描过期用户
+		ldapUser.GET("update/task", handler.UpdateLdapUsersTask)               // 【定时任务】更新用户到缓存库 再从缓存库更新用户到ldap
+		ldapUser.GET("update/manual", handler.UpdateLdapUsersManual)           // 更新用户到缓存库 再从缓存库更新用户到ldap
 
 		// 通过查询hr数据接口确定是否包含某员工
 		hrData := v1.Group("hr")
 		hrData.GET("fetch", handler.FetchHrData)
-		hrData.GET("sync", handler.SyncHrToLdap)
 
 		// 处理企业微信工单
 		weworkOder := v1.Group("order")

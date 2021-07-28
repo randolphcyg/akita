@@ -1,6 +1,7 @@
 package user
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"gitee.com/RandolphCYG/akita/bootstrap"
 	"gitee.com/RandolphCYG/akita/internal/model"
 	"gitee.com/RandolphCYG/akita/internal/service/order"
+	"gitee.com/RandolphCYG/akita/pkg/cache"
 	"gitee.com/RandolphCYG/akita/pkg/hr"
 	"gitee.com/RandolphCYG/akita/pkg/ldap"
 	"gitee.com/RandolphCYG/akita/pkg/serializer"
@@ -17,6 +19,17 @@ import (
 	"github.com/jasonlvhit/gocron"
 	log "github.com/sirupsen/logrus"
 )
+
+/*
+* 这里是外部接口(HR数据)的模型
+ */
+// HrDataService HR数据查询条件
+type HrDataService struct {
+	// 获取 token 的 URL
+	UrlGetToken string `json:"url_get_token" gorm:"type:varchar(255);not null;comment:获取token的地址"`
+	// 获取 数据 的URL
+	UrlGetData string `json:"url_get_data" gorm:"type:varchar(255);not null;comment:获取数据的地址"`
+}
 
 // LdapUserService LDAP用户查询条件
 type LdapUserService struct {
@@ -61,65 +74,13 @@ func (service *LdapUserService) FetchUser(url string) serializer.Response {
 	return serializer.Response{Data: LdapUsers}
 }
 
-// 查询并处理过期用户逻辑 【定时任务】
-func FetchAndHandleExpireUser() (handledExpireUsers []*ldap.LdapAttributes) {
-	// 初始化连接
-	user := &ldap.LdapAttributes{}
-	LdapUsers := ldap.FetchLdapUsers(user)
-	currentTime := time.Now()
-	// handledExpireUsers := make([]*ldap.LdapAttributes, 0, 10)  // TODO 预留防止更改传参
-	for _, user := range LdapUsers {
-		expire, _ := strconv.ParseInt(user.GetAttributeValue("accountExpires"), 10, 64)
-		unixTime := util.NtToUnix(expire)
-		expireDays := util.FormatLdapExpireDays(util.SubDays(unixTime, currentTime))
-		if expireDays != 106752 { // 排除不过期的账号
-			if expireDays >= -7 && expireDays <= 14 { // 未/已经过期 7 天内的账号
-				ldapUser := ldap.NewUser(user) // 初始化速度较慢 适用定时异步任务处理少量数据
-				handledExpireUsers = append(handledExpireUsers, ldapUser)
-				fmt.Println(ldapUser, "过期天数: ", expireDays)
-				// log.Info(ldapUser, "过期天数: ", expireDays)
-				// order.HandleOrderUuapExpired(ldapUser, expireDays) // 处理过期账号
-				// if ldapUser.DisplayName == "蔡迎港" {
-				// 	log.Info(ldapUser, "过期天数: ", expireDays)
-				order.HandleOrderUuapExpired(ldapUser, expireDays) // 处理过期账号
-				// }
-			}
-		}
-	}
-	return
-}
-
-// 触发定时任务
-func (service *LdapUserService) FetchExpireUser() serializer.Response {
-	go func() {
-		gocron.Every(1).Day().At("10:00").Do(FetchAndHandleExpireUser) // 每天早上10点扫一遍
-		// gocron.Every(30).Second().Do(FetchAndHandleExpireUser)
-		// gocron.Every(1).Day().At("11:00").Do(FetchAndHandleExpireUser)
-		_, nextTime := gocron.NextRun()
-		log.Info("定时任务下次触发时间：", nextTime)
-		<-gocron.Start()
-	}()
-	return serializer.Response{Data: 0}
-}
-
-// 创建用户-管理员接口
-func (service *LdapUserService) AddUser(u LdapUserService) serializer.Response {
+// TODO 创建用户-管理员接口
+func (service *LdapUserService) CreateUser(u LdapUserService) serializer.Response {
 
 	return serializer.Response{Data: 0, Msg: "UUAP账号创建成功"}
 }
 
-/*
-* 这里是外部接口(HR数据)的模型
- */
-// HrDataService HR数据查询条件
-type HrDataService struct {
-	// 获取 token 的 URL
-	UrlGetToken string `json:"url_get_token" gorm:"type:varchar(255);not null;comment:获取token的地址"`
-	// 获取 数据 的URL
-	UrlGetData string `json:"url_get_data" gorm:"type:varchar(255);not null;comment:获取数据的地址"`
-}
-
-// 查询HR数据
+// TODO 查询HR数据
 func (service *HrDataService) FetchHrData(h HrDataService) serializer.Response {
 	// 初始化连接
 	// var c conn.LdapConnService
@@ -137,41 +98,113 @@ func (service *HrDataService) FetchHrData(h HrDataService) serializer.Response {
 	return serializer.Response{Data: 1111}
 }
 
-// 更新HR数据到LDAP实现逻辑
-// 此部分逻辑将最终修改为手动和自动两种调用方式
-func (service *HrDataService) HrToLdap(h HrDataService) serializer.Response {
-	// 获取HR接口数据
+// ScanExpiredLdapUsersTask 扫描过期ldap用户定时任务
+func (service *LdapUserService) ScanExpiredLdapUsersTask() serializer.Response {
+	go func() {
+		gocron.Every(1).Day().At("10:00").Do(HandleExpiredLdapUsers) // 每天早10点
+		_, nextTime := gocron.NextRun()
+		log.Info("扫描过期用户的下次触发时间：", nextTime)
+		<-gocron.Start()
+	}()
+	return serializer.Response{Data: 0}
+}
+
+// ScanExpiredLdapUsersManual 手动扫描过期ldap用户
+func (service *LdapUserService) ScanExpiredLdapUsersManual() serializer.Response {
+	go func() {
+		HandleExpiredLdapUsers()
+	}()
+	return serializer.Response{Data: 0}
+}
+
+// HandleExpiredLdapUsers 处理过期用户
+func HandleExpiredLdapUsers() (expireLdapUsers []*ldap.LdapAttributes) {
+	// 初始化连接
+	user := &ldap.LdapAttributes{}
+	LdapUsers := ldap.FetchLdapUsers(user)
+	currentTime := time.Now()
+	// expireLdapUsers := make([]*ldap.LdapAttributes, 0, 10)  // TODO 预留防止更改传参
+	for _, user := range LdapUsers {
+		expire, _ := strconv.ParseInt(user.GetAttributeValue("accountExpires"), 10, 64)
+		unixTime := util.NtToUnix(expire)
+		expireDays := util.FormatLdapExpireDays(util.SubDays(unixTime, currentTime))
+		if expireDays != 106752 { // 排除不过期的账号
+			if expireDays >= -7 && expireDays <= 14 { // 未/已经过期 7 天内的账号
+				ldapUser := ldap.NewUser(user) // 初始化速度较慢 适用定时异步任务处理少量数据
+				expireLdapUsers = append(expireLdapUsers, ldapUser)
+				log.Info(ldapUser, "过期天数: ", expireDays)
+				order.HandleOrderUuapExpired(ldapUser, expireDays) // 处理过期账号
+			}
+		}
+	}
+	return
+}
+
+// UpdateLdapUsersTask 更新用户定时任务
+func (service *HrDataService) UpdateLdapUsersTask() serializer.Response {
+	HrToCache()
+	go func() {
+		gocron.Every(1).Day().At("10:30").Do(HrCacheToLdap) // 每天早10点半
+		_, nextTime := gocron.NextRun()
+		log.Info("下次执行更新全量LDAP用户信息的触发时间：", nextTime)
+		<-gocron.Start()
+	}()
+	return serializer.Response{Data: 0}
+}
+
+// UpdateLdapUsersManual 手动更新用户
+func (service *HrDataService) UpdateLdapUsersManual() serializer.Response {
+	go func() {
+		// HrToCache()  // 手动更新ldap用户接口不需要更新缓存 浪费时间
+		HrCacheToLdap()
+	}()
+	return serializer.Response{Data: 0}
+}
+
+// 将HR元数据存到缓存
+func HrToCache() serializer.Response {
+	log.Info("获取HR接口数据中......")
 	var hrDataConn hr.HrDataConn
 	if result := model.DB.First(&hrDataConn); result.Error != nil {
 		log.Error("Fail to get HR data connection cfg!")
 	}
-
-	hrConn := &hr.HrDataConn{
+	hrUsers := hr.FetchHrData(&hr.HrDataConn{
 		UrlGetToken: hrDataConn.UrlGetToken,
 		UrlGetData:  hrDataConn.UrlGetData,
-	}
-
-	hrUsers := hr.FetchHrData(hrConn)
-
-	// 全量遍历HR接口数据用户 并 更新LDAP用户
-	var userStat, dn string
-	var expire int64
-
+	})
+	// 将HR接口元数据写入缓存
 	for _, user := range hrUsers {
-		if user.Stat == "离职" { //离职员工
+		userData, _ := json.Marshal(user)
+		cache.HSet("ldap_users", user.Name+user.Eid, userData)
+	}
+	return serializer.Response{Data: 1, Msg: "更新成功"}
+}
+
+// 将HR缓存数据更新到ldap
+func HrCacheToLdap() serializer.Response {
+	// 从缓存取所有HR元数据
+	ldapUsers, _ := cache.HGetAll("ldap_users")
+
+	for _, u := range ldapUsers {
+		var userStat, dn string
+		var expire int64
+		var user hr.HrUser
+
+		json.Unmarshal([]byte(u), &user) // 反序列化
+		if user.Stat == "离职" {
 			userStat = "546"
-			dn = "OU=disabled," + bootstrap.LdapCfg.BaseDn
-			expire = 0 // 账号失效
+			dn = bootstrap.LdapField.BaseDnDisabled // 禁用部门
+			expire = 0                              // 账号失效
 		} else { // 在职员工
-			userStat = "544"
-			dn = ldap.DepartToDn(user.Department)
-			expire = ldap.ExpireTime(-1) // 账号永久有效
+			userStat = "544"                      // 账号有效
+			dn = ldap.DepartToDn(user.Department) // 将部门转换为DN
+			expire = ldap.ExpireTime(-1)          // 账号永久有效
 		}
 		depart := strings.Split(user.Department, ".")[len(strings.Split(user.Department, "."))-1]
 		name := []rune(user.Name)
 
 		// 将hr数据转换为ldap信息格式
-		user := &ldap.LdapAttributes{
+		ldapUser := &ldap.LdapAttributes{
 			Num:         user.Eid,
 			Sam:         user.Eid,
 			DisplayName: user.Name,
@@ -188,7 +221,12 @@ func (service *HrDataService) HrToLdap(h HrDataService) serializer.Response {
 			Depart:      depart,
 			Title:       user.Title,
 		}
-		user.Update()
+		// 更新用户操作
+		err := ldapUser.Update()
+		if err != nil {
+			log.Error("Fail to update user,: ", err)
+		}
 	}
+
 	return serializer.Response{Data: 1, Msg: "更新成功"}
 }

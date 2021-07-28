@@ -32,22 +32,11 @@ func FetchLdapUser(ctx *gin.Context) {
 	}
 }
 
-// FetchExpireLdapUser 查询并处理过期的LDAP用户
-func FetchExpireLdapUser(ctx *gin.Context) {
-	var service user.LdapUserService
-	if err := ctx.ShouldBindUri(&service); err == nil {
-		res := service.FetchExpireUser()
-		ctx.JSON(200, res)
-	} else {
-		ctx.JSON(200, err)
-	}
-}
-
 // CreateLdapUser 创建ldap用户
 func CreateLdapUser(ctx *gin.Context) {
 	var service user.LdapUserService
 	if err := ctx.ShouldBindJSON(&service); err == nil {
-		res := service.AddUser(service)
+		res := service.CreateUser(service)
 		ctx.JSON(200, res)
 	} else {
 		ctx.JSON(200, err)
@@ -65,11 +54,44 @@ func FetchHrData(ctx *gin.Context) {
 	}
 }
 
-// SyncHrToLdap Sync更新hr数据到ldap
-func SyncHrToLdap(ctx *gin.Context) {
+// ScanExpiredLdapUsersTask 查询并处理过期的LDAP用户
+func ScanExpiredLdapUsersTask(ctx *gin.Context) {
+	var service user.LdapUserService
+	if err := ctx.ShouldBindUri(&service); err == nil {
+		res := service.ScanExpiredLdapUsersTask()
+		ctx.JSON(200, res)
+	} else {
+		ctx.JSON(200, err)
+	}
+}
+
+// ScanExpiredLdapUsersManual 查询并处理过期的LDAP用户
+func ScanExpiredLdapUsersManual(ctx *gin.Context) {
+	var service user.LdapUserService
+	if err := ctx.ShouldBindUri(&service); err == nil {
+		res := service.ScanExpiredLdapUsersManual()
+		ctx.JSON(200, res)
+	} else {
+		ctx.JSON(200, err)
+	}
+}
+
+// UpdateLdapUsersTask 更新ldap用户信息定时任务
+func UpdateLdapUsersTask(ctx *gin.Context) {
 	var service user.HrDataService
-	if err := ctx.ShouldBindJSON(&service); err == nil {
-		res := service.HrToLdap(service)
+	if err := ctx.ShouldBindUri(&service); err == nil {
+		res := service.UpdateLdapUsersTask()
+		ctx.JSON(200, res)
+	} else {
+		ctx.JSON(200, err)
+	}
+}
+
+// UpdateLdapUsersManual 手动更新ldap用户信息
+func UpdateLdapUsersManual(ctx *gin.Context) {
+	var service user.HrDataService
+	if err := ctx.ShouldBindUri(&service); err == nil {
+		res := service.UpdateLdapUsersManual()
 		ctx.JSON(200, res)
 	} else {
 		ctx.JSON(200, err)
