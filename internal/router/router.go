@@ -61,10 +61,9 @@ func router() *gin.Engine {
 		ldapUser := v1.Group("ldap/users")
 		ldapUser.GET("fetch", handler.FetchLdapUser) // 根据conn_url查询LDAP用户 /api/v1/ldap/user/fetch?conn_url=ldap://192.168.5.55:390
 		ldapUser.GET("create", handler.CreateLdapUser)
-		ldapUser.GET("scan/expire/task", handler.ScanExpiredLdapUsersTask)     // 【定时任务】扫描过期用户
 		ldapUser.GET("scan/expire/manual", handler.ScanExpiredLdapUsersManual) // 扫描过期用户
-		ldapUser.GET("update/task", handler.UpdateLdapUsersTask)               // 【定时任务】更新用户到缓存库 再从缓存库更新用户到ldap
 		ldapUser.GET("update/manual", handler.UpdateLdapUsersManual)           // 更新用户到缓存库 再从缓存库更新用户到ldap
+		ldapUser.GET("task", handler.LdapUsersCronTasksStart)                  // 注册并启动所有关于用户的定时任务
 
 		// 通过查询hr数据接口确定是否包含某员工
 		hrData := v1.Group("hr")
@@ -73,6 +72,12 @@ func router() *gin.Engine {
 		// 处理企业微信工单
 		weworkOder := v1.Group("order")
 		weworkOder.POST("handleOrders", handler.HandleOrders) // /api/v1/order/handleOrders
+
+		// 任务
+		task := v1.Group("tasks")
+		// crontab定时任务
+		task.POST("start", handler.TaskStart) // 启动定时任务
+		task.POST("stop", handler.TaskStop)   // 停止定时任务
 	}
 
 	return r

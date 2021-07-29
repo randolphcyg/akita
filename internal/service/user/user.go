@@ -16,7 +16,6 @@ import (
 	"gitee.com/RandolphCYG/akita/pkg/serializer"
 	"gitee.com/RandolphCYG/akita/pkg/util"
 
-	"github.com/jasonlvhit/gocron"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -98,27 +97,20 @@ func (service *HrDataService) FetchHrData(h HrDataService) serializer.Response {
 	return serializer.Response{Data: 1111}
 }
 
-// ScanExpiredLdapUsersTask 扫描过期ldap用户定时任务
-func (service *LdapUserService) ScanExpiredLdapUsersTask() serializer.Response {
-	go func() {
-		gocron.Every(1).Day().At("10:00").Do(HandleExpiredLdapUsers) // 每天早10点
-		_, nextTime := gocron.NextRun()
-		log.Info("扫描过期用户的下次触发时间：", nextTime)
-		<-gocron.Start()
-	}()
-	return serializer.Response{Data: 0}
-}
-
 // ScanExpiredLdapUsersManual 手动扫描过期ldap用户
-func (service *LdapUserService) ScanExpiredLdapUsersManual() serializer.Response {
+func ScanExpiredLdapUsersManual() serializer.Response {
 	go func() {
 		HandleExpiredLdapUsers()
 	}()
 	return serializer.Response{Data: 0}
 }
 
-// HandleExpiredLdapUsers 处理过期用户
-func HandleExpiredLdapUsers() (expireLdapUsers []*ldap.LdapAttributes) {
+func TestTask() {
+	fmt.Println("执行定任务")
+}
+
+// HandleExpiredLdapUsers 处理过期用户 (expireLdapUsers []*ldap.LdapAttributes)
+func HandleExpiredLdapUsers() {
 	// 初始化连接
 	user := &ldap.LdapAttributes{}
 	LdapUsers := ldap.FetchLdapUsers(user)
@@ -131,37 +123,25 @@ func HandleExpiredLdapUsers() (expireLdapUsers []*ldap.LdapAttributes) {
 		if expireDays != 106752 { // 排除不过期的账号
 			if expireDays >= -7 && expireDays <= 14 { // 未/已经过期 7 天内的账号
 				ldapUser := ldap.NewUser(user) // 初始化速度较慢 适用定时异步任务处理少量数据
-				expireLdapUsers = append(expireLdapUsers, ldapUser)
+				// expireLdapUsers = append(expireLdapUsers, ldapUser)
 				log.Info(ldapUser, "过期天数: ", expireDays)
 				order.HandleOrderUuapExpired(ldapUser, expireDays) // 处理过期账号
 			}
 		}
 	}
-	return
-}
-
-// UpdateLdapUsersTask 更新用户定时任务
-func (service *HrDataService) UpdateLdapUsersTask() serializer.Response {
-	HrToCache()
-	go func() {
-		gocron.Every(1).Day().At("10:30").Do(HrCacheToLdap) // 每天早10点半
-		_, nextTime := gocron.NextRun()
-		log.Info("下次执行更新全量LDAP用户信息的触发时间：", nextTime)
-		<-gocron.Start()
-	}()
-	return serializer.Response{Data: 0}
+	// return
 }
 
 // UpdateLdapUsersManual 手动更新用户
-func (service *HrDataService) UpdateLdapUsersManual() serializer.Response {
+func UpdateLdapUsersManual() serializer.Response {
 	go func() {
-		// HrToCache()  // 手动更新ldap用户接口不需要更新缓存 浪费时间
+		// HrToCache() // 手动更新ldap用户接口不需要更新缓存 浪费时间
 		HrCacheToLdap()
 	}()
 	return serializer.Response{Data: 0}
 }
 
-// 将HR元数据存到缓存
+// HrToCache 将HR元数据存到缓存
 func HrToCache() serializer.Response {
 	log.Info("获取HR接口数据中......")
 	var hrDataConn hr.HrDataConn
@@ -180,12 +160,12 @@ func HrToCache() serializer.Response {
 	return serializer.Response{Data: 1, Msg: "更新成功"}
 }
 
-// 将HR缓存数据更新到ldap
-func HrCacheToLdap() serializer.Response {
+// HrCacheToLdap 将HR缓存数据更新到ldap
+func HrCacheToLdap() {
 	// 从缓存取所有HR元数据
 	ldapUsers, _ := cache.HGetAll("ldap_users")
 
-	for _, u := range ldapUsers {
+	for cn, u := range ldapUsers {
 		var userStat, dn string
 		var expire int64
 		var user hr.HrUser
@@ -221,12 +201,14 @@ func HrCacheToLdap() serializer.Response {
 			Depart:      depart,
 			Title:       user.Title,
 		}
+		fmt.Println(cn)
 		// 更新用户操作
 		err := ldapUser.Update()
 		if err != nil {
 			log.Error("Fail to update user,: ", err)
 		}
 	}
+	log.Info("更新用户结束!")
 
-	return serializer.Response{Data: 1, Msg: "更新成功"}
+	// return serializer.Response{Data: 1, Msg: "更新成功"}
 }

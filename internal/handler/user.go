@@ -54,44 +54,40 @@ func FetchHrData(ctx *gin.Context) {
 	}
 }
 
-// ScanExpiredLdapUsersTask 查询并处理过期的LDAP用户
-func ScanExpiredLdapUsersTask(ctx *gin.Context) {
-	var service user.LdapUserService
-	if err := ctx.ShouldBindUri(&service); err == nil {
-		res := service.ScanExpiredLdapUsersTask()
-		ctx.JSON(200, res)
-	} else {
-		ctx.JSON(200, err)
-	}
-}
+// // ScanExpiredLdapUsersTask 查询并处理过期的LDAP用户
+// func ScanExpiredLdapUsersTask(ctx *gin.Context) {
+// 	if err := ctx.ShouldBind(0); err == nil {
+// 		res := user.ScanExpiredLdapUsersTask()
+// 		ctx.JSON(200, res)
+// 	} else {
+// 		ctx.JSON(200, err)
+// 	}
+// }
 
 // ScanExpiredLdapUsersManual 查询并处理过期的LDAP用户
 func ScanExpiredLdapUsersManual(ctx *gin.Context) {
-	var service user.LdapUserService
-	if err := ctx.ShouldBindUri(&service); err == nil {
-		res := service.ScanExpiredLdapUsersManual()
+	if err := ctx.ShouldBind(0); err == nil {
+		res := user.ScanExpiredLdapUsersManual()
 		ctx.JSON(200, res)
 	} else {
 		ctx.JSON(200, err)
 	}
 }
 
-// UpdateLdapUsersTask 更新ldap用户信息定时任务
-func UpdateLdapUsersTask(ctx *gin.Context) {
-	var service user.HrDataService
-	if err := ctx.ShouldBindUri(&service); err == nil {
-		res := service.UpdateLdapUsersTask()
-		ctx.JSON(200, res)
-	} else {
-		ctx.JSON(200, err)
-	}
-}
+// // UpdateLdapUsersTask 更新ldap用户信息定时任务
+// func UpdateLdapUsersTask(ctx *gin.Context) {
+// 	if err := ctx.ShouldBind(0); err == nil {
+// 		res := user.UpdateLdapUsersTask()
+// 		ctx.JSON(200, res)
+// 	} else {
+// 		ctx.JSON(200, err)
+// 	}
+// }
 
 // UpdateLdapUsersManual 手动更新ldap用户信息
 func UpdateLdapUsersManual(ctx *gin.Context) {
-	var service user.HrDataService
-	if err := ctx.ShouldBindUri(&service); err == nil {
-		res := service.UpdateLdapUsersManual()
+	if err := ctx.ShouldBind(0); err == nil {
+		res := user.UpdateLdapUsersManual()
 		ctx.JSON(200, res)
 	} else {
 		ctx.JSON(200, err)

@@ -54,7 +54,7 @@ func LogerMiddleware() gin.HandlerFunc {
 	}
 
 	logger.AddHook(lfshook.NewHook(writeMap, &logrus.JSONFormatter{
-		TimestampFormat: "2006-01-02 15:04:05",
+		TimestampFormat: "2006-01-02 2006-01-02 15:04:05.000",
 	}))
 
 	return func(c *gin.Context) {

@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"gitee.com/RandolphCYG/akita/internal/conf"
 	"gitee.com/RandolphCYG/akita/pkg/cache"
+	"gitee.com/RandolphCYG/akita/pkg/crontab"
 	"gitee.com/RandolphCYG/akita/pkg/email"
 	"gitee.com/RandolphCYG/akita/pkg/hr"
 	log "github.com/sirupsen/logrus"
@@ -54,4 +55,9 @@ func Init(cfg string) {
 	if err != nil {
 		log.Error("初始化企业微信UUAP公告应用配置信息错误,err: ", err)
 	}
+
+	// 初始化crontab
+	log.Info("Init crontab Scheduler...")
+	crontab.Init()
+	log.Info("Init crontab Scheduler successful...")
 }
