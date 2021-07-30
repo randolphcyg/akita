@@ -1,7 +1,6 @@
 package crontab
 
 import (
-	"fmt"
 	"time"
 
 	"gitee.com/RandolphCYG/akita/pkg/serializer"
@@ -24,19 +23,19 @@ func Init() {
 	Scheduler.TagsUnique()
 }
 
-// TaskSart 启动定时任务
-func TaskSart(taskName string) serializer.Response {
-	FreshCurrentJobs()
-	logrus.Info("当前所有的定时任务:", JobsInfos)
-	logrus.Info("启动定时任务:", taskName)
-	err := Scheduler.RunByTag(taskName)
-	if err != nil {
-		fmt.Println(err)
-	}
-	FreshCurrentJobs()
-	logrus.Info("当前所有的定时任务:", JobsInfos)
-	return serializer.Response{Data: err}
-}
+// // TaskSart 启动定时任务
+// func TaskSart(taskName string) serializer.Response {
+// 	FreshCurrentJobs()
+// 	logrus.Info("当前所有的定时任务:", JobsInfos)
+// 	logrus.Info("启动定时任务:", taskName)
+// 	err := Scheduler.RunByTag(taskName)
+// 	if err != nil {
+// 		fmt.Println(err)
+// 	}
+// 	FreshCurrentJobs()
+// 	logrus.Info("当前所有的定时任务:", JobsInfos)
+// 	return serializer.Response{Data: err}
+// }
 
 // TaskStop 停止定时任务
 func TaskStop(taskName string) serializer.Response {

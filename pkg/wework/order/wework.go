@@ -227,7 +227,6 @@ type WeworkOrderDetailsUuapRegister struct {
 	Userid      string `mapstructure:"userid"`
 	Remarks     string `mapstructure:"备注"`
 	DisplayName string `mapstructure:"姓名"`
-	Title       string `mapstructure:"岗位"`
 	Eid         string `mapstructure:"工号"`
 	Mobile      string `mapstructure:"手机"`
 	Mail        string `mapstructure:"邮箱"`

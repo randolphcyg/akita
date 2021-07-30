@@ -111,14 +111,16 @@ func handleOrderUuapRegister(order order.WeworkOrderDetailsUuapRegister) (err er
 	dn := ""
 	displayName := []rune(order.DisplayName)
 	sam := order.Eid
-	expire := ldap.ExpireTime(int64(-1)) // 永不过期
-	// 外部公司个性化用户名与OU位置
+	var expire int64
+	cn := string(displayName) + order.Eid
+	// 不同公司个性化用户名与OU
 	if isCompanyOutside == 1 {
-		sam = prefix + sam
-		dn = "CN=" + string(displayName) + order.Eid + "," + "OU=" + companyName + "," + bootstrap.LdapField.BaseDnOuter
+		sam = prefix + sam // 用户名带前缀
+		dn = "CN=" + cn + ",OU=" + companyName + "," + bootstrap.LdapField.BaseDnOuter
 		expire = ldap.ExpireTime(int64(90)) // 90天过期
-	} else { // 本公司默认逻辑
-		dn = "CN=" + string(displayName) + order.Eid + "," + ldap.DepartToDn(order.Depart)
+	} else { // 公司内部人员默认放到待分配区 后面每天程序自动将用户架构刷新
+		dn = "CN=" + cn + "," + bootstrap.LdapField.BaseDnToBeAssigned
+		expire = ldap.ExpireTime(int64(-1)) // 永不过期
 	}
 
 	user := &ldap.LdapAttributes{
@@ -133,9 +135,7 @@ func handleOrderUuapRegister(order order.WeworkOrderDetailsUuapRegister) (err er
 		GivenName:   string(displayName[1:]),
 		Email:       order.Mail,
 		Phone:       order.Mobile,
-		Company:     strings.Split(order.Depart, ".")[0],
-		Depart:      strings.Split(order.Depart, ".")[strings.Count(order.Depart, ".")],
-		Title:       order.Title,
+		Company:     companyName,
 	}
 
 	// 创建LDAP用户 生成初始密码

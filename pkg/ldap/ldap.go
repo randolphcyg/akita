@@ -192,8 +192,6 @@ func AddUser(user *LdapAttributes) (pwd string, err error) {
 	addReq.Attribute("mail", []string{user.Email})                                             // 邮箱 必填
 	addReq.Attribute("mobile", []string{user.Phone})                                           // 手机号 必填 某些系统需要
 	addReq.Attribute("company", []string{user.Company})
-	addReq.Attribute("department", []string{user.Depart})
-	addReq.Attribute("title", []string{user.Title})
 
 	if err = LdapConn.Add(addReq); err != nil {
 		if ldap.IsErrorWithCode(err, 68) {

@@ -145,9 +145,10 @@ type LdapFieldService struct {
 	// 禁用用户DN
 	BaseDnDisabled string `json:"base_dn_disabled" gorm:"type:varchar(255);comment:禁用用户DN"`
 	// 公司英文前缀
-	BaseDnOuter  string                       `json:"base_dn_outer" gorm:"type:varchar(255);comment:外部用户DN"`
-	CompanyType  string                       `json:"company_type" gorm:"type:varchar(255);comment:公司类型"`
-	CompanyTypes map[string]model.CompanyType `json:"company_types" gorm:"-"` // 非数据库字段 用来处理复杂数据结构
+	BaseDnOuter        string                       `json:"base_dn_outer" gorm:"type:varchar(255);comment:外部用户DN"`
+	BaseDnToBeAssigned string                       `json:"base_dn_to_be_assigned" gorm:"type:varchar(255);comment:公司内部待分配DN"`
+	CompanyType        string                       `json:"company_type" gorm:"type:varchar(255);comment:公司类型"`
+	CompanyTypes       map[string]model.CompanyType `json:"company_types" gorm:"-"` // 非数据库字段 用来处理复杂数据结构
 
 	// 用户组字段
 	// 用户组对象类
@@ -196,6 +197,7 @@ func (service *LdapFieldService) AddField(f *LdapFieldService) serializer.Respon
 		UserGroupName:        f.UserGroupName,
 		Username:             f.Username,
 		BaseDnOuter:          f.BaseDnOuter,
+		BaseDnToBeAssigned:   f.BaseDnToBeAssigned,
 		CompanyType:          companyTypesStr,
 	}
 
@@ -239,6 +241,7 @@ func (service *LdapFieldService) UpdateField(f *LdapFieldService) serializer.Res
 		UserGroupName:        f.UserGroupName,
 		Username:             f.Username,
 		BaseDnOuter:          f.BaseDnOuter,
+		BaseDnToBeAssigned:   f.BaseDnToBeAssigned,
 		CompanyType:          companyTypesStr,
 	}
 
