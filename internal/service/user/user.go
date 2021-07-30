@@ -132,11 +132,18 @@ func HandleExpiredLdapUsers() {
 	// return
 }
 
+// UpdateCacheUsersManual 更新HR元数据到缓存
+func UpdateCacheUsersManual() serializer.Response {
+	go func() {
+		HrToCache() // 更新HR元数据到缓存
+	}()
+	return serializer.Response{Data: 0}
+}
+
 // UpdateLdapUsersManual 手动更新用户
 func UpdateLdapUsersManual() serializer.Response {
 	go func() {
-		// HrToCache() // 手动更新ldap用户接口不需要更新缓存 浪费时间
-		HrCacheToLdap()
+		CacheToLdap()
 	}()
 	return serializer.Response{Data: 0}
 }
@@ -160,8 +167,8 @@ func HrToCache() serializer.Response {
 	return serializer.Response{Data: 1, Msg: "更新成功"}
 }
 
-// HrCacheToLdap 将HR缓存数据更新到ldap
-func HrCacheToLdap() {
+// CacheToLdap 将HR缓存数据更新到ldap
+func CacheToLdap() {
 	// 从缓存取所有HR元数据
 	ldapUsers, _ := cache.HGetAll("ldap_users")
 

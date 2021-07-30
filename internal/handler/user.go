@@ -84,6 +84,16 @@ func ScanExpiredLdapUsersManual(ctx *gin.Context) {
 // 	}
 // }
 
+// UpdateCacheUsersManual 手动更新ldap用户缓存信息
+func UpdateCacheUsersManual(ctx *gin.Context) {
+	if err := ctx.ShouldBind(0); err == nil {
+		res := user.UpdateCacheUsersManual()
+		ctx.JSON(200, res)
+	} else {
+		ctx.JSON(200, err)
+	}
+}
+
 // UpdateLdapUsersManual 手动更新ldap用户信息
 func UpdateLdapUsersManual(ctx *gin.Context) {
 	if err := ctx.ShouldBind(0); err == nil {

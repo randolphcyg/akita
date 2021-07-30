@@ -19,10 +19,10 @@ var AllTasks map[string]Task
 
 // LdapUsersCronTasksStart 用户相关任务的注册
 func LdapUsersCronTasksStart() serializer.Response {
-	var HrCacheToLdap = user.HrCacheToLdap
+	var CacheToLdap = user.CacheToLdap
 	var HandleExpiredLdapUsers = user.HandleExpiredLdapUsers
 
-	_, _ = crontab.Scheduler.Every(1).Day().Tag("HrCacheToLdap").At("10:30").Do(HrCacheToLdap) // 每天早10点半
+	_, _ = crontab.Scheduler.Every(1).Day().Tag("CacheToLdap").At("10:30").Do(CacheToLdap) // 每天早10点半
 	crontab.Scheduler.StartAsync()
 	_, t1 := crontab.Scheduler.NextRun()
 	logrus.Info("下次执行更新全量LDAP用户信息的触发时间：", t1.Format("2006-01-02 15:04:05.000"))
@@ -54,8 +54,8 @@ func TaskRegister(taskName string) serializer.Response {
 		Func: user.TestTask,
 	}
 
-	AllTasks["HrCacheToLdap"] = Task{
-		Tags: []string{"HrCacheToLdap"},
+	AllTasks["CacheToLdap"] = Task{
+		Tags: []string{"CacheToLdap"},
 		Cron: "0 10 * * *",
 		Func: user.TestTask,
 	}

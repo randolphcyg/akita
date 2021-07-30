@@ -62,7 +62,8 @@ func router() *gin.Engine {
 		ldapUser.GET("fetch", handler.FetchLdapUser) // 根据conn_url查询LDAP用户 /api/v1/ldap/user/fetch?conn_url=ldap://192.168.5.55:390
 		ldapUser.GET("create", handler.CreateLdapUser)
 		ldapUser.GET("scan/expire/manual", handler.ScanExpiredLdapUsersManual) // 扫描过期用户
-		ldapUser.GET("update/manual", handler.UpdateLdapUsersManual)           // 更新用户到缓存库 再从缓存库更新用户到ldap
+		ldapUser.GET("update/cache/manual", handler.UpdateCacheUsersManual)    // 更新用户到缓存库
+		ldapUser.GET("update/ldap/manual", handler.UpdateLdapUsersManual)      // 从缓存库更新用户到ldap
 		ldapUser.GET("task", handler.LdapUsersCronTasksStart)                  // 注册并启动所有关于用户的定时任务
 
 		// 通过查询hr数据接口确定是否包含某员工
