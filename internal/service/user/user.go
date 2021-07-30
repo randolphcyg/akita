@@ -137,7 +137,7 @@ func UpdateCacheUsersManual() serializer.Response {
 	go func() {
 		HrToCache() // 更新HR元数据到缓存
 	}()
-	return serializer.Response{Data: 0}
+	return serializer.Response{Data: 0, Msg: "从HR数据接口更新用户到缓存成功!"}
 }
 
 // UpdateLdapUsersManual 手动更新用户
@@ -145,11 +145,11 @@ func UpdateLdapUsersManual() serializer.Response {
 	go func() {
 		CacheToLdap()
 	}()
-	return serializer.Response{Data: 0}
+	return serializer.Response{Data: 0, Msg: "从缓存更新用户到ldap成功!"}
 }
 
 // HrToCache 将HR元数据存到缓存
-func HrToCache() serializer.Response {
+func HrToCache() {
 	log.Info("获取HR接口数据中......")
 	var hrDataConn hr.HrDataConn
 	if result := model.DB.First(&hrDataConn); result.Error != nil {
@@ -159,18 +159,31 @@ func HrToCache() serializer.Response {
 		UrlGetToken: hrDataConn.UrlGetToken,
 		UrlGetData:  hrDataConn.UrlGetData,
 	})
+
+	// 先清空缓存
+	_, err := cache.HDel("ldap_users")
+	if err != nil {
+		log.Error("Fail to clean ldap users cache,:", err)
+	}
+
 	// 将HR接口元数据写入缓存
 	for _, user := range hrUsers {
 		userData, _ := json.Marshal(user)
-		cache.HSet("ldap_users", user.Name+user.Eid, userData)
+		_, err := cache.HSet("ldap_users", user.Name+user.Eid, userData)
+		if err != nil {
+			log.Error("Fail to update ldap users to cache,:", err)
+		}
 	}
-	return serializer.Response{Data: 1, Msg: "更新成功"}
+	log.Info("从HR数据接口更新用户到缓存成功!")
 }
 
 // CacheToLdap 将HR缓存数据更新到ldap
 func CacheToLdap() {
 	// 从缓存取所有HR元数据
-	ldapUsers, _ := cache.HGetAll("ldap_users")
+	ldapUsers, err := cache.HGetAll("ldap_users")
+	if err != nil {
+		log.Error("Fail to fetch ldap users cache,:", err)
+	}
 
 	for cn, u := range ldapUsers {
 		var userStat, dn string
@@ -208,14 +221,12 @@ func CacheToLdap() {
 			Depart:      depart,
 			Title:       user.Title,
 		}
-		fmt.Println(cn)
+		fmt.Println(cn, depart)
 		// 更新用户操作
 		err := ldapUser.Update()
 		if err != nil {
-			log.Error("Fail to update user,: ", err)
+			log.Error("Fail to update user form cache to ldap server,: ", err)
 		}
 	}
-	log.Info("更新用户结束!")
-
-	// return serializer.Response{Data: 1, Msg: "更新成功"}
+	log.Info("从缓存更新用户到ldap成功!")
 }
