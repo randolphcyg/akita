@@ -15,3 +15,13 @@ func HandleOrders(ctx *gin.Context) {
 		ctx.JSON(200, err)
 	}
 }
+
+// CacheWeworkUsers 更新企业微信用户缓存
+func CacheWeworkUsers(ctx *gin.Context) {
+	if err := ctx.ShouldBind(0); err == nil {
+		res := wework.FetchUsers()
+		ctx.JSON(200, res)
+	} else {
+		ctx.JSON(200, err)
+	}
+}

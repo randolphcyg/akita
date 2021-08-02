@@ -7,6 +7,7 @@ import (
 	"gitee.com/RandolphCYG/akita/internal/model"
 	"gitee.com/RandolphCYG/akita/pkg/cache"
 	"gitee.com/RandolphCYG/akita/pkg/ldap"
+	"gitee.com/RandolphCYG/akita/pkg/serializer"
 	"gitee.com/RandolphCYG/akita/pkg/wework/api"
 	"github.com/sirupsen/logrus"
 )
@@ -64,7 +65,7 @@ type DepartsMsg struct {
 }
 
 // FetchUsers 获取用户列表
-func FetchUsers() (userDetails UserDetails, err error) {
+func FetchUsers() serializer.Response {
 	var usersMsg UsersMsg
 	corpAPIUserManager := api.NewCorpAPI(model.WeworkUserManageCfg.CorpId, model.WeworkUserManageCfg.AppSecret)
 	res, err := corpAPIUserManager.UserSimpleList(map[string]interface{}{
@@ -73,7 +74,7 @@ func FetchUsers() (userDetails UserDetails, err error) {
 	})
 	if err != nil {
 		logrus.Error(err)
-		return
+		return serializer.Response{Data: -1, Msg: "Fail to update wework user cache!"}
 	}
 
 	temp, err := json.Marshal(res)
@@ -81,7 +82,7 @@ func FetchUsers() (userDetails UserDetails, err error) {
 
 	if usersMsg.Errcode != 0 {
 		logrus.Error("Fail to fetch wework user list, err:", usersMsg.Errmsg)
-		return
+		return serializer.Response{Data: -1, Msg: "Fail to update wework user cache!"}
 	}
 
 	// 先清空缓存
@@ -90,26 +91,36 @@ func FetchUsers() (userDetails UserDetails, err error) {
 		logrus.Error("Fail to clean wework users cache,:", err)
 	}
 
+	var users []UserDetails
+	done := make(chan int, 20) // 带 20 个缓存
 	for i, userInfo := range usersMsg.Userlist {
-		getUserDetailRes, err := corpAPIUserManager.UserGet(map[string]interface{}{
-			"userid": userInfo.Userid,
-		})
-		if err != nil {
-			logrus.Error(err)
-		}
+		go func(i int, userInfo User) {
+			var userDetails UserDetails
+			getUserDetailRes, err := corpAPIUserManager.UserGet(map[string]interface{}{
+				"userid": userInfo.Userid,
+			})
+			if err != nil {
+				logrus.Error(err)
+			}
 
-		temp, err := json.Marshal(getUserDetailRes)
-		json.Unmarshal(temp, &userDetails)
-		_, err = cache.HSet("wework_users", userDetails.Userid, temp)
-		if err != nil {
-			logrus.Error("Fail to cache wework user,:", err)
-		}
-		fmt.Println(i+1, userDetails)
-		// break
+			temp, err := json.Marshal(getUserDetailRes)
+			json.Unmarshal(temp, &userDetails)
+			_, err = cache.HSet("wework_users", userDetails.Userid, temp)
+			if err != nil {
+				logrus.Error("Fail to cache wework user,:", err)
+			}
+			users = append(users, userDetails)
+			fmt.Println(i+1, userDetails)
+			// break
+			<-done
+		}(i, userInfo)
+		done <- 1
 	}
-	return
+
+	return serializer.Response{Data: users, Msg: "Success to update wework user cache!"}
 }
 
+// TODO 根据用户邮件
 func FetchUserByEid() {
 
 }

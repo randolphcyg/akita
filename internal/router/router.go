@@ -71,8 +71,9 @@ func router() *gin.Engine {
 		hrData.GET("fetch", handler.FetchHrData)
 
 		// 处理企业微信工单
-		weworkOder := v1.Group("order")
-		weworkOder.POST("handleOrders", handler.HandleOrders) // /api/v1/order/handleOrders
+		wework := v1.Group("wework")
+		wework.POST("order/handle", handler.HandleOrders) // /api/v1/wework/order/handle
+		wework.GET("user/update", handler.CacheWeworkUsers)
 
 		// 任务
 		task := v1.Group("tasks")
