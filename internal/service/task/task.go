@@ -83,3 +83,9 @@ func TaskRegister(taskName string) serializer.Response {
 
 	return serializer.Response{Data: 0}
 }
+
+func FetchCurrentJobs() (Jobs []crontab.JobsInfo) {
+	crontab.FreshCurrentJobs()
+	Jobs = crontab.JobsInfos
+	return
+}

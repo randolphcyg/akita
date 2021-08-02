@@ -30,6 +30,7 @@ func NewWeworkCfg() WeworkCfg {
 var WeworkOrderCfg WeworkCfg
 var WeworkUuapCfg WeworkCfg
 var WeworkOrderObj WeworkOrder
+var WeworkUserManageCfg WeworkCfg
 
 // GetWeworkOrderCfg 查询企业微信审批应用配置
 func GetWeworkOrderCfg() error {
@@ -40,6 +41,12 @@ func GetWeworkOrderCfg() error {
 // GetWeworkUuapCfg 查询企业微信UUAP公告应用配置
 func GetWeworkUuapCfg() error {
 	result := DB.Where("app_name = ?", "UUAP公告应用").Find(&WeworkUuapCfg)
+	return result.Error
+}
+
+// GetWeworkUserManageCfg 查询企业微信UUAP公告应用配置
+func GetWeworkUserManageCfg() error {
+	result := DB.Where("app_name = ?", "通讯录管理").Find(&WeworkUserManageCfg)
 	return result.Error
 }
 

@@ -48,3 +48,15 @@ func TaskStop(ctx *gin.Context) {
 	res := crontab.TaskStop(taskField.Name)
 	ctx.JSON(200, res)
 }
+
+// FetchAll 查询所有定时任务
+func FetchAll(ctx *gin.Context) {
+	if err := ctx.ShouldBind(0); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	res := task.FetchCurrentJobs()
+	ctx.JSON(200, res)
+}

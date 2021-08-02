@@ -49,11 +49,15 @@ func Init(cfg string) {
 	// 初始化企业微信配置信息
 	err = model.GetWeworkOrderCfg()
 	if err != nil {
-		log.Error("初始化企业微信审批配置信息错误,err: ", err)
+		log.Error("初始化企业微信审批配置信息错误, err: ", err)
 	}
 	err = model.GetWeworkUuapCfg()
 	if err != nil {
-		log.Error("初始化企业微信UUAP公告应用配置信息错误,err: ", err)
+		log.Error("初始化企业微信UUAP公告应用配置信息错误, err: ", err)
+	}
+	err = model.GetWeworkUserManageCfg()
+	if err != nil {
+		log.Error("初始化企业微信通讯录管理配置信息错误, err: ", err)
 	}
 
 	// 初始化crontab

@@ -25,7 +25,7 @@ type LdapCfg struct {
 
 // 公司类型
 type CompanyType struct {
-	IsOuter int    `json:"is_outer"` // 是否外部 0-不是 1-是; 仅自己公司为0 其他全为1
+	IsOuter bool   `json:"is_outer"` // 是否外部公司
 	Prefix  string `json:"prefix"`   // 用户名前缀 外部公司才有
 }
 

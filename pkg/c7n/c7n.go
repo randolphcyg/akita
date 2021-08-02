@@ -98,14 +98,14 @@ func FetchToken() (header map[string]string, err error) {
 	req := HttpRequest.NewRequest()
 	respFetchToken, err := req.Post(c7nFetchTokenUrl)
 	if err != nil {
-		log.Error("Fail to fetch token,err: ", err)
+		log.Error("Fail to fetch token, err: ", err)
 		return
 	}
 	defer respFetchToken.Close() // 关闭
 	// 反序列化
 	err = respFetchToken.Json(&resp)
 	if err != nil {
-		log.Error("Fail to convert response to json,err: ", err)
+		log.Error("Fail to convert response to json, err: ", err)
 		return
 	}
 	if resp.Error != "" {
@@ -131,7 +131,7 @@ func FetchC7nProject(projectName string) (c7nProject C7nProjectFields, err error
 	// 取token
 	header, err := FetchToken()
 	if err != nil {
-		log.Error("Fail to fetch token,err: ", err)
+		log.Error("Fail to fetch token, err: ", err)
 		return
 	}
 
@@ -140,7 +140,7 @@ func FetchC7nProject(projectName string) (c7nProject C7nProjectFields, err error
 	req.SetHeaders(header)
 	respFetchData, err := req.Get(fetchAllProjectsUrl)
 	if err != nil {
-		log.Error("Fail to fetch c7n project,err: ", err)
+		log.Error("Fail to fetch c7n project, err: ", err)
 		return
 	}
 	defer respFetchData.Close() // 关闭
@@ -149,7 +149,7 @@ func FetchC7nProject(projectName string) (c7nProject C7nProjectFields, err error
 	var c7nPros []C7nProjectFields
 	err = respFetchData.Json(&c7nPros)
 	if err != nil {
-		log.Error("Fail to convert response to json,err: ", err)
+		log.Error("Fail to convert response to json, err: ", err)
 		return
 	}
 	// 数据筛选
@@ -174,7 +174,7 @@ func FtechC7nUser(userName string) (c7nUser C7nUserFields, err error) {
 	// 取token
 	header, err := FetchToken()
 	if err != nil {
-		log.Error("Fail to fetch token,err: ", err)
+		log.Error("Fail to fetch token, err: ", err)
 		return
 	}
 
@@ -191,7 +191,7 @@ func FtechC7nUser(userName string) (c7nUser C7nUserFields, err error) {
 	fetchC7nUserUrlEncoded := fmt.Sprintf(fetchC7nUserUrl, url.QueryEscape(userName)) // url中中文部分编码为url
 	respFetchC7nUser, err := req.Get(fetchC7nUserUrlEncoded)
 	if err != nil {
-		log.Error("Fail to fetch c7n user,err: ", err)
+		log.Error("Fail to fetch c7n user, err: ", err)
 		return
 	}
 	defer respFetchC7nUser.Close() // 关闭
@@ -200,7 +200,7 @@ func FtechC7nUser(userName string) (c7nUser C7nUserFields, err error) {
 	var c7nFetchUserRes C7nFetchUserRes
 	err = respFetchC7nUser.Json(&c7nFetchUserRes)
 	if err != nil {
-		log.Error("Fail to convert response to json,err: ", err)
+		log.Error("Fail to convert response to json, err: ", err)
 		return
 	}
 
@@ -214,7 +214,7 @@ func FetchC7nRoles(roleName string) (c7nRole C7nRoleFields, err error) {
 	// 取token
 	header, err := FetchToken()
 	if err != nil {
-		log.Error("Fail to fetch token,err: ", err)
+		log.Error("Fail to fetch token, err: ", err)
 		return
 	}
 
@@ -230,7 +230,7 @@ func FetchC7nRoles(roleName string) (c7nRole C7nRoleFields, err error) {
 	req.SetHeaders(header)
 	respFetchC7nRoles, err := req.Get(fetchC7nRolesUrl)
 	if err != nil {
-		log.Error("Fail to fetch c7n user,err: ", err)
+		log.Error("Fail to fetch c7n user, err: ", err)
 		return
 	}
 	defer respFetchC7nRoles.Close() // 关闭
@@ -239,7 +239,7 @@ func FetchC7nRoles(roleName string) (c7nRole C7nRoleFields, err error) {
 	var c7nFetchRoleRes C7nFetchRoleRes
 	err = respFetchC7nRoles.Json(&c7nFetchRoleRes)
 	if err != nil {
-		log.Error("Fail to convert response to json,err: ", err)
+		log.Error("Fail to convert response to json, err: ", err)
 		return
 	}
 
@@ -259,7 +259,7 @@ func AssignC7nUserProjectRole(c7nProjectId string, c7nUserId string, c7nRoleIds 
 	// 取token
 	header, err := FetchToken()
 	if err != nil {
-		log.Error("Fail to fetch token,err: ", err)
+		log.Error("Fail to fetch token, err: ", err)
 		return
 	}
 

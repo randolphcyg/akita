@@ -60,14 +60,14 @@ func FetchToken(h *HrDataConn) (token HrToken) {
 	respFetchToken, err := req.Post(h.UrlGetToken)
 	if err != nil {
 		// 抛错
-		log.Error("Fail to fetch token,err: ", err)
+		log.Error("Fail to fetch token, err: ", err)
 		return
 	}
 	// 反序列化
 	err = respFetchToken.Json(&token)
 	if err != nil {
 		// 抛错
-		log.Error("Fail to convert response to json,err: ", err)
+		log.Error("Fail to convert response to json, err: ", err)
 		return
 	}
 	if !token.Success {
@@ -90,14 +90,14 @@ func FetchHrData(h *HrDataConn) (hrUsers []HrUser) {
 	req.SetHeaders(header)
 	respFetchData, err := req.Post(h.UrlGetData)
 	if err != nil {
-		log.Error("Fail to fetch hr data,err: ", err)
+		log.Error("Fail to fetch hr data, err: ", err)
 		return
 	}
 	var hrdata HrData
 	respFetchData.Json(&hrdata)
 	// 返回数据是否有报错字段
 	if hrdata.Result != "" {
-		log.Error("Fail to fetch hr data,err: ", hrdata.Result)
+		log.Error("Fail to fetch hr data, err: ", hrdata.Result)
 		return
 	}
 	hrUsers = hrdata.Content

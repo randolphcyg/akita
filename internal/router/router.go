@@ -77,8 +77,9 @@ func router() *gin.Engine {
 		// 任务
 		task := v1.Group("tasks")
 		// crontab定时任务
-		task.POST("start", handler.TaskStart) // 启动定时任务
-		task.POST("stop", handler.TaskStop)   // 停止定时任务
+		task.GET("fetchall", handler.FetchAll) // 停止定时任务
+		task.POST("start", handler.TaskStart)  // 启动定时任务
+		task.POST("stop", handler.TaskStop)    // 停止定时任务
 	}
 
 	return r
