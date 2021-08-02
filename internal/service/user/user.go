@@ -185,7 +185,7 @@ func CacheToLdap() {
 		log.Error("Fail to fetch ldap users cache,:", err)
 	}
 
-	for cn, u := range ldapUsers {
+	for _, u := range ldapUsers {
 		var userStat, dn string
 		var expire int64
 		var user hr.HrUser
@@ -221,7 +221,7 @@ func CacheToLdap() {
 			Depart:      depart,
 			Title:       user.Title,
 		}
-		fmt.Println(cn, depart)
+		// fmt.Println(cn)
 		// 更新用户操作
 		err := ldapUser.Update()
 		if err != nil {

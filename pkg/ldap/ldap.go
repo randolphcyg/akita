@@ -59,6 +59,7 @@ var attrs = []string{
 	"company",    // 公司
 	"department", // 部门
 	"title",      // 职务
+	"cn",         // common name
 }
 
 var (
@@ -421,12 +422,25 @@ func (user *LdapAttributes) Update() (err error) {
 		if user.Dn != "" {
 			if !strings.EqualFold(strings.SplitN(entry.DN, ",", 2)[1], user.Dn) {
 				// fmt.Println(user.DisplayName, user.Num, " 有岗位变动: 由【", strings.SplitN(entry.DN, ",", 2)[1], "】  转岗到  【", user.Dn, "】")
-				log.Info(user.DisplayName, user.Num, " 有岗位变动: 由【", strings.SplitN(entry.DN, ",", 2)[1], "】  转岗到  【", user.Dn, "】")
+				oldDepart := DnToDeparts(strings.Join(strings.Split(entry.DN, ",")[1:], ","))
+				newDepart := DnToDeparts(user.Dn)
+				// 若新或旧部门 有一个是外部公司 另一个是内部公司
+				if (strings.Contains(strings.Join(oldDepart, "."), "合作伙伴") && !strings.Contains(strings.Join(newDepart, "."), "合作伙伴")) ||
+					(!strings.Contains(strings.Join(oldDepart, "."), "合作伙伴") && strings.Contains(strings.Join(newDepart, "."), "合作伙伴")) {
+					log.Info(user.DisplayName, user.Num, " 岗位变动:[", oldDepart, "]转到[", newDepart, "],类型:[公司级别]")
+				} else {
+					if oldDepart[len(oldDepart)-1] != newDepart[len(newDepart)-1] {
+						log.Info(user.DisplayName, user.Num, " 岗位变动:[", strings.Join(oldDepart, "."), "]转到[", strings.Join(newDepart, "."), "],类型:[部门级别]")
+					} else {
+						log.Info(user.DisplayName, user.Num, " 岗位变动:[", strings.Join(oldDepart, "."), "]转到[", strings.Join(newDepart, "."), "],类型:[结构级别]")
+					}
+				}
 				CheckOuTree(user.Dn)
 				err = user.MoveDn(user.Dn)
 			} else {
+				oldDepart := DnToDeparts(strings.Join(strings.Split(entry.DN, ",")[1:], ","))
 				// fmt.Println(user.DisplayName, user.Num, " 无岗位变动: ", user.Dn)
-				// log.Info(user.DisplayName, user.Num, " 无岗位变动: ", user.Dn)
+				log.Info(user.DisplayName, user.Num, " 无岗位变动: ", oldDepart)
 			}
 			return
 		}
@@ -551,7 +565,7 @@ func DepartToDn(depart string) (dn string) {
 	var companies map[string]model.CompanyType
 	json.Unmarshal([]byte(bootstrap.LdapField.CompanyType), &companies)
 	// 如果是外部公司用户
-	if !companies[strings.Split(depart, ".")[0]].IsOuter {
+	if companies[strings.Split(depart, ".")[0]].IsOuter {
 		depart = DnToDepart(bootstrap.LdapField.BasicPullNode) + ".合作伙伴." + depart
 	}
 
@@ -572,6 +586,16 @@ func DnToDepart(dn string) (depart string) {
 	rawDn = Reverse(rawDn[:len(rawDn)-2]) // 去掉DC 逆序
 	// 元素拼接，用.替换所有的OU=，去掉开始的.
 	depart = strings.Replace(strings.Join(rawDn, ""), "OU=", ".", -1)[1:]
+	return
+}
+
+// DnToDeparts 将DN地址转换为多级部门切片
+func DnToDeparts(dn string) (departs []string) {
+	rawDn := strings.Split(dn, ",")
+	departs = Reverse(rawDn[:len(rawDn)-2]) // 去掉DC 逆序
+	for i, d := range departs {
+		departs[i] = strings.Trim(strings.ToUpper(d), "OU=")
+	}
 	return
 }
 
