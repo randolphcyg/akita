@@ -3,6 +3,7 @@ package wework
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"gitee.com/RandolphCYG/akita/internal/model"
 	"gitee.com/RandolphCYG/akita/pkg/cache"
@@ -11,6 +12,11 @@ import (
 	"gitee.com/RandolphCYG/akita/pkg/wework/api"
 	"github.com/sirupsen/logrus"
 )
+
+type WeworkMsg struct {
+	Errcode int    `json:"errcode"`
+	Errmsg  string `json:"errmsg"`
+}
 
 // 用户
 type UserDetails struct {
@@ -169,10 +175,17 @@ func CreateWeworkUser(user *ldap.LdapAttributes) (err error) {
 		"to_invite": false,
 	}
 	// 创建用户
-	_, err = corpAPIUserManager.UserCreate(weworkUserInfos)
+	var msg WeworkMsg
+	res, err := corpAPIUserManager.UserCreate(weworkUserInfos)
+	b, err := json.Marshal(res)
+	json.Unmarshal(b, &msg)
 	if err != nil {
+		if strings.Contains(msg.Errmsg, "existed") {
+			// 该用户手机号或者邮箱已存在，视为已创建用户
+		}
 		logrus.Error(err)
+		return
 	}
 	logrus.Info("Success to create wework user!")
-	return
+	return nil
 }

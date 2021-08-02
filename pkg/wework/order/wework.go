@@ -199,7 +199,7 @@ func ParseRawOrder(rawInfo interface{}) (orderData map[string]interface{}, err e
 			orderData[con.Title[0].Text] = con.Value.Date.STimestamp
 		case "Selector":
 			if con.Value.Selector.Type == "multi" { // 多选
-				tempSelectors := make([]string, len(con.Value.Selector.Options)-2)
+				tempSelectors := make([]string, len(con.Value.Selector.Options))
 				for _, value := range con.Value.Selector.Options {
 					tempSelectors = append(tempSelectors, value.Value[0].Text)
 				}
