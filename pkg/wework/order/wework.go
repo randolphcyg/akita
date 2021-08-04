@@ -1,10 +1,12 @@
 package order
 
 import (
+	"encoding/json"
 	"strings"
 
 	"gitee.com/RandolphCYG/akita/internal/model"
 	"github.com/goinggo/mapstructure"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -87,34 +89,8 @@ type WeworkOrder struct {
 				} `mapstructure:"departments"`
 				// 附件控件（control参数为File）
 				Files []struct {
-					file_id string `mapstructure:"FileId"`
-				}
-				// 明细控件（control参数为Table）
-				Children []struct {
-					Id      string `mapstructure:"id"`
-					Control string `mapstructure:"control"`
-					Title   []struct {
-						Text string `mapstructure:"text"`
-						Lang string `mapstructure:"lang"`
-					} `mapstructure:"title"`
-
-					Value []struct {
-						Children []struct {
-							List []struct {
-								Control string `mapstructure:"control"`
-								Id      string `mapstructure:"id"`
-								Title   []struct {
-									Text string `mapstructure:"text"`
-									Lang string `mapstructure:"lang"`
-								} `mapstructure:"title"`
-								// 		Value   []struct {
-								// 			Text string `mapstructure:"text"`
-								// 		} `mapstructure:"value"`
-							} `mapstructure:"list"`
-						} `mapstructure:"children"`
-					} `mapstructure:"value"`
-				} `mapstructure:"children"`
-
+					FileId string `mapstructure:"file_id"`
+				} `mapstructure:"files"`
 				// 时长组件（control参数为DateRange）
 				DateRange struct {
 					Type        string `mapstructure:"type"`
@@ -147,6 +123,95 @@ type WeworkOrder struct {
 				} `mapstructure:"formula"`
 				// 说明文字控件（control参数为Tips）
 				Tips []interface{} `mapstructure:"tips"`
+
+				// 明细控件（control参数为Table）
+				Children []struct {
+					Id      string `mapstructure:"id"`
+					Control string `mapstructure:"control"`
+					Title   []struct {
+						Text string `mapstructure:"text"`
+						Lang string `mapstructure:"lang"`
+					} `mapstructure:"title"`
+					List []struct {
+						Id      string `mapstructure:"id"`
+						Control string `mapstructure:"control"`
+						Title   []struct {
+							Text string `mapstructure:"text"`
+							Lang string `mapstructure:"lang"`
+						} `mapstructure:"title"`
+						Value struct { // 明细各个对象可能有的控件类型
+							// 文本/多行文本控件
+							Text string `mapstructure:"text"`
+							// 数字控件
+							NewNumber string `mapstructure:"new_number"`
+							// 金额控件（control参数为Money）
+							NewMoney string `mapstructure:"new_money"`
+							// 日期/日期+时间控件（control参数为Date）
+							Date struct {
+								Type       string `mapstructure:"type"`
+								STimestamp string `mapstructure:"s_timestamp"`
+							} `mapstructure:"date"`
+							// 单选/多选控件（control参数为Selector）
+							Selector struct {
+								Type    string `mapstructure:"type"`
+								Options []struct {
+									Key   string `mapstructure:"key"`
+									Value []struct {
+										Text string `mapstructure:"text"`
+										Lang string `mapstructure:"lang"`
+									} `mapstructure:"value"`
+								} `mapstructure:"options"`
+								ExpType string `mapstructure:"exp_type"`
+							} `mapstructure:"selector"`
+							// 成员控件（control参数为Contact，且value参数为members）
+							Members []struct {
+								Userid string `mapstructure:"userid"`
+								Name   string `mapstructure:"name"`
+							} `mapstructure:"members"`
+							// 部门控件（control参数为Contact，且value参数为departments）
+							Departments []struct {
+								OpenapiId string `mapstructure:"openapi_id"`
+								Name      string `mapstructure:"name"`
+							} `mapstructure:"departments"`
+							// 附件控件（control参数为File）
+							Files []struct {
+								FileId string `mapstructure:"file_id"`
+							} `mapstructure:"files"`
+							// 时长组件（control参数为DateRange）
+							DateRange struct {
+								Type        string `mapstructure:"type"`
+								NewBegin    int    `mapstructure:"new_begin"`
+								NewEnd      int    `mapstructure:"new_end"`
+								nNwDuration int    `mapstructure:"new_duration"`
+							} `mapstructure:"date_range"`
+							// 位置控件（control参数为Location）
+							Location struct {
+								Latitude  string `mapstructure:"type"`
+								Longitude string `mapstructure:"new_begin"`
+								Title     string `mapstructure:"new_end"`
+								Address   string `mapstructure:"new_duration"`
+								Time      int    `mapstructure:"time"`
+							} `mapstructure:"location"`
+							// 关联审批单控件（control参数为RelatedApproval）
+							RelatedApproval []struct {
+								TemplateNames []struct {
+									Text string `mapstructure:"text"`
+									Lang string `mapstructure:"lang"`
+								} `mapstructure:"template_names"`
+								SpStatus   int    `mapstructure:"sp_status"`
+								Name       string `mapstructure:"name"`
+								CreateTime int    `mapstructure:"create_time"`
+								SpNo       string `mapstructure:"sp_no"`
+							} `mapstructure:"related_approval"`
+							// 公式控件（control参数为Formula）
+							Formula struct {
+								Value string `mapstructure:"value"`
+							} `mapstructure:"formula"`
+							// 说明文字控件（control参数为Tips）
+							Tips []interface{} `mapstructure:"tips"`
+						} `mapstructure:"value"`
+					} `mapstructure:"list"`
+				} `mapstructure:"children"`
 			} `mapstructure:"value"`
 		} `mapstructure:"contents"`
 	} `mapstructure:"apply_data"`
@@ -211,21 +276,65 @@ func ParseRawOrder(rawInfo interface{}) (orderData map[string]interface{}, err e
 			continue
 		case "Contact":
 			orderData[con.Title[0].Text] = con.Value.Members
+		case "File":
+			t, _ := json.Marshal(con.Value.Files)
+			var tem []struct{ FileId string }
+			json.Unmarshal(t, &tem)
+			var temp []string
+			for _, file := range tem {
+				temp = append(temp, file.FileId)
+			}
+			orderData[con.Title[0].Text] = temp
+		// 明细的处理
 		case "Table":
-			log.Info(con)
+			temps := make([]map[string]interface{}, 0)
+			for _, u := range con.Value.Children {
+				temp := make(map[string]interface{})
+				for _, c := range u.List {
+					switch c.Control {
+					case "Number":
+						temp[c.Title[0].Text] = c.Value.NewNumber
+					case "Text": // 明细文本
+						temp[c.Title[0].Text] = strings.ToLower(strings.TrimSpace(c.Value.Text)) // 字符串去除空格并转为小写
+					case "Textarea": // 明细多行文本
+						temp[c.Title[0].Text] = strings.ToLower(strings.TrimSpace(c.Value.Text)) // 字符串去除空格并转为小写
+					case "Date":
+						temp[con.Title[0].Text] = c.Value.Date.STimestamp
+					case "Selector": // 明细选择
+						if c.Value.Selector.Type == "multi" { // 多选
+							tempSel := make([]string, len(c.Value.Selector.Options))
+							for _, v := range c.Value.Selector.Options {
+								tempSel = append(tempSel, v.Value[0].Text)
+							}
+							temp[c.Title[0].Text] = tempSel
+						} else { // 单选
+							temp[c.Title[0].Text] = c.Value.Selector.Options[0].Value[0].Text
+						}
+					case "Contact":
+						temp[c.Title[0].Text] = c.Value.Members
+					case "File": // 明细文件
+						t, _ := json.Marshal(c.Value.Files)
+						var tem []struct{ FileId string }
+						json.Unmarshal(t, &tem)
+						var te []string
+						for _, file := range tem {
+							te = append(te, file.FileId)
+						}
+						temp[c.Title[0].Text] = te
+					}
+				}
+				temps = append(temps, temp)
+			}
+			orderData[con.Title[0].Text] = temps
 		default:
-			log.Error("包含未处理工单项类型【" + con.Control + "】请及时补充后端逻辑!")
+			err = errors.New("包含未处理工单项类型【" + con.Control + "】请及时补充后端逻辑!")
+			return
 		}
 	}
 	return
 }
 
-// 各平台账号注册 工单详情
-type WeworkOrderDetailsAccountsRegister struct {
-	SpName        string   `mapstructure:"spName"`
-	Partyid       string   `mapstructure:"partyid"`
-	Userid        string   `mapstructure:"userid"`
-	Remarks       string   `mapstructure:"备注"`
+type Applicant []struct {
 	DisplayName   string   `mapstructure:"姓名"`
 	Eid           string   `mapstructure:"工号"`
 	Mobile        string   `mapstructure:"手机"`
@@ -234,8 +343,17 @@ type WeworkOrderDetailsAccountsRegister struct {
 	InitPlatforms []string `mapstructure:"所需平台"`
 }
 
-// 原始工单转换为UUAP注册工单结构体
-func RawToUuapRegister(weworkOrder map[string]interface{}) (orderDetails WeworkOrderDetailsAccountsRegister) {
+// 各平台账号注册 工单详情
+type WeworkOrderDetailsAccountsRegister struct {
+	SpName  string    `mapstructure:"spName"`
+	Partyid string    `mapstructure:"partyid"`
+	Userid  string    `mapstructure:"userid"`
+	Remarks string    `mapstructure:"备注"`
+	Users   Applicant `mapstructure:"待申请人员"`
+}
+
+// 原始工单转换为统一账号注册工单结构体
+func RawToAccountsRegister(weworkOrder map[string]interface{}) (orderDetails WeworkOrderDetailsAccountsRegister) {
 	if err := mapstructure.Decode(weworkOrder, &orderDetails); err != nil {
 		log.Error("Fail to convert raw oder, err: ", err)
 	}

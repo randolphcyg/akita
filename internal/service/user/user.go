@@ -185,49 +185,56 @@ func CacheToLdap() {
 		log.Error("Fail to fetch ldap users cache,:", err)
 	}
 
-	for _, u := range ldapUsers {
-		var userStat, dn string
-		var expire int64
-		var user hr.HrUser
+	// TODO 待优化 目前速度提升没有
+	done := make(chan int, 30) // 带 20 个缓存
+	for cn, u := range ldapUsers {
+		go func(cn string, u string) {
+			var userStat, dn string
+			var expire int64
+			var user hr.HrUser
 
-		json.Unmarshal([]byte(u), &user) // 反序列化
-		if user.Stat == "离职" {
-			userStat = "546"
-			dn = bootstrap.LdapField.BaseDnDisabled // 禁用部门
-			expire = 0                              // 账号失效
-		} else { // 在职员工
-			userStat = "544"                      // 账号有效
-			dn = ldap.DepartToDn(user.Department) // 将部门转换为DN
-			expire = ldap.ExpireTime(-1)          // 账号永久有效
-		}
-		depart := strings.Split(user.Department, ".")[len(strings.Split(user.Department, "."))-1]
-		name := []rune(user.Name)
+			json.Unmarshal([]byte(u), &user) // 反序列化
+			if user.Stat == "离职" {
+				userStat = "546"
+				dn = bootstrap.LdapField.BaseDnDisabled // 禁用部门
+				expire = 0                              // 账号失效
+			} else { // 在职员工
+				userStat = "544"                      // 账号有效
+				dn = ldap.DepartToDn(user.Department) // 将部门转换为DN
+				expire = ldap.ExpireTime(-1)          // 账号永久有效
+			}
+			depart := strings.Split(user.Department, ".")[len(strings.Split(user.Department, "."))-1]
+			name := []rune(user.Name)
 
-		// 将hr数据转换为ldap信息格式
-		ldapUser := &ldap.LdapAttributes{
-			Num:         user.Eid,
-			Sam:         user.Eid,
-			DisplayName: user.Name,
-			Email:       user.Mail,
-			Phone:       user.Mobile,
-			Dn:          dn,
-			PwdLastSet:  "0", // 用户下次必须修改密码 0
-			AccountCtl:  userStat,
-			Expire:      expire,
-			Sn:          string(name[0]),
-			Name:        user.Name,
-			GivenName:   string(name[1:]),
-			Company:     user.CompanyName,
-			Depart:      depart,
-			Title:       user.Title,
-		}
-		// fmt.Println(cn)
-		// 更新用户操作
-		err := ldapUser.Update()
-		if err != nil {
-			log.Error("Fail to update user form cache to ldap server,: ", err)
-		}
+			// 将hr数据转换为ldap信息格式
+			ldapUser := &ldap.LdapAttributes{
+				Num:         user.Eid,
+				Sam:         user.Eid,
+				DisplayName: user.Name,
+				Email:       user.Mail,
+				Phone:       user.Mobile,
+				Dn:          dn,
+				PwdLastSet:  "0", // 用户下次必须修改密码 0
+				AccountCtl:  userStat,
+				Expire:      expire,
+				Sn:          string(name[0]),
+				Name:        user.Name,
+				GivenName:   string(name[1:]),
+				Company:     user.CompanyName,
+				Depart:      depart,
+				Title:       user.Title,
+			}
+			fmt.Println(cn)
+			// 更新用户操作
+			err := ldapUser.Update()
+			if err != nil {
+				log.Error("Fail to update user form cache to ldap server,: ", err)
+			}
+			done <- 30
+		}(cn, u)
+		<-done
 	}
+
 	log.Info("从缓存更新用户到ldap成功!")
 }
 
@@ -262,13 +269,12 @@ func CreateLdapUser(o order.WeworkOrderDetailsAccountsRegister, user *ldap.LdapA
 		log.Error("Fail to send wework msg, err: ", err)
 		// TODO 发送企业微信消息错误，应当考虑重发逻辑
 	}
-	log.Info("企业微信回执消息:工单【" + o.SpName + "】用户【" + o.Userid + "】姓名【" + o.DisplayName + "】工号【" + o.Eid + "】状态【初次注册】")
+	log.Info("企业微信回执消息:工单【" + o.SpName + "】用户【" + o.Userid + "】姓名【" + user.DisplayName + "】工号【" + user.Num + "】状态【初次注册】")
 	return
 }
 
 // 过期用户处理
 func HandleOrderUuapExpired(user *ldap.LdapAttributes, expireDays int) (err error) {
-
 	emailTempUuaplateExpiring, err := cache.HGet("email_templates", "email_template_uuap_expiring")
 	if err != nil {
 		log.Error("读取即将过期邮件消息模板错误: ", err)
@@ -324,13 +330,13 @@ func HandleOrderUuapDuplicateRegister(user *ldap.LdapAttributes, order order.Wew
 		"msgtype": "markdown",
 		"agentid": model.WeworkUuapCfg.AppId,
 		"markdown": map[string]interface{}{
-			"content": fmt.Sprintf(duplicateRegisterUuapWeworkMsgTemplate, order.SpName, order.DisplayName, sam),
+			"content": fmt.Sprintf(duplicateRegisterUuapWeworkMsgTemplate, order.SpName, user.DisplayName, sam),
 		},
 	})
 	if err != nil {
 		log.Error("Fail to send wework msg, err: ", err)
 		// TODO 发送企业微信消息错误，应当考虑重发逻辑
 	}
-	log.Info("企业微信回执消息:工单【" + order.SpName + "】用户【" + order.Userid + "】姓名【" + order.DisplayName + "】工号【" + order.Eid + "】状态【已注册过的用户】")
+	log.Info("企业微信回执消息:工单【" + order.SpName + "】用户【" + order.Userid + "】姓名【" + user.DisplayName + "】工号【" + user.Num + "】状态【已注册过的用户】")
 	return
 }

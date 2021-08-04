@@ -59,9 +59,9 @@ func (service *Order) HandleOrders(o *Order) serializer.Response {
 
 	// 工单分流 将原始工单结构体转换为对应要求工单数据
 	switch orderData["spName"] {
-	case "统一账号注册":
+	case "测试工单":
 		{
-			weworkOrder := order.RawToUuapRegister(orderData)
+			weworkOrder := order.RawToAccountsRegister(orderData)
 			err = handleOrderAccountsRegister(weworkOrder)
 		}
 	case "UUAP密码找回":
@@ -85,7 +85,7 @@ func (service *Order) HandleOrders(o *Order) serializer.Response {
 			err = handleOrderC7nAuthority(weworkOrder)
 		}
 	default:
-		log.Error("Akita server has no handdler with this kind of order, please handle it manually!")
+		err = errors.New("Akita server has no handdler with this kind of order, please handle it manually!")
 	}
 	// 统一处理工单的处理情况
 	if result.RowsAffected == 1 && !orderExecuteRecord.ExecuteStatus { // 非首次执行 重试
@@ -107,106 +107,107 @@ func (service *Order) HandleOrders(o *Order) serializer.Response {
 	return serializer.Response{Data: 0, Msg: "Thanks, tabby! Order processing..."}
 }
 
-// handleOrderAccountsRegister 各平台账号注册 工单
+// handleOrderAccountsRegister 统一账号注册 工单
 func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (err error) {
-	var expire int64
-	var isOutsideComp bool
-	var sam, dn string
-	displayName := []rune(o.DisplayName)
-	cn := string(displayName) + o.Eid
-	companyTypes, err := conn.Str2CompanyTypes(bootstrap.LdapField.CompanyType)
-	if err != nil {
-		log.Error("Fail to deserialize str, err: ", err)
-		return
-	}
-
-	// 取内外部公司前缀映射
-	if v, ok := companyTypes[o.Company]; ok {
-		isOutsideComp = v.IsOuter
-	} else { // 若没有这个公司返回报错
-		log.Error(errors.New("无此公司,请到LDAP服务器增加对应公司！"))
-		return
-	}
-
-	// 不同公司个性化用户名与OU
-	if isOutsideComp {
-		sam = companyTypes[o.Company].Prefix + o.Eid // 用户名带前缀
-		dn = "CN=" + cn + ",OU=" + o.Company + "," + bootstrap.LdapField.BaseDnOuter
-		expire = ldap.ExpireTime(int64(90)) // 90天过期
-	} else { // 公司内部人员默认放到待分配区 后面每天程序自动将用户架构刷新
-		sam = o.Eid
-		dn = "CN=" + cn + "," + bootstrap.LdapField.BaseDnToBeAssigned
-		expire = ldap.ExpireTime(int64(-1)) // 永不过期
-	}
-	// 组装LDAP用户数据
-	userInfos := &ldap.LdapAttributes{
-		Dn:          dn,
-		Num:         sam,
-		Sam:         sam,
-		AccountCtl:  "544",
-		Expire:      expire,
-		Sn:          string(displayName[0]),
-		PwdLastSet:  "0",
-		DisplayName: string(displayName),
-		GivenName:   string(displayName[1:]),
-		Email:       o.Mail,
-		Phone:       o.Mobile,
-		Company:     o.Company,
-	}
-
-	// 将平台切片转为map 用于判断是否存在某平台
-	platforms := make(map[string]int)
-	for i, v := range o.InitPlatforms {
-		platforms[v] = i
-	}
-
-	// 待进行操作判断逻辑
-	if _, ok := platforms["UUAP"]; ok {
-		// UUAP操作
-		err = user.CreateLdapUser(o, userInfos)
+	// 支持处理多个申请者
+	for _, applicant := range o.Users {
+		var expire int64
+		var isOutsideComp bool
+		var sam, dn string
+		var companyTypes map[string]model.CompanyType
+		displayName := []rune(applicant.DisplayName)
+		cn := string(displayName) + applicant.Eid
+		companyTypes, err = conn.Str2CompanyTypes(bootstrap.LdapField.CompanyType)
 		if err != nil {
-			log.Error(err)
+			log.Error("Fail to deserialize str, err: ", err)
 			return
 		}
-	}
 
-	if _, ok := platforms["企业微信"]; ok {
-		// 执行生成 企业微信账号 操作
-		err = CreateWeworkUser(userInfos)
-		if err != nil {
-			log.Error(err)
+		// 取内外部公司前缀映射
+		if v, ok := companyTypes[applicant.Company]; ok {
+			isOutsideComp = v.IsOuter
+		} else { // 若没有这个公司返回报错
+			log.Error(errors.New("无此公司,请到LDAP服务器增加对应公司！"))
 			return
 		}
-	}
 
-	if _, ok := platforms["猪齿鱼"]; ok {
-		// 平台依赖关系判断
-		// entry, err := ldap.FetchUser(userInfos)
-		// if err != nil {
-		// 	log.Error(err)
-		// }
-		// if entry == nil {
-		// 	err = errors.New("该用户没有UUAP账号，请修改单据!")
-		// 	log.Error(err)
-		// 	return err
-		// }
-		// TODO 执行初始化 猪齿鱼 操作
-	}
+		// 不同公司个性化用户名与OU
+		if isOutsideComp {
+			sam = companyTypes[applicant.Company].Prefix + applicant.Eid // 用户名带前缀
+			dn = "CN=" + cn + ",OU=" + applicant.Company + "," + bootstrap.LdapField.BaseDnOuter
+			expire = ldap.ExpireTime(int64(90)) // 90天过期
+		} else { // 公司内部人员默认放到待分配区 后面每天程序自动将用户架构刷新
+			sam = applicant.Eid
+			dn = "CN=" + cn + "," + bootstrap.LdapField.BaseDnToBeAssigned
+			expire = ldap.ExpireTime(int64(-1)) // 永不过期
+		}
+		// 组装LDAP用户数据
+		userInfos := &ldap.LdapAttributes{
+			Dn:          dn,
+			Num:         sam,
+			Sam:         sam,
+			AccountCtl:  "544",
+			Expire:      expire,
+			Sn:          string(displayName[0]),
+			PwdLastSet:  "0",
+			DisplayName: string(displayName),
+			GivenName:   string(displayName[1:]),
+			Email:       applicant.Mail,
+			Phone:       applicant.Mobile,
+			Company:     applicant.Company,
+		}
 
-	if _, ok := platforms["UVPN"]; ok {
-		// 平台依赖关系判断
-		// entry, err := ldap.FetchUser(userInfos)
-		// if err != nil {
-		// 	log.Error(err)
-		// }
-		// if entry == nil {
-		// 	err = errors.New("该用户没有UUAP账号，请修改单据!")
-		// 	log.Error(err)
-		// 	return err
-		// }
-		// TODO 执行初始化 UVPN 操作
-	}
+		// 将平台切片转为map 用于判断是否存在某平台
+		platforms := make(map[string]int)
+		for i, v := range applicant.InitPlatforms {
+			platforms[v] = i
+		}
 
+		// 待进行操作判断逻辑
+		if _, ok := platforms["UUAP"]; ok {
+			// UUAP操作
+			err = user.CreateLdapUser(o, userInfos)
+			if err != nil {
+				log.Error(err)
+			}
+		}
+
+		if _, ok := platforms["企业微信"]; ok {
+			// 执行生成 企业微信账号 操作
+			err = CreateWeworkUser(userInfos)
+			if err != nil {
+				log.Error(err)
+			}
+		}
+
+		if _, ok := platforms["猪齿鱼"]; ok {
+			// 平台依赖关系判断
+			// entry, err := ldap.FetchUser(userInfos)
+			// if err != nil {
+			// 	log.Error(err)
+			// }
+			// if entry == nil {
+			// 	err = errors.New("该用户没有UUAP账号，请修改单据!")
+			// 	log.Error(err)
+			// 	return err
+			// }
+			// TODO 执行初始化 猪齿鱼 操作
+		}
+
+		if _, ok := platforms["UVPN"]; ok {
+			// 平台依赖关系判断
+			// entry, err := ldap.FetchUser(userInfos)
+			// if err != nil {
+			// 	log.Error(err)
+			// }
+			// if entry == nil {
+			// 	err = errors.New("该用户没有UUAP账号，请修改单据!")
+			// 	log.Error(err)
+			// 	return err
+			// }
+			// TODO 执行初始化 UVPN 操作
+		}
+	}
 	return
 }
 

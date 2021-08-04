@@ -421,7 +421,6 @@ func (user *LdapAttributes) Update() (err error) {
 		// 若用户部门或状态发生变化 由部门1>>部门2 由部门1>>离职
 		if user.Dn != "" {
 			if !strings.EqualFold(strings.SplitN(entry.DN, ",", 2)[1], user.Dn) {
-				// fmt.Println(user.DisplayName, user.Num, " 有岗位变动: 由【", strings.SplitN(entry.DN, ",", 2)[1], "】  转岗到  【", user.Dn, "】")
 				oldDepart := DnToDeparts(strings.Join(strings.Split(entry.DN, ",")[1:], ","))
 				newDepart := DnToDeparts(user.Dn)
 				// 若新或旧部门 有一个是外部公司 另一个是内部公司
@@ -437,10 +436,6 @@ func (user *LdapAttributes) Update() (err error) {
 				}
 				CheckOuTree(user.Dn)
 				err = user.MoveDn(user.Dn)
-			} else {
-				oldDepart := DnToDeparts(strings.Join(strings.Split(entry.DN, ",")[1:], ","))
-				// fmt.Println(user.DisplayName, user.Num, " 无岗位变动: ", user.Dn)
-				log.Info(user.DisplayName, user.Num, " 无岗位变动: ", oldDepart)
 			}
 			return
 		}
