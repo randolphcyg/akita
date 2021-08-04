@@ -59,7 +59,7 @@ func (service *Order) HandleOrders(o *Order) serializer.Response {
 
 	// 工单分流 将原始工单结构体转换为对应要求工单数据
 	switch orderData["spName"] {
-	case "测试工单":
+	case "统一账号注册":
 		{
 			weworkOrder := order.RawToAccountsRegister(orderData)
 			err = handleOrderAccountsRegister(weworkOrder)
