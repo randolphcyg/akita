@@ -172,7 +172,7 @@ func CreateWeworkUser(user *ldap.LdapAttributes) (err error) {
 				},
 			},
 		},
-		"to_invite": false,
+		"to_invite": true,
 	}
 	// 创建用户
 	var msg WeworkMsg

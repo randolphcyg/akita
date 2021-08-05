@@ -2,6 +2,7 @@ package order
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"gitee.com/RandolphCYG/akita/internal/model"
@@ -287,7 +288,7 @@ func ParseRawOrder(rawInfo interface{}) (orderData map[string]interface{}, err e
 			orderData[con.Title[0].Text] = temp
 		// 明细的处理
 		case "Table":
-			temps := make([]map[string]interface{}, 0)
+			temps := make([]map[string]interface{}, 1)
 			for _, u := range con.Value.Children {
 				temp := make(map[string]interface{})
 				for _, c := range u.List {
@@ -331,10 +332,12 @@ func ParseRawOrder(rawInfo interface{}) (orderData map[string]interface{}, err e
 			return
 		}
 	}
+	fmt.Println(orderData)
 	return
 }
 
-type Applicant []struct {
+// 申请人
+type Applicant struct {
 	DisplayName   string   `mapstructure:"姓名"`
 	Eid           string   `mapstructure:"工号"`
 	Mobile        string   `mapstructure:"手机"`
@@ -343,19 +346,53 @@ type Applicant []struct {
 	InitPlatforms []string `mapstructure:"所需平台"`
 }
 
-// 各平台账号注册 工单详情
+// 各平台账号注册 工单详情 多个
 type WeworkOrderDetailsAccountsRegister struct {
-	SpName  string    `mapstructure:"spName"`
-	Partyid string    `mapstructure:"partyid"`
-	Userid  string    `mapstructure:"userid"`
-	Remarks string    `mapstructure:"备注"`
-	Users   Applicant `mapstructure:"待申请人员"`
+	SpName  string      `mapstructure:"spName"`
+	Partyid string      `mapstructure:"partyid"`
+	Userid  string      `mapstructure:"userid"`
+	Remarks string      `mapstructure:"备注"`
+	Users   []Applicant `mapstructure:"待申请人员"`
+}
+
+// 各平台账号注册 工单详情 单个
+type WeworkOrderDetailsAccountsRegisterSingle struct {
+	SpName        string   `mapstructure:"spName"`
+	Partyid       string   `mapstructure:"partyid"`
+	Userid        string   `mapstructure:"userid"`
+	Remarks       string   `mapstructure:"备注"`
+	DisplayName   string   `mapstructure:"姓名"`
+	Eid           string   `mapstructure:"工号"`
+	Mobile        string   `mapstructure:"手机"`
+	Mail          string   `mapstructure:"邮箱"`
+	Company       string   `mapstructure:"公司"`
+	InitPlatforms []string `mapstructure:"所需平台"`
 }
 
 // 原始工单转换为统一账号注册工单结构体
 func RawToAccountsRegister(weworkOrder map[string]interface{}) (orderDetails WeworkOrderDetailsAccountsRegister) {
-	if err := mapstructure.Decode(weworkOrder, &orderDetails); err != nil {
-		log.Error("Fail to convert raw oder, err: ", err)
+	if _, ok := weworkOrder["姓名"]; ok {
+		var temp WeworkOrderDetailsAccountsRegisterSingle
+		if err := mapstructure.Decode(weworkOrder, &temp); err != nil {
+			log.Error("Fail to convert raw oder, err: ", err)
+		}
+		// 将单转多
+		orderDetails.Partyid = temp.Partyid
+		orderDetails.SpName = temp.SpName
+		orderDetails.Userid = temp.Userid
+		orderDetails.Remarks = temp.Remarks
+		orderDetails.Users = append(orderDetails.Users, Applicant{
+			DisplayName:   temp.DisplayName,
+			Eid:           temp.Eid,
+			Mobile:        temp.Mobile,
+			Mail:          temp.Mail,
+			Company:       temp.Company,
+			InitPlatforms: temp.InitPlatforms,
+		})
+	} else {
+		if err := mapstructure.Decode(weworkOrder, &orderDetails); err != nil {
+			log.Error("Fail to convert raw oder, err: ", err)
+		}
 	}
 	return
 }
