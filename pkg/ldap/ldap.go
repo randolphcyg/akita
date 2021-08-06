@@ -422,18 +422,23 @@ func (user *LdapAttributes) Update() (err error) {
 		if user.Dn != "" {
 			if !strings.EqualFold(strings.SplitN(entry.DN, ",", 2)[1], user.Dn) {
 				oldDepart := DnToDeparts(strings.Join(strings.Split(entry.DN, ",")[1:], ","))
+				oldDeparts := strings.Split(oldDepart, ".")
 				newDepart := DnToDeparts(user.Dn)
+				newDeparts := strings.Split(newDepart, ".")
+				var level string
 				// 若新或旧部门 有一个是外部公司 另一个是内部公司
-				if (strings.Contains(strings.Join(oldDepart, "."), "合作伙伴") && !strings.Contains(strings.Join(newDepart, "."), "合作伙伴")) ||
-					(!strings.Contains(strings.Join(oldDepart, "."), "合作伙伴") && strings.Contains(strings.Join(newDepart, "."), "合作伙伴")) {
-					log.Info(user.DisplayName, user.Num, " 岗位变动:[", oldDepart, "]转到[", newDepart, "],类型:[公司级别]")
+				if (strings.Contains(oldDepart, "合作伙伴") && !strings.Contains(newDepart, "合作伙伴")) ||
+					(!strings.Contains(oldDepart, "合作伙伴") && strings.Contains(newDepart, "合作伙伴")) {
+					level = "公司级别"
 				} else {
-					if oldDepart[len(oldDepart)-1] != newDepart[len(newDepart)-1] {
-						log.Info(user.DisplayName, user.Num, " 岗位变动:[", strings.Join(oldDepart, "."), "]转到[", strings.Join(newDepart, "."), "],类型:[部门级别]")
+					if oldDeparts[len(oldDeparts)-1] != newDeparts[len(newDeparts)-1] {
+						level = "部门级别"
 					} else {
-						log.Info(user.DisplayName, user.Num, " 岗位变动:[", strings.Join(oldDepart, "."), "]转到[", strings.Join(newDepart, "."), "],类型:[结构级别]")
+						level = "结构级别"
 					}
 				}
+				fmt.Println(user.DisplayName, user.Num, " 岗位变动:[", oldDepart, "]转到[", newDepart, "],类型:", level)
+				model.CreateLdapUserDepartRecord(user.DisplayName, user.Num, oldDepart, newDepart, level)
 				CheckOuTree(user.Dn)
 				err = user.MoveDn(user.Dn)
 			}
@@ -585,12 +590,14 @@ func DnToDepart(dn string) (depart string) {
 }
 
 // DnToDeparts 将DN地址转换为多级部门切片
-func DnToDeparts(dn string) (departs []string) {
+func DnToDeparts(dn string) (departs string) {
+	// var temp []string
 	rawDn := strings.Split(dn, ",")
-	departs = Reverse(rawDn[:len(rawDn)-2]) // 去掉DC 逆序
-	for i, d := range departs {
-		departs[i] = strings.Trim(strings.ToUpper(d), "OU=")
+	rawDn = Reverse(rawDn[:len(rawDn)-2]) // 去掉DC 逆序
+	for i, d := range rawDn {
+		rawDn[i] = strings.Trim(strings.ToUpper(d), "OU=")
 	}
+	departs = strings.Join(rawDn, ".")
 	return
 }
 

@@ -288,7 +288,7 @@ func ParseRawOrder(rawInfo interface{}) (orderData map[string]interface{}, err e
 			orderData[con.Title[0].Text] = temp
 		// 明细的处理
 		case "Table":
-			temps := make([]map[string]interface{}, 1)
+			temps := make([]map[string]interface{}, 0)
 			for _, u := range con.Value.Children {
 				temp := make(map[string]interface{})
 				for _, c := range u.List {
@@ -389,6 +389,7 @@ func RawToAccountsRegister(weworkOrder map[string]interface{}) (orderDetails Wew
 			Company:       temp.Company,
 			InitPlatforms: temp.InitPlatforms,
 		})
+		fmt.Println(orderDetails.Users)
 	} else {
 		if err := mapstructure.Decode(weworkOrder, &orderDetails); err != nil {
 			log.Error("Fail to convert raw oder, err: ", err)

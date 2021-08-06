@@ -113,3 +113,18 @@ func GetLdapFieldByConnUrl(url string) (LdapField, error) {
 	result := DB.Where("conn_url = ?", url).First(&field)
 	return field, result.Error
 }
+
+// 用户部门变更历史
+type LdapUserDepartRecord struct {
+	gorm.Model
+	Name      string `json:"name" gorm:"type:varchar(255);not null;comment:真实姓名"`
+	Eid       string `json:"eid" gorm:"type:varchar(255);not null;comment:工号"`
+	OldDepart string `json:"old_depart" gorm:"type:varchar(255);not null;comment:旧部门"`
+	NewDepart string `json:"new_depart" gorm:"type:varchar(255);not null;comment:新部门"`
+	Level     string `json:"level" gorm:"type:varchar(255);not null;comment:级别"`
+}
+
+// CreateLdapUserDepartRecord 用户架构变化记录
+func CreateLdapUserDepartRecord(name string, eid string, oldDepart string, newDepart string, level string) {
+	DB.Model(&LdapUserDepartRecord{}).Create((LdapUserDepartRecord{Name: name, Eid: eid, OldDepart: oldDepart, NewDepart: newDepart, Level: level}))
+}

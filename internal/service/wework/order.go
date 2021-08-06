@@ -122,7 +122,6 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 			log.Error("Fail to deserialize str, err: ", err)
 			return
 		}
-
 		// 取内外部公司前缀映射
 		if v, ok := companyTypes[applicant.Company]; ok {
 			isOutsideComp = v.IsOuter
@@ -181,30 +180,26 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 		}
 
 		if _, ok := platforms["猪齿鱼"]; ok {
-			// 平台依赖关系判断
-			// entry, err := ldap.FetchUser(userInfos)
-			// if err != nil {
-			// 	log.Error(err)
-			// }
-			// if entry == nil {
-			// 	err = errors.New("该用户没有UUAP账号，请修改单据!")
-			// 	log.Error(err)
-			// 	return err
-			// }
+			if _, ok := platforms["UUAP"]; !ok {
+				// 确保需要猪齿鱼的有UUAP 若无则创建
+				err = user.CreateLdapUser(o, userInfos)
+				if err != nil {
+					log.Error(err)
+				}
+			}
+
 			// TODO 执行初始化 猪齿鱼 操作
 		}
 
 		if _, ok := platforms["UVPN"]; ok {
-			// 平台依赖关系判断
-			// entry, err := ldap.FetchUser(userInfos)
-			// if err != nil {
-			// 	log.Error(err)
-			// }
-			// if entry == nil {
-			// 	err = errors.New("该用户没有UUAP账号，请修改单据!")
-			// 	log.Error(err)
-			// 	return err
-			// }
+			if _, ok := platforms["UUAP"]; !ok {
+				// 确保需要UVPN的有UUAP 若无则创建
+				err = user.CreateLdapUser(o, userInfos)
+				if err != nil {
+					log.Error(err)
+				}
+			}
+
 			// TODO 执行初始化 UVPN 操作
 		}
 	}

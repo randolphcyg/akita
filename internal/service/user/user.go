@@ -2,6 +2,7 @@ package user
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -238,8 +239,38 @@ func CacheToLdap() {
 	log.Info("从缓存更新用户到ldap成功!")
 }
 
+// FormatData 校验邮箱和手机号格式
+func FormatData(mail string, mobile string) (err error) {
+	if strings.Contains(mail, " ") || strings.Contains(mobile, " ") || len(mobile) != 11 {
+		err = errors.New("手机号或邮箱不符合规范! 1. 手机号11位且中间不允许有空格 2. 邮箱中间不允许有空格!")
+	}
+	return
+}
+
+// CreateLdapUser 执行生成UUAP操作
 func CreateLdapUser(o order.WeworkOrderDetailsAccountsRegister, user *ldap.LdapAttributes) (err error) {
-	// 执行生成UUAP操作
+	// 数据校验 1. 手机号11位 中间不允许有空格 2. 邮箱中间不允许有空格
+	err = FormatData(user.Email, user.Phone)
+	if err != nil {
+		// 创建成功发送企业微信消息
+		corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
+		createAccountsWeworkMsgTemplate, _ := cache.HGet("wework_templates", "wework_template_uuap_register_err")
+		msg := map[string]interface{}{
+			"touser":  o.Userid,
+			"msgtype": "markdown",
+			"agentid": model.WeworkUuapCfg.AppId,
+			"markdown": map[string]interface{}{
+				"content": fmt.Sprintf(createAccountsWeworkMsgTemplate, o.SpName, user.DisplayName, err),
+			},
+		}
+		_, err = corpAPIMsg.MessageSend(msg)
+		if err != nil {
+			log.Error("Fail to send wework msg, err: ", err)
+		}
+		log.Info("企业微信回执消息:工单【" + o.SpName + "】用户【" + o.Userid + "】姓名【" + user.DisplayName + "】工号【" + user.Num + "】状态【初次注册-手机号|邮箱格式错误】")
+		return
+	}
+
 	// 创建LDAP用户 生成初始密码
 	pwd, err := ldap.AddUser(user)
 	if err != nil {
