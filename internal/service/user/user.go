@@ -187,6 +187,7 @@ func CacheToLdap() {
 	}
 
 	// TODO 待优化 目前速度提升没有
+	fmt.Println("开始更新所有用户架构...")
 	done := make(chan int, 30) // 带 20 个缓存
 	for cn, u := range ldapUsers {
 		go func(cn string, u string) {
@@ -225,7 +226,7 @@ func CacheToLdap() {
 				Depart:      depart,
 				Title:       user.Title,
 			}
-			fmt.Println(cn)
+			// fmt.Println(cn)
 			// 更新用户操作
 			err := ldapUser.Update()
 			if err != nil {

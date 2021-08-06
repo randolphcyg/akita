@@ -126,5 +126,5 @@ type LdapUserDepartRecord struct {
 
 // CreateLdapUserDepartRecord 用户架构变化记录
 func CreateLdapUserDepartRecord(name string, eid string, oldDepart string, newDepart string, level string) {
-	DB.Model(&LdapUserDepartRecord{}).Create((LdapUserDepartRecord{Name: name, Eid: eid, OldDepart: oldDepart, NewDepart: newDepart, Level: level}))
+	DB.Model(&LdapUserDepartRecord{}).Create((&LdapUserDepartRecord{Name: name, Eid: eid, OldDepart: oldDepart, NewDepart: newDepart, Level: level}))
 }
