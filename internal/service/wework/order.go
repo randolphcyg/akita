@@ -75,7 +75,7 @@ func (service *Order) HandleOrders(o *Order) (err error) {
 			weworkOrder := order.RawToUuapPwdDisable(orderData)
 			err = handleOrderUuapDisable(weworkOrder)
 		}
-	case "测试工单":
+	case "UUAP账号续期":
 		{
 			weworkOrder := order.RawToUuapRenewal(orderData)
 			err = handleOrderUuapRenewal(weworkOrder)
