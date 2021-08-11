@@ -13,10 +13,10 @@ type TaskField struct {
 	Name string `form:"name" json:"name" xml:"name" binding:"required"`
 }
 
-// LdapUsersCronTasksStart 注册所有用户定时任务
-func LdapUsersCronTasksStart(ctx *gin.Context) {
+// StartAll 注册所有用户定时任务
+func StartAll(ctx *gin.Context) {
 	if err := ctx.ShouldBind(0); err == nil {
-		res := task.LdapUsersCronTasksStart()
+		res := task.StartAll()
 		ctx.JSON(200, res)
 	} else {
 		ctx.JSON(200, err)

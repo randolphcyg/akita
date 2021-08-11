@@ -389,7 +389,6 @@ func RawToAccountsRegister(weworkOrder map[string]interface{}) (orderDetails Wew
 			Company:       temp.Company,
 			InitPlatforms: temp.InitPlatforms,
 		})
-		fmt.Println(orderDetails.Users)
 	} else {
 		if err := mapstructure.Decode(weworkOrder, &orderDetails); err != nil {
 			log.Error("Fail to convert raw oder, err: ", err)
@@ -430,13 +429,19 @@ func RawToUuapPwdDisable(weworkOrder map[string]interface{}) (orderDetails Wewor
 	return
 }
 
+// 申请人
+type RenewalApplicant struct {
+	DisplayName string   `mapstructure:"姓名"`
+	Eid         string   `mapstructure:"工号"`
+	Platforms   []string `mapstructure:"平台"`
+	Days        string   `mapstructure:"续期天数"`
+}
+
 // UUAP账号续期 工单详情
 type WeworkOrderDetailsUuapRenewal struct {
-	SpName      string `mapstructure:"spName"`
-	Userid      string `mapstructure:"userid"`
-	DisplayName string `mapstructure:"姓名"`
-	Eid         string `mapstructure:"工号"`
-	Days        string `mapstructure:"续期天数"`
+	SpName string             `mapstructure:"spName"`
+	Userid string             `mapstructure:"userid"`
+	Users  []RenewalApplicant `mapstructure:"待申请人员"`
 }
 
 // 原始工单转换为UUAP账号续期结构体

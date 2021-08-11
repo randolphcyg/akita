@@ -9,12 +9,13 @@ import (
 	"gitee.com/RandolphCYG/akita/internal/model"
 	"gitee.com/RandolphCYG/akita/internal/service/conn"
 	"gitee.com/RandolphCYG/akita/internal/service/user"
+	"gitee.com/RandolphCYG/akita/pkg/c7n"
 	"gitee.com/RandolphCYG/akita/pkg/cache"
-	"gitee.com/RandolphCYG/akita/pkg/email"
 	"gitee.com/RandolphCYG/akita/pkg/ldap"
-	"gitee.com/RandolphCYG/akita/pkg/serializer"
+	"gitee.com/RandolphCYG/akita/pkg/util"
 	"gitee.com/RandolphCYG/akita/pkg/wework/api"
 	"gitee.com/RandolphCYG/akita/pkg/wework/order"
+	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -25,13 +26,13 @@ type Order struct {
 }
 
 // 工单总入口
-func (service *Order) HandleOrders(o *Order) serializer.Response {
+func (service *Order) HandleOrders(o *Order) (err error) {
 	// 判断工单是否存在 若存在则不处理，若不存在则保存一份 处理失败情况要记录到表中
 	result, orderExecuteRecord := model.FetchOrder(o.SpNo)
 	if result.RowsAffected == 1 && orderExecuteRecord.ExecuteStatus {
-		err := "thanks,tabby! 【" + o.SpNo + "】该工单已经处理过，忽略此次操作~"
+		err = errors.New("thanks,tabby! 【" + o.SpNo + "】该工单已经处理过，忽略此次操作~")
 		log.Warning(err)
-		return serializer.Response{Data: 0, Msg: err}
+		return
 	}
 
 	// 实例化 API 类 企业微信配置保存到数据库，系统初始化时加载到环境变量中
@@ -42,19 +43,19 @@ func (service *Order) HandleOrders(o *Order) serializer.Response {
 	})
 	if err != nil {
 		log.Error("Fail to get approval detail, err: ", err)
-		return serializer.Response{Data: 0, Error: "Fail to get approval detail!"}
+		return
 	}
 
 	// 解析企业微信原始工单
 	if _, ok := response["info"]; !ok {
 		log.Error("Fail to parse raw order, order receipt has no field [info]!")
-		return serializer.Response{Data: 0, Error: "Fail to parse raw order!"}
+		return
 	}
 
 	orderData, err := order.ParseRawOrder(response["info"])
 	if err != nil {
 		log.Error(err)
-		return serializer.Err(-1, "Fail to parse raw order, err: ", err)
+		return
 	}
 
 	// 工单分流 将原始工单结构体转换为对应要求工单数据
@@ -74,7 +75,7 @@ func (service *Order) HandleOrders(o *Order) serializer.Response {
 			weworkOrder := order.RawToUuapPwdDisable(orderData)
 			err = handleOrderUuapDisable(weworkOrder)
 		}
-	case "UUAP账号续期":
+	case "测试工单":
 		{
 			weworkOrder := order.RawToUuapRenewal(orderData)
 			err = handleOrderUuapRenewal(weworkOrder)
@@ -103,8 +104,7 @@ func (service *Order) HandleOrders(o *Order) serializer.Response {
 			model.CreateOrder(o.SpNo, true, fmt.Sprintf("%v", err))
 		}
 	}
-
-	return serializer.Response{Data: 0, Msg: "Thanks, tabby! Order processing..."}
+	return
 }
 
 // handleOrderAccountsRegister 统一账号注册 工单
@@ -113,7 +113,7 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 	for _, applicant := range o.Users {
 		var expire int64
 		var isOutsideComp bool
-		var sam, dn string
+		var sam, dn, weworkExpireStr string
 		var companyTypes map[string]model.CompanyType
 		displayName := []rune(applicant.DisplayName)
 		cn := string(displayName) + applicant.Eid
@@ -135,6 +135,7 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 			sam = companyTypes[applicant.Company].Prefix + applicant.Eid // 用户名带前缀
 			dn = "CN=" + cn + ",OU=" + applicant.Company + "," + bootstrap.LdapField.BaseDnOuter
 			expire = ldap.ExpireTime(int64(90)) // 90天过期
+			weworkExpireStr = util.ExpireStr(90)
 		} else { // 公司内部人员默认放到待分配区 后面每天程序自动将用户架构刷新
 			sam = applicant.Eid
 			dn = "CN=" + cn + "," + bootstrap.LdapField.BaseDnToBeAssigned
@@ -142,19 +143,21 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 		}
 		// 组装LDAP用户数据
 		userInfos := &ldap.LdapAttributes{
-			Dn:          dn,
-			Num:         sam,
-			Sam:         sam,
-			AccountCtl:  "544",
-			Expire:      expire,
-			Sn:          string(displayName[0]),
-			PwdLastSet:  "0",
-			DisplayName: string(displayName),
-			GivenName:   string(displayName[1:]),
-			Email:       applicant.Mail,
-			Phone:       applicant.Mobile,
-			Company:     applicant.Company,
+			Dn:           dn,
+			Num:          sam,
+			Sam:          sam,
+			AccountCtl:   "544",
+			Expire:       expire,
+			Sn:           string(displayName[0]),
+			PwdLastSet:   "0",
+			DisplayName:  string(displayName),
+			GivenName:    string(displayName[1:]),
+			Email:        applicant.Mail,
+			Phone:        applicant.Mobile,
+			Company:      applicant.Company,
+			WeworkExpire: weworkExpireStr,
 		}
+		fmt.Println(userInfos)
 
 		// 将平台切片转为map 用于判断是否存在某平台
 		platforms := make(map[string]int)
@@ -173,7 +176,7 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 
 		if _, ok := platforms["企业微信"]; ok {
 			// 执行生成 企业微信账号 操作
-			err = CreateWeworkUser(userInfos)
+			err = CreateUser(userInfos)
 			if err != nil {
 				log.Error(err)
 			}
@@ -188,7 +191,14 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 				}
 			}
 
-			// TODO 执行初始化 猪齿鱼 操作
+			// 执行初始化 猪齿鱼 操作
+			err = c7n.UpdateC7nUsers()                                             // 更新ldap用户
+			c7nUser, _ := c7n.FtechC7nUser(applicant.DisplayName)                  // 将新ldap用户添加到默认空项目
+			role, _ := c7n.FetchC7nRoles("项目成员")                                   // 获取项目成员角色的ID
+			err = c7n.AssignC7nUserProjectRole("4", c7nUser.Id, []string{role.Id}) // 分配角色
+			if err != nil {
+				logrus.Error("Fail to assign new user c7n default project!", err)
+			}
 		}
 
 		if _, ok := platforms["UVPN"]; ok {
@@ -275,10 +285,39 @@ func handleOrderUuapDisable(o order.WeworkOrderDetailsUuapDisable) (err error) {
 
 // UUAP账号续期 工单
 func handleOrderUuapRenewal(o order.WeworkOrderDetailsUuapRenewal) (err error) {
-	days, _ := strconv.ParseInt(o.Days, 10, 64)
+	// 支持处理多个申请者
+	for _, applicant := range o.Users {
+		fmt.Println(applicant)
+
+		// 将平台切片转为map 用于判断是否存在某平台
+		platforms := make(map[string]int)
+		for i, v := range applicant.Platforms {
+			platforms[v] = i
+		}
+
+		// 待进行操作判断逻辑
+		if _, ok := platforms["UUAP"]; ok {
+			// UUAP续期操作
+			RenewalUuap(o, applicant)
+		}
+
+		if _, ok := platforms["企业微信"]; ok {
+			// 企业微信续期操作 TODO 批量的话 根据工号锁定用户
+			weworkUser, _ := FetchUser(applicant.Eid)
+			expireDays, _ := strconv.Atoi(applicant.Days)
+			RenewalUser(weworkUser.Userid, applicant, expireDays)
+		}
+	}
+
+	return
+}
+
+// RenewalUuap uuap续期
+func RenewalUuap(o order.WeworkOrderDetailsUuapRenewal, applicant order.RenewalApplicant) (err error) {
+	days, _ := strconv.ParseInt(applicant.Days, 10, 64)
 	user := &ldap.LdapAttributes{
-		Num:         o.Eid,
-		DisplayName: o.DisplayName,
+		Num:         applicant.Eid,
+		DisplayName: applicant.DisplayName,
 		Expire:      ldap.ExpireTime(days),
 	}
 
@@ -299,47 +338,13 @@ func handleOrderUuapRenewal(o order.WeworkOrderDetailsUuapRenewal) (err error) {
 		"msgtype": "markdown",
 		"agentid": model.WeworkUuapCfg.AppId,
 		"markdown": map[string]interface{}{
-			"content": fmt.Sprintf(renewalUuapWeworkMsgTemplate, o.SpName, user.DisplayName, o.Days),
+			"content": fmt.Sprintf(renewalUuapWeworkMsgTemplate, o.SpName, user.DisplayName, applicant.Days),
 		},
 	})
 	if err != nil {
 		log.Error("Fail to send wework msg, err: ", err)
 	}
-	log.Info("企业微信回执消息:工单【" + o.SpName + "】用户【" + o.Userid + "】姓名【" + o.DisplayName + "】工号【" + o.Eid + "】状态【续期" + o.Days + "天】")
-	return
-}
-
-// 过期用户处理
-func HandleOrderUuapExpired(user *ldap.LdapAttributes, expireDays int) (err error) {
-	emailTempUuaplateExpiring, err := cache.HGet("email_templates", "email_template_uuap_expiring")
-	if err != nil {
-		log.Error("读取即将过期邮件消息模板错误: ", err)
-	}
-	emailTemplateUuapExpired, err := cache.HGet("email_templates", "email_template_uuap_expired")
-	if err != nil {
-		log.Error("读取已过期邮件消息模板错误: ", err)
-	}
-	emailTemplateUuapExpiredDisabled, err := cache.HGet("email_templates", "email_template_uuap_expired_disabled")
-	if err != nil {
-		log.Error("读取已过期禁用邮件消息模板错误: ", err)
-	}
-
-	if expireDays == 7 || expireDays == 14 { // 即将过期提醒 7|14天前
-		// fmt.Println(emailTempUuaplateExpiring)
-		address := []string{user.Email}
-		htmlContent := fmt.Sprintf(emailTempUuaplateExpiring, user.DisplayName, user.Sam, strconv.Itoa(expireDays))
-		email.SendMailHtml(address, "UUAP账号即将过期通知", htmlContent)
-		log.Info("邮件发送成功！用户【" + user.DisplayName + "】账号【" + user.Sam + "】状态【即将过期】")
-	} else if expireDays == -7 { // 已经过期提醒 7天后
-		// fmt.Println(emailTemplateUuapExpired)
-		address := []string{user.Email}
-		htmlContent := fmt.Sprintf(emailTemplateUuapExpired, user.DisplayName, user.Sam, strconv.Itoa(-expireDays)) // 此时过期天数为负值
-		email.SendMailHtml(address, "UUAP账号已过期通知", htmlContent)
-		log.Info("邮件发送成功！用户【" + user.DisplayName + "】账号【" + user.Sam + "】状态【已经过期】")
-	} else if expireDays == -30 { // 已经过期且禁用提醒 30天后
-		fmt.Println(emailTemplateUuapExpiredDisabled)
-		log.Info("邮件发送成功！用户【" + user.DisplayName + "】账号【" + user.Sam + "】状态【已经过期禁用】")
-	}
+	log.Info("企业微信回执消息:工单【" + o.SpName + "】用户【" + o.Userid + "】姓名【" + applicant.DisplayName + "】工号【" + applicant.Eid + "】状态【续期" + applicant.Days + "天】")
 	return
 }
 

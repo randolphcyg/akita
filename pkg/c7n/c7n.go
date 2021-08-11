@@ -85,6 +85,12 @@ type C7nRoleFields struct {
 	RoleLevel   string `json:"roleLevel"`
 }
 
+// C7nFetchLdapRes 查询ldap连接接口返回结构体
+type C7nFetchLdapRes struct {
+	Id     string `json:"id"`
+	BaseDn string `json:"baseDn"`
+}
+
 // 为c7n用户分配角色
 func FetchToken() (header map[string]string, err error) {
 	// 从缓存取url
@@ -274,7 +280,54 @@ func AssignC7nUserProjectRole(c7nProjectId string, c7nUserId string, c7nRoleIds 
 	req := HttpRequest.NewRequest()
 	req.SetHeaders(header)
 	assignC7nUserProjectRoleUrlEncoded := fmt.Sprintf(assignC7nUserProjectRoleUrl, c7nProjectId, c7nUserId)
-	respAssignC7nUserProjectRole, err := req.Put(assignC7nUserProjectRoleUrlEncoded, c7nRoleIds)
-	log.Info(respAssignC7nUserProjectRole)
+	_, err = req.Put(assignC7nUserProjectRoleUrlEncoded, c7nRoleIds)
+	return
+}
+
+// UpdateC7nUsers 同步c7n ldap用户
+func UpdateC7nUsers() (err error) {
+	// 取token
+	header, err := FetchToken()
+	if err != nil {
+		log.Error("Fail to fetch token, err: ", err)
+	}
+
+	// 从缓存取url
+	fetchC7nLdapUrl, err := cache.HGet("third_party_sys_cfg", "fetch_c7n_ldap_conn")
+	if err != nil {
+		log.Error("读取三方系统-c7n配置错误: ", err)
+	}
+
+	// 发送请求
+	req := HttpRequest.NewRequest()
+	req.SetHeaders(header)
+	respFetchC7nLdap, err := req.Get(fetchC7nLdapUrl)
+	if err != nil {
+		log.Error("Fail to fetch c7n user, err: ", err)
+	}
+	defer respFetchC7nLdap.Close() // 关闭
+
+	// 反序列化
+	var c7nFetchLdapRes C7nFetchLdapRes
+	err = respFetchC7nLdap.Json(&c7nFetchLdapRes)
+	if err != nil {
+		log.Error("Fail to convert response to json, err: ", err)
+	}
+
+	// 数据筛选
+	LdapId := c7nFetchLdapRes.Id
+
+	// 同步用户
+	// 从缓存取url
+	syncC7nLdapUsersUrl, err := cache.HGet("third_party_sys_cfg", "sync_users")
+	if err != nil {
+		log.Error("读取三方系统-c7n配置错误: ", err)
+	}
+	syncC7nLdapUsersUrl = fmt.Sprintf(syncC7nLdapUsersUrl, LdapId)
+	respSyncC7nLdapUsersUrl, err := req.Post(syncC7nLdapUsersUrl)
+	if err != nil {
+		log.Error("Fail to fetch token, err: ", err)
+	}
+	defer respSyncC7nLdapUsersUrl.Close() // 关闭
 	return
 }

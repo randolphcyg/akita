@@ -2,6 +2,7 @@ package task
 
 import (
 	"gitee.com/RandolphCYG/akita/internal/service/user"
+	"gitee.com/RandolphCYG/akita/internal/service/wework"
 	"gitee.com/RandolphCYG/akita/pkg/crontab"
 	"gitee.com/RandolphCYG/akita/pkg/serializer"
 
@@ -16,21 +17,28 @@ type Task struct {
 
 // 所有任务
 var AllTasks map[string]Task
+var CacheHrUsers = user.CacheHrUsers
+var CacheWeworkUsers = wework.CacheWeworkUsers
+var SyncLdapUsers = user.SyncLdapUsers
+var ScanExpiredLdapUsers = user.ScanExpiredLdapUsers
 
-// LdapUsersCronTasksStart 用户相关任务的注册
-func LdapUsersCronTasksStart() serializer.Response {
-	var CacheToLdap = user.CacheToLdap
-	var HandleExpiredLdapUsers = user.HandleExpiredLdapUsers
-
-	_, _ = crontab.Scheduler.Every(1).Day().Tag("CacheToLdap").At("10:30").Do(CacheToLdap) // 每天早10点半
+// StartAll 注册并启动所有定时任务
+func StartAll() serializer.Response {
+	// 更新ldap用户缓存
+	_, _ = crontab.Scheduler.Every(1).Day().Tag("CacheHrUsers").At("9:50").Do(CacheHrUsers)
 	crontab.Scheduler.StartAsync()
-	_, t1 := crontab.Scheduler.NextRun()
-	logrus.Info("下次执行更新全量LDAP用户信息的触发时间：", t1.Format("2006-01-02 15:04:05.000"))
 
-	_, _ = crontab.Scheduler.Every(1).Day().Tag("HandleExpiredLdapUsers").At("10:00").Do(HandleExpiredLdapUsers)
+	// 更新企业微信用户缓存
+	_, _ = crontab.Scheduler.Every(1).Day().Tag("CacheWeworkUsers").At("9:50").Do(CacheWeworkUsers)
 	crontab.Scheduler.StartAsync()
-	_, t2 := crontab.Scheduler.NextRun()
-	logrus.Info("扫描过期用户的下次触发时间：", t2.Format("2006-01-02 15:04:05.000"))
+
+	// 扫描过期ldap用户并发通知
+	_, _ = crontab.Scheduler.Every(1).Day().Tag("ScanExpiredLdapUsers").At("10:00").Do(ScanExpiredLdapUsers)
+	crontab.Scheduler.StartAsync()
+
+	// 全量更新ldap用户信息
+	_, _ = crontab.Scheduler.Every(1).Day().Tag("SyncLdapUsers").At("17:00").Do(SyncLdapUsers)
+	crontab.Scheduler.StartAsync()
 
 	for _, j := range crontab.Scheduler.Jobs() {
 		crontab.JobsInfos = append(crontab.JobsInfos, crontab.JobsInfo{
@@ -48,16 +56,27 @@ func TaskRegister(taskName string) serializer.Response {
 	// 初始化
 	AllTasks = make(map[string]Task)
 	// 注册任务
-	AllTasks["HandleExpiredLdapUsers"] = Task{
-		Tags: []string{"HandleExpiredLdapUsers"},
-		Cron: "0 10 * * *",
-		Func: user.TestTask,
+	AllTasks["CacheHrUsers"] = Task{
+		Tags: []string{"CacheHrUsers"},
+		Cron: "50 9 * * *",
+		Func: CacheHrUsers,
 	}
 
-	AllTasks["CacheToLdap"] = Task{
-		Tags: []string{"CacheToLdap"},
+	AllTasks["CacheWeworkUsers"] = Task{
+		Tags: []string{"CacheWeworkUsers"},
+		Cron: "50 9 * * *",
+		Func: CacheWeworkUsers,
+	}
+
+	AllTasks["ScanExpiredLdapUsers"] = Task{
+		Tags: []string{"ScanExpiredLdapUsers"},
 		Cron: "0 10 * * *",
-		Func: user.TestTask,
+		Func: ScanExpiredLdapUsers,
+	}
+	AllTasks["SyncLdapUsers"] = Task{
+		Tags: []string{"SyncLdapUsers"},
+		Cron: "0 17 * * *",
+		Func: SyncLdapUsers,
 	}
 
 	// 测试
@@ -70,6 +89,7 @@ func TaskRegister(taskName string) serializer.Response {
 	if t, ok := AllTasks[taskName]; !ok {
 		logrus.Error("Task Not Found !!!")
 	} else {
+		// TODO 任务会立即执行的bug
 		_, err := crontab.Scheduler.Cron(t.Cron).Tag(taskName).Do(t.Func)
 		if err != nil {
 			logrus.Error(err)

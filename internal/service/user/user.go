@@ -51,59 +51,10 @@ type LdapUserService struct {
 	Mobile string `json:"mobile" gorm:"type:varchar(50);not null;comment:手机号"`
 }
 
-// 查
-func (service *LdapUserService) FetchUser(url string) serializer.Response {
-	// 初始化连接
-	user := &ldap.LdapAttributes{}
-	LdapUsers := ldap.FetchLdapUsers(user)
-	jndex := 1
-	for _, user := range LdapUsers {
-		// 速度慢
-		// ldapUser := ldap.NewUser(user)
-		// fmt.Println(ldapUser.DisplayName, ldapUser.Num, ldapUser.Sam, ldapUser.Email, ldapUser.Phone)
-		// 速度快 查询激活用户 判断带前缀的账号
-		if user.GetAttributeValue("userAccountControl") == "544" && (strings.HasPrefix(user.GetAttributeValue("sAMAccountName"), "X") || strings.HasPrefix(user.GetAttributeValue("sAMAccountName"), "XXXX")) {
-			fmt.Println(jndex,
-				user.GetAttributeValue("displayName"),
-				user.GetAttributeValue("employeeNumber"),
-				user.GetAttributeValue("sAMAccountName"),
-				strings.ToUpper(user.GetAttributeValue("mail")),
-				user.GetAttributeValue("mobile"),
-				user.GetAttributeValue("userAccountControl"))
-			jndex += 1
-		}
-	}
-	return serializer.Response{Data: LdapUsers}
-}
-
-// TODO 创建用户-管理员接口
-func (service *LdapUserService) CreateUser(u LdapUserService) serializer.Response {
-
-	return serializer.Response{Data: 0, Msg: "UUAP账号创建成功"}
-}
-
-// TODO 查询HR数据
-func (service *HrDataService) FetchHrData(h HrDataService) serializer.Response {
-	// 初始化连接
-	// var c conn.LdapConnService
-
-	// conn, err := c.FetchByConnUrl(url)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// }
-	// LdapUsers := ldap.FetchUser(&conn)
-	// for _, user := range LdapUsers {
-	// 	user.PrettyPrint(2)
-	// 	fmt.Println(user.GetAttributeValue("displayName"))
-	// 	break
-	// }
-	return serializer.Response{Data: 1111}
-}
-
-// ScanExpiredLdapUsersManual 手动扫描过期ldap用户
+// ScanExpiredLdapUsersManual 手动触发扫描过期ldap用户
 func ScanExpiredLdapUsersManual() serializer.Response {
 	go func() {
-		HandleExpiredLdapUsers()
+		ScanExpiredLdapUsers()
 	}()
 	return serializer.Response{Data: 0}
 }
@@ -112,8 +63,8 @@ func TestTask() {
 	fmt.Println("执行定任务")
 }
 
-// HandleExpiredLdapUsers 处理过期用户 (expireLdapUsers []*ldap.LdapAttributes)
-func HandleExpiredLdapUsers() {
+// ScanExpiredLdapUsers 扫描过期ldap用户
+func ScanExpiredLdapUsers() {
 	// 初始化连接
 	LdapUsers := ldap.FetchLdapUsers(&ldap.LdapAttributes{})
 	currentTime := time.Now()
@@ -126,32 +77,31 @@ func HandleExpiredLdapUsers() {
 				ldapUser := ldap.NewUser(u) // 初始化速度较慢 适用定时异步任务处理少量数据
 				// expireLdapUsers = append(expireLdapUsers, ldapUser)
 				log.Info(ldapUser, "过期天数: ", expireDays)
-				HandleOrderUuapExpired(ldapUser, expireDays) // 处理过期账号
+				HandleExpiredLdapUsers(ldapUser, expireDays) // 处理过期账号
 			}
 		}
 	}
-	// return
 }
 
-// UpdateCacheUsersManual 更新HR元数据到缓存
-func UpdateCacheUsersManual() serializer.Response {
+// CacheHrUsersManual 手动触发缓存HR用户
+func CacheHrUsersManual() serializer.Response {
 	go func() {
-		HrToCache() // 更新HR元数据到缓存
+		CacheHrUsers()
 	}()
-	return serializer.Response{Data: 0, Msg: "从HR数据接口更新用户到缓存成功!"}
+	return serializer.Response{Data: 0, Msg: "手动触发缓存HR用户成功!"}
 }
 
-// UpdateLdapUsersManual 手动更新用户
-func UpdateLdapUsersManual() serializer.Response {
+// SyncLdapUsersManual 手动触发更新ldap用户
+func SyncLdapUsersManual() serializer.Response {
 	go func() {
-		CacheToLdap()
+		SyncLdapUsers()
 	}()
-	return serializer.Response{Data: 0, Msg: "从缓存更新用户到ldap成功!"}
+	return serializer.Response{Data: 0, Msg: "手动触发更新ldap用户成功!"}
 }
 
-// HrToCache 将HR元数据存到缓存
-func HrToCache() {
-	log.Info("获取HR接口数据中......")
+// CacheHrUsers 缓存HR用户
+func CacheHrUsers() {
+	log.Info("开始缓存HR用户...")
 	var hrDataConn hr.HrDataConn
 	if result := model.DB.First(&hrDataConn); result.Error != nil {
 		log.Error("Fail to get HR data connection cfg!")
@@ -175,19 +125,19 @@ func HrToCache() {
 			log.Error("Fail to update ldap users to cache,:", err)
 		}
 	}
-	log.Info("从HR数据接口更新用户到缓存成功!")
+	log.Info("缓存HR用户成功!")
 }
 
-// CacheToLdap 将HR缓存数据更新到ldap
-func CacheToLdap() {
-	// 从缓存取所有HR元数据
+// SyncLdapUsers 更新ldap用户
+func SyncLdapUsers() {
+	// 从缓存取HR元数据
 	ldapUsers, err := cache.HGetAll("ldap_users")
 	if err != nil {
 		log.Error("Fail to fetch ldap users cache,:", err)
 	}
 
 	// TODO 待优化 目前速度提升没有
-	fmt.Println("开始更新所有用户架构...")
+	log.Info("开始更新ldap用户...")
 	done := make(chan int, 30) // 带 20 个缓存
 	for cn, u := range ldapUsers {
 		go func(cn string, u string) {
@@ -226,7 +176,6 @@ func CacheToLdap() {
 				Depart:      depart,
 				Title:       user.Title,
 			}
-			// fmt.Println(cn)
 			// 更新用户操作
 			err := ldapUser.Update()
 			if err != nil {
@@ -237,7 +186,7 @@ func CacheToLdap() {
 		<-done
 	}
 
-	log.Info("从缓存更新用户到ldap成功!")
+	log.Info("更新ldap用户成功!")
 }
 
 // FormatData 校验邮箱和手机号格式
@@ -248,7 +197,7 @@ func FormatData(mail string, mobile string) (err error) {
 	return
 }
 
-// CreateLdapUser 执行生成UUAP操作
+// CreateLdapUser 生成ldap用户操作
 func CreateLdapUser(o order.WeworkOrderDetailsAccountsRegister, user *ldap.LdapAttributes) (err error) {
 	// 数据校验 1. 手机号11位 中间不允许有空格 2. 邮箱中间不允许有空格
 	err = FormatData(user.Email, user.Phone)
@@ -277,7 +226,7 @@ func CreateLdapUser(o order.WeworkOrderDetailsAccountsRegister, user *ldap.LdapA
 	if err != nil {
 		log.Error("Fail to create ldap user, err: ", err)
 		// 此处的错误一般是账号已经存在 为了防止其他错误，这里输出日志
-		err = HandleOrderUuapDuplicateRegister(user, o)
+		err = HandleUuapDuplicateRegister(user, o)
 		return
 	}
 
@@ -305,8 +254,8 @@ func CreateLdapUser(o order.WeworkOrderDetailsAccountsRegister, user *ldap.LdapA
 	return
 }
 
-// 过期用户处理
-func HandleOrderUuapExpired(user *ldap.LdapAttributes, expireDays int) (err error) {
+// HandleExpiredLdapUsers 处理过期用户
+func HandleExpiredLdapUsers(user *ldap.LdapAttributes, expireDays int) (err error) {
 	emailTempUuaplateExpiring, err := cache.HGet("email_templates", "email_template_uuap_expiring")
 	if err != nil {
 		log.Error("读取即将过期邮件消息模板错误: ", err)
@@ -339,8 +288,8 @@ func HandleOrderUuapExpired(user *ldap.LdapAttributes, expireDays int) (err erro
 	return
 }
 
-// 重复提交注册申请
-func HandleOrderUuapDuplicateRegister(user *ldap.LdapAttributes, order order.WeworkOrderDetailsAccountsRegister) (err error) {
+// HandleUuapDuplicateRegister 处理重复注册
+func HandleUuapDuplicateRegister(user *ldap.LdapAttributes, order order.WeworkOrderDetailsAccountsRegister) (err error) {
 	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
 	duplicateRegisterUuapWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_uuap_duplicate_register")
 	if err != nil {
