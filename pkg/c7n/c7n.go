@@ -175,8 +175,8 @@ func FetchC7nProject(projectName string) (c7nProject C7nProjectFields, err error
 	return
 }
 
-// FtechC7nUser 查询 c7n 用户 返回唯一值，忽略其他结果
-func FtechC7nUser(userName string) (c7nUser C7nUserFields, err error) {
+// FtechC7nUser 根据登录名查询用户
+func FtechC7nUser(loginName string) (c7nUser C7nUserFields, err error) {
 	// 取token
 	header, err := FetchToken()
 	if err != nil {
@@ -194,7 +194,7 @@ func FtechC7nUser(userName string) (c7nUser C7nUserFields, err error) {
 	// 发送请求
 	req := HttpRequest.NewRequest()
 	req.SetHeaders(header)
-	fetchC7nUserUrlEncoded := fmt.Sprintf(fetchC7nUserUrl, url.QueryEscape(userName)) // url中中文部分编码为url
+	fetchC7nUserUrlEncoded := fmt.Sprintf(fetchC7nUserUrl, url.QueryEscape(loginName)) // url中中文部分编码为url
 	respFetchC7nUser, err := req.Get(fetchC7nUserUrlEncoded)
 	if err != nil {
 		log.Error("Fail to fetch c7n user, err: ", err)
@@ -211,7 +211,10 @@ func FtechC7nUser(userName string) (c7nUser C7nUserFields, err error) {
 	}
 
 	// 数据筛选
-	c7nUser = c7nFetchUserRes.Content[0]
+	if len(c7nFetchUserRes.Content) >= 1 {
+		c7nUser = c7nFetchUserRes.Content[0]
+	}
+
 	return
 }
 

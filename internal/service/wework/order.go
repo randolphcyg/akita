@@ -157,7 +157,6 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 			Company:      applicant.Company,
 			WeworkExpire: weworkExpireStr,
 		}
-		fmt.Println(userInfos)
 
 		// 将平台切片转为map 用于判断是否存在某平台
 		platforms := make(map[string]int)
@@ -193,7 +192,7 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 
 			// 执行初始化 猪齿鱼 操作
 			err = c7n.UpdateC7nUsers()                                             // 更新ldap用户
-			c7nUser, _ := c7n.FtechC7nUser(applicant.DisplayName)                  // 将新ldap用户添加到默认空项目
+			c7nUser, _ := c7n.FtechC7nUser(applicant.Eid)                          // 将新ldap用户添加到默认空项目
 			role, _ := c7n.FetchC7nRoles("项目成员")                                   // 获取项目成员角色的ID
 			err = c7n.AssignC7nUserProjectRole("4", c7nUser.Id, []string{role.Id}) // 分配角色
 			if err != nil {
