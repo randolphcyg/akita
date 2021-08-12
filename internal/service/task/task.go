@@ -1,6 +1,8 @@
 package task
 
 import (
+	"fmt"
+
 	"gitee.com/RandolphCYG/akita/internal/service/user"
 	"gitee.com/RandolphCYG/akita/internal/service/wework"
 	"gitee.com/RandolphCYG/akita/pkg/crontab"
@@ -52,7 +54,7 @@ func StartAll() serializer.Response {
 
 // TaskRegister 全局简易任务注册方法
 // crontab表达式检查 https://crontab.guru/
-func TaskRegister(taskName string) serializer.Response {
+func TaskRegister(taskName string) {
 	// 初始化
 	AllTasks = make(map[string]Task)
 	// 注册任务
@@ -90,18 +92,17 @@ func TaskRegister(taskName string) serializer.Response {
 		logrus.Error("Task Not Found !!!")
 	} else {
 		// TODO 任务会立即执行的bug
+		fmt.Println("TODO 任务会立即执行的bug")
 		_, err := crontab.Scheduler.Cron(t.Cron).Tag(taskName).Do(t.Func)
 		if err != nil {
 			logrus.Error(err)
 		}
+		_, t := crontab.Scheduler.NextRun()
+		logrus.Info("下次执行任务[", taskName, "]的触发时间：", t.Format("2006-01-02 15:04:05.000"))
 		crontab.Scheduler.StartAsync()
 		crontab.FreshCurrentJobs()
 		logrus.Info("当前所有的定时任务:", crontab.JobsInfos)
-		_, t := crontab.Scheduler.NextRun()
-		logrus.Info("下次执行任务[", taskName, "]的触发时间：", t.Format("2006-01-02 15:04:05.000"))
 	}
-
-	return serializer.Response{Data: 0}
 }
 
 func FetchCurrentJobs() (Jobs []crontab.JobsInfo) {

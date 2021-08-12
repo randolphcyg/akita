@@ -36,7 +36,6 @@ func LogerMiddleware() gin.HandlerFunc {
 	// 设置 rotatelogs
 	logWriter, err := rotatelogs.New(
 		logFile+".%Y%m%d",                         // 分割后的文件名称
-		rotatelogs.WithLinkName(logFile),          // 生成软链，指向最新日志文件
 		rotatelogs.WithMaxAge(7*24*time.Hour),     // 设置最大保存时间(7天)
 		rotatelogs.WithRotationTime(24*time.Hour), // 设置日志切割时间间隔(1天)
 	)

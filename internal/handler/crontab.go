@@ -32,8 +32,8 @@ func TaskStart(ctx *gin.Context) {
 		})
 		return
 	}
-	res := task.TaskRegister(taskField.Name)
-	ctx.JSON(200, res)
+	task.TaskRegister(taskField.Name)
+	ctx.JSON(200, "定时任务已经启动")
 }
 
 // TaskStop 停止定时任务

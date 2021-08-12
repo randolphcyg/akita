@@ -60,7 +60,7 @@ func ScanExpiredLdapUsersManual() serializer.Response {
 }
 
 func TestTask() {
-	fmt.Println("执行定任务")
+	fmt.Println("【执行定任务...】")
 }
 
 // ScanExpiredLdapUsers 扫描过期ldap用户
