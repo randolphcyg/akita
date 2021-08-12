@@ -29,7 +29,7 @@ func Init(cfg string) {
 	model.Init(&c.Database)
 	// 数据迁移
 	log.Info("Data migration begin ...")
-	model.DB.AutoMigrate(&model.LdapCfg{}, &model.LdapField{}, &hr.HrDataConn{}, &model.WeworkCfg{}, &model.WeworkOrder{}, &model.LdapUserDepartRecord{})
+	model.DB.AutoMigrate(&model.LdapCfg{}, &model.LdapField{}, &hr.HrDataConn{}, &model.WeworkCfg{}, &model.WeworkOrder{}, &model.LdapUserDepartRecord{}, &model.WeworkUserSyncRecord{})
 	if result := model.DB.Limit(1).Find(&model.LdapCfg{}); result.RowsAffected == 0 {
 		model.DB.Create(&c.LdapCfg)
 	}

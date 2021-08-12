@@ -70,3 +70,17 @@ func FetchOrder(spNo string) (result *gorm.DB, order WeworkOrder) {
 	result = DB.Where("sp_no = ?", spNo).Find(&order)
 	return
 }
+
+// 企业微信用户变化记录
+type WeworkUserSyncRecord struct {
+	gorm.Model
+	UserId   string `json:"user_id" gorm:"type:varchar(255);not null;comment:用户ID"`
+	Name     string `json:"name" gorm:"type:varchar(255);not null;comment:真实姓名"`
+	Eid      string `json:"eid" gorm:"type:varchar(255);not null;comment:工号"`
+	SyncKind string `json:"syncKind" gorm:"type:varchar(255);not null;comment:类别"`
+}
+
+// CreateWeworkUserSyncRecord 企业微信用户变化记录
+func CreateWeworkUserSyncRecord(userId string, name string, eid string, syncKind string) {
+	DB.Model(&WeworkUserSyncRecord{}).Create((&WeworkUserSyncRecord{UserId: userId, Name: name, Eid: eid, SyncKind: syncKind}))
+}

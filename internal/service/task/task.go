@@ -23,22 +23,27 @@ var CacheHrUsers = user.CacheHrUsers
 var CacheWeworkUsers = wework.CacheWeworkUsers
 var SyncLdapUsers = user.SyncLdapUsers
 var ScanExpiredLdapUsers = user.ScanExpiredLdapUsers
+var ScanExpiredWeworkUsers = wework.ScanExpiredWeworkUsers
 
 // StartAll 注册并启动所有定时任务
 func StartAll() serializer.Response {
-	// 更新ldap用户缓存
+	// 更新ldap用户缓存【频繁】
 	_, _ = crontab.Scheduler.Every(1).Day().Tag("CacheHrUsers").At("9:50").Do(CacheHrUsers)
 	crontab.Scheduler.StartAsync()
 
-	// 更新企业微信用户缓存
+	// 更新企业微信用户缓存【频繁】
 	_, _ = crontab.Scheduler.Every(1).Day().Tag("CacheWeworkUsers").At("9:50").Do(CacheWeworkUsers)
 	crontab.Scheduler.StartAsync()
 
-	// 扫描过期ldap用户并发通知
+	// 扫描过期企业微信用户并发通知【每天】
+	_, _ = crontab.Scheduler.Every(1).Day().Tag("ScanExpiredWeworkUsers").At("9:55").Do(ScanExpiredWeworkUsers)
+	crontab.Scheduler.StartAsync()
+
+	// 扫描过期ldap用户并发通知【每天】
 	_, _ = crontab.Scheduler.Every(1).Day().Tag("ScanExpiredLdapUsers").At("10:00").Do(ScanExpiredLdapUsers)
 	crontab.Scheduler.StartAsync()
 
-	// 全量更新ldap用户信息
+	// 全量更新ldap用户信息【每天】
 	_, _ = crontab.Scheduler.Every(1).Day().Tag("SyncLdapUsers").At("17:00").Do(SyncLdapUsers)
 	crontab.Scheduler.StartAsync()
 
@@ -70,11 +75,18 @@ func TaskRegister(taskName string) {
 		Func: CacheWeworkUsers,
 	}
 
+	AllTasks["ScanExpiredWeworkUsers"] = Task{
+		Tags: []string{"ScanExpiredWeworkUsers"},
+		Cron: "55 9 * * *",
+		Func: CacheWeworkUsers,
+	}
+
 	AllTasks["ScanExpiredLdapUsers"] = Task{
 		Tags: []string{"ScanExpiredLdapUsers"},
 		Cron: "0 10 * * *",
 		Func: ScanExpiredLdapUsers,
 	}
+
 	AllTasks["SyncLdapUsers"] = Task{
 		Tags: []string{"SyncLdapUsers"},
 		Cron: "0 17 * * *",

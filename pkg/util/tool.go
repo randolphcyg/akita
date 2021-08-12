@@ -175,8 +175,14 @@ func ExpireStr(expireDay int) string {
 	return time.Now().AddDate(0, 0, int(expireDay)).Format("2006/01/02")
 }
 
+// ExpireStrToTime 根据过期日期的字符串转换为日期
+func ExpireStrToTime(expireDateStr string) time.Time {
+	expireDate, _ := time.Parse("2006/01/02", expireDateStr)
+	return expireDate
+}
+
 // IsExpire 根据过期日期的字符串计算是否过期
 func IsExpire(expireDateStr string) bool {
 	expireDate, _ := time.Parse("2006/01/02", expireDateStr)
-	return time.Now().Before(expireDate)
+	return time.Now().After(expireDate)
 }

@@ -149,10 +149,10 @@ func HDel(key string) (res int64, err error) {
 
 // HGet hash 获取某个元素
 func HGet(key string, field string) (res string, err error) {
-	res, err = RedisClient.HGet(ctx, key, field).Result()
-	if err != nil {
-		log.Error("Fail to get an element, err: ", err)
-	}
+	res, _ = RedisClient.HGet(ctx, key, field).Result()
+	// if err != nil {
+	// 	log.Error("Fail to get an element, err: ", err)
+	// }
 	return
 }
 

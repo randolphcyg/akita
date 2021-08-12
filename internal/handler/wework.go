@@ -30,12 +30,12 @@ func CacheUsersManual(ctx *gin.Context) {
 	}
 }
 
-// // ScanExpireUsers 企业微信用户过期扫描
-// func ScanExpireUsers(ctx *gin.Context) {
-// 	if err := ctx.ShouldBind(0); err == nil {
-// 		res := wework.ScanExpireUsers()
-// 		ctx.JSON(200, res)
-// 	} else {
-// 		ctx.JSON(200, err)
-// 	}
-// }
+// ScanExpiredWeworkUsersManual 手动触发扫描企业微信过期用户
+func ScanExpiredWeworkUsersManual(ctx *gin.Context) {
+	if err := ctx.ShouldBind(0); err == nil {
+		res := wework.ScanExpiredWeworkUsersManual()
+		ctx.JSON(200, res)
+	} else {
+		ctx.JSON(200, err)
+	}
+}

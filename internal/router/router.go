@@ -65,8 +65,8 @@ func router() *gin.Engine {
 
 		// 企业微信用户
 		weworkUsers := v1.Group("wework/users")
-		weworkUsers.GET("manual/cache", handler.CacheUsersManual) // 手动触发缓存企业微信用户
-		// weworkUsers.GET("expire", handler.ScanExpireUsers)        // 企业微信用户过期扫描
+		weworkUsers.GET("manual/cache", handler.CacheUsersManual)                   // 手动触发缓存企业微信用户
+		weworkUsers.GET("manual/scan/expire", handler.ScanExpiredWeworkUsersManual) // 手动触发扫描企业微信过期用户
 
 		// 任务
 		tasks := v1.Group("tasks")

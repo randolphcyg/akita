@@ -2,15 +2,20 @@ package wework
 
 import (
 	"encoding/json"
+	"fmt"
+	"strconv"
+	"time"
 
 	"gitee.com/RandolphCYG/akita/internal/model"
 	"gitee.com/RandolphCYG/akita/pkg/cache"
+	"gitee.com/RandolphCYG/akita/pkg/hr"
 	"gitee.com/RandolphCYG/akita/pkg/ldap"
 	"gitee.com/RandolphCYG/akita/pkg/serializer"
 	"gitee.com/RandolphCYG/akita/pkg/util"
 	"gitee.com/RandolphCYG/akita/pkg/wework/api"
 	"gitee.com/RandolphCYG/akita/pkg/wework/order"
 	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 type WeworkMsg struct {
@@ -119,10 +124,8 @@ func CacheWeworkUsers() {
 			temp, err := json.Marshal(getUserDetailRes)
 			json.Unmarshal(temp, &userDetails)
 
-			if len(userDetails.Extattr.Attrs) >= 1 { // 不符合规范的用户忽略
-				// fmt.Println(i+1, userDetails.Extattr.Attrs[0].Value, userDetails)
-				// 缓存用户
-				_, err = cache.HSet("wework_users", userDetails.Extattr.Attrs[0].Value, temp)
+			if len(userDetails.Extattr.Attrs) >= 1 && userDetails.Extattr.Attrs[0].Name == "工号" { // 忽略不符合规范的用户
+				_, err = cache.HSet("wework_users", userDetails.Extattr.Attrs[0].Value, temp) // 缓存用户
 				if err != nil {
 					logrus.Error("Fail to cache wework user,:", err)
 				}
@@ -138,7 +141,7 @@ func CacheWeworkUsers() {
 func FetchUser(eid string) (userDetails UserDetails, err error) {
 	user, err := cache.HGet("wework_users", eid)
 	if err != nil {
-		logrus.Error("无此用户: ", err)
+		// logrus.Error("无此用户: ", err)
 		return
 	}
 	json.Unmarshal([]byte(user), &userDetails)
@@ -194,9 +197,9 @@ func CreateUser(user *ldap.LdapAttributes) (err error) {
 				},
 			},
 		},
-		"to_invite": false,
+		"to_invite": true, // 邀请用户
 	}
-	// 创建用户
+
 	var msg WeworkMsg
 	res, err := corpAPIUserManager.UserCreate(weworkUserInfos)
 	b, err := json.Marshal(res)
@@ -246,55 +249,83 @@ func RenewalUser(weworkUserId string, applicant order.RenewalApplicant, expireDa
 	return nil
 }
 
-// ScanExpireUsers TODO 全量扫描过期账户
-func ScanExpireUsers() serializer.Response {
-	var usersMsg UsersMsg
-	corpAPIUserManager := api.NewCorpAPI(model.WeworkUserManageCfg.CorpId, model.WeworkUserManageCfg.AppSecret)
-	res, err := corpAPIUserManager.UserSimpleList(map[string]interface{}{
-		"department_id": "1",
-		"fetch_child":   "1",
-	})
+// ScanExpiredWeworkUsersManual 手动触发扫描企业微信过期用户
+func ScanExpiredWeworkUsersManual() serializer.Response {
+	go func() {
+		ScanExpiredWeworkUsers()
+	}()
+	return serializer.Response{Data: 0, Msg: "Success to scan expired wework users!"}
+}
+
+// ScanExpiredWeworkUsers 扫描企业微信过期用户 内部人员根据HR接口；外部人员根据过期标识，过期标识临近则发送提醒
+func ScanExpiredWeworkUsers() {
+	// 检查HR数据中过期的内部用户
+	go func() {
+		ldapUsers, err := cache.HGetAll("ldap_users") // 从缓存取HR元数据
+		if err != nil {
+			log.Error("Fail to fetch ldap users cache,:", err)
+		}
+		for _, u := range ldapUsers {
+			var hrUser hr.HrUser
+			json.Unmarshal([]byte(u), &hrUser) // 反序列化
+
+			if hrUser.Stat == "离职" {
+				weworkUser, _ := FetchUser(hrUser.Eid)
+				if weworkUser.Userid != "" && weworkUser.Status == 0 {
+					if len(weworkUser.Extattr.Attrs) >= 1 && weworkUser.Extattr.Attrs[0].Name == "工号" {
+						// DisableUser(weworkUser) // 禁用 暂不启用
+						model.CreateWeworkUserSyncRecord(weworkUser.Userid, weworkUser.Name, weworkUser.Extattr.Attrs[0].Value, "待禁用")
+					}
+				}
+			}
+		}
+	}()
+
+	// 检查企业微信中过期的外部用户
+	go func() {
+		weworkUsers, _ := cache.HGetAll("wework_users")
+		for _, u := range weworkUsers {
+			var weworkUser UserDetails
+			json.Unmarshal([]byte(u), &weworkUser)
+			if len(weworkUser.Extattr.Attrs) >= 2 && weworkUser.Extattr.Attrs[1].Name == "过期日期" && weworkUser.Extattr.Attrs[1].Value != "" {
+				if util.IsExpire(weworkUser.Extattr.Attrs[1].Value) { // 若已经过期
+					// DisableUser(weworkUser) // 禁用 暂不启用
+					model.CreateWeworkUserSyncRecord(weworkUser.Userid, weworkUser.Name, weworkUser.Extattr.Attrs[0].Value, "待禁用")
+				} else { // 若即将过期，符合条件则发送即将过期通知
+					remainingDays := util.SubDays(util.ExpireStrToTime(weworkUser.Extattr.Attrs[1].Value), time.Now())
+					if remainingDays == 1 || remainingDays == 2 || remainingDays == 3 || remainingDays == 7 || remainingDays == 14 { // 倒数三天以及倒数1/2周都发通知
+						SendWeworkOuterUserExpiredMsg(weworkUser, remainingDays)
+					}
+				}
+			}
+		}
+	}()
+
+	log.Info("扫描过期企业用户完成!")
+}
+
+// SendWeworkOuterUserExpiredMsg 给企业微信即将过期用户发送续期通知
+func SendWeworkOuterUserExpiredMsg(user UserDetails, remainingDays int) {
+	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
+	renewalNotifyWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_wework_renewal_notify")
 	if err != nil {
-		logrus.Error(err)
-		return serializer.Response{Data: -1, Msg: "Fail to update wework user cache!"}
+		log.Error("读取企业微信消息模板错误: ", err)
 	}
 
-	temp, err := json.Marshal(res)
-	json.Unmarshal(temp, &usersMsg)
-
-	if usersMsg.Errcode != 0 {
-		logrus.Error("Fail to fetch wework user list, err:", usersMsg.Errmsg)
-		return serializer.Response{Data: -1, Msg: "Fail to fetch wework users!"}
+	msg := map[string]interface{}{
+		"touser":  user.Userid,
+		"msgtype": "markdown",
+		"agentid": model.WeworkUuapCfg.AppId,
+		"markdown": map[string]interface{}{
+			"content": fmt.Sprintf(renewalNotifyWeworkMsgTemplate, user.Name, strconv.Itoa(remainingDays)),
+		},
 	}
-
-	var users []UserDetails
-	done := make(chan int, 20) // 带 20 个缓存
-
-	// 遍历企业微信用户
-	for i, userInfo := range usersMsg.Userlist {
-		go func(i int, userInfo User) {
-			var userDetails UserDetails
-			// 查询
-			getUserDetailRes, err := corpAPIUserManager.UserGet(map[string]interface{}{
-				"userid": userInfo.Userid,
-			})
-			if err != nil {
-				logrus.Error(err)
-			}
-			// fmt.Println(i+1, getUserDetailRes)
-			temp, err := json.Marshal(getUserDetailRes)
-			json.Unmarshal(temp, &userDetails)
-
-			// 过期用户禁用
-			if userDetails.Status == 1 {
-				// DisableUser(userDetails)
-			}
-			<-done
-		}(i, userInfo)
-		done <- 1
+	_, err = corpAPIMsg.MessageSend(msg)
+	if err != nil {
+		log.Error("Fail to send wework msg, err: ", err)
+		// TODO 发送企业微信消息错误，应当考虑重发逻辑
 	}
-
-	return serializer.Response{Data: users, Msg: "Success to scan expire wework users!"}
+	log.Info("企业微信回执消息:企业微信用户【" + user.Userid + "】姓名【" + user.Name + "】状态【即将过期】")
 }
 
 // DisableUser 禁用企业微信用户
@@ -313,6 +344,11 @@ func DisableUser(u UserDetails) (err error) {
 		logrus.Error(err)
 		return
 	}
+	// 此处将禁用企业微信用户的记录保存下
+	if len(u.Extattr.Attrs) >= 1 && u.Extattr.Attrs[0].Name == "工号" {
+		model.CreateWeworkUserSyncRecord(u.Userid, u.Name, u.Extattr.Attrs[0].Value, "禁用")
+	}
+
 	logrus.Info("Success to disable wework user!")
 	return
 }
