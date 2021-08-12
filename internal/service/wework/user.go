@@ -171,7 +171,7 @@ func CreateUser(user *ldap.LdapAttributes) (err error) {
 		"userid":            user.Sam,
 		"name":              user.DisplayName,
 		"mobile":            user.Phone,
-		"department":        69,
+		"department":        user.WeworkDepartId,
 		"email":             user.Email,
 		"is_leader_in_dept": 0,
 		"enable":            1,

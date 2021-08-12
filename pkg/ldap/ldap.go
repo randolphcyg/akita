@@ -22,24 +22,25 @@ var EnabledLdapUserCodes = [4]int32{512, 544, 66048, 262656}
 
 type LdapAttributes struct {
 	// ldap字段
-	Num          string `json:"employeeNumber" gorm:"type:varchar(100);unique_index"`    // 工号
-	Sam          string `json:"sAMAccountName" gorm:"type:varchar(128);unique_index"`    // SAM账号
-	Dn           string `json:"distinguishedName" gorm:"type:varchar(100);unique_index"` // dn
-	AccountCtl   string `json:"UserAccountControl" gorm:"type:varchar(100)"`             // 用户账户控制
-	Expire       int64  `json:"accountExpires" gorm:"type:int(30)"`                      // 账户过期时间
-	PwdLastSet   string `json:"pwdLastSet" gorm:"type:varchar(100)"`                     // 用户下次登录必须修改密码
-	WhenCreated  string `json:"whenCreated" gorm:"type:varchar(100)"`                    // 创建时间
-	WhenChanged  string `json:"whenChanged" gorm:"type:varchar(100)"`                    // 修改时间
-	DisplayName  string `json:"displayName" gorm:"type:varchar(32)"`                     // 真实姓名
-	Sn           string `json:"sn" gorm:"type:varchar(100)"`                             // 姓
-	Name         string `json:"name" gorm:"type:varchar(100)"`                           // 姓名
-	GivenName    string `json:"givenName" gorm:"type:varchar(100)"`                      // 名
-	Email        string `json:"mail" gorm:"type:varchar(128);unique_index"`              // 邮箱
-	Phone        string `json:"mobile" gorm:"type:varchar(32);unique_index"`             // 移动电话
-	Company      string `json:"company" gorm:"type:varchar(128)"`                        // 公司
-	Depart       string `json:"department" gorm:"type:varchar(128)"`                     // 部门
-	Title        string `json:"title" gorm:"type:varchar(100)"`                          // 职务
-	WeworkExpire string `json:"wework_expire" gorm:"-"`                                  // 企业微信过期日期
+	Num            string `json:"employeeNumber" gorm:"type:varchar(100);unique_index"`    // 工号
+	Sam            string `json:"sAMAccountName" gorm:"type:varchar(128);unique_index"`    // SAM账号
+	Dn             string `json:"distinguishedName" gorm:"type:varchar(100);unique_index"` // dn
+	AccountCtl     string `json:"UserAccountControl" gorm:"type:varchar(100)"`             // 用户账户控制
+	Expire         int64  `json:"accountExpires" gorm:"type:int(30)"`                      // 账户过期时间
+	PwdLastSet     string `json:"pwdLastSet" gorm:"type:varchar(100)"`                     // 用户下次登录必须修改密码
+	WhenCreated    string `json:"whenCreated" gorm:"type:varchar(100)"`                    // 创建时间
+	WhenChanged    string `json:"whenChanged" gorm:"type:varchar(100)"`                    // 修改时间
+	DisplayName    string `json:"displayName" gorm:"type:varchar(32)"`                     // 真实姓名
+	Sn             string `json:"sn" gorm:"type:varchar(100)"`                             // 姓
+	Name           string `json:"name" gorm:"type:varchar(100)"`                           // 姓名
+	GivenName      string `json:"givenName" gorm:"type:varchar(100)"`                      // 名
+	Email          string `json:"mail" gorm:"type:varchar(128);unique_index"`              // 邮箱
+	Phone          string `json:"mobile" gorm:"type:varchar(32);unique_index"`             // 移动电话
+	Company        string `json:"company" gorm:"type:varchar(128)"`                        // 公司
+	Depart         string `json:"department" gorm:"type:varchar(128)"`                     // 部门
+	Title          string `json:"title" gorm:"type:varchar(100)"`                          // 职务
+	WeworkExpire   string `json:"wework_expire" gorm:"-"`                                  // 企业微信过期日期
+	WeworkDepartId int    `json:"wework_depart_id" gorm:"-"`                               // 企业微信部门id
 }
 
 var attrs = []string{

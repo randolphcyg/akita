@@ -114,6 +114,7 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 		var expire int64
 		var isOutsideComp bool
 		var sam, dn, weworkExpireStr string
+		var weworkDepartId int
 		var companyTypes map[string]model.CompanyType
 		displayName := []rune(applicant.DisplayName)
 		cn := string(displayName) + applicant.Eid
@@ -136,26 +137,29 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 			dn = "CN=" + cn + ",OU=" + applicant.Company + "," + bootstrap.LdapField.BaseDnOuter
 			expire = ldap.ExpireTime(int64(90)) // 90天过期
 			weworkExpireStr = util.ExpireStr(90)
+			weworkDepartId = 79 // 外部公司企业微信部门为合作伙伴
 		} else { // 公司内部人员默认放到待分配区 后面每天程序自动将用户架构刷新
 			sam = applicant.Eid
 			dn = "CN=" + cn + "," + bootstrap.LdapField.BaseDnToBeAssigned
 			expire = ldap.ExpireTime(int64(-1)) // 永不过期
+			weworkDepartId = 69                 // 本公司企业微信部门为待分配
 		}
 		// 组装LDAP用户数据
 		userInfos := &ldap.LdapAttributes{
-			Dn:           dn,
-			Num:          sam,
-			Sam:          sam,
-			AccountCtl:   "544",
-			Expire:       expire,
-			Sn:           string(displayName[0]),
-			PwdLastSet:   "0",
-			DisplayName:  string(displayName),
-			GivenName:    string(displayName[1:]),
-			Email:        applicant.Mail,
-			Phone:        applicant.Mobile,
-			Company:      applicant.Company,
-			WeworkExpire: weworkExpireStr,
+			Dn:             dn,
+			Num:            sam,
+			Sam:            sam,
+			AccountCtl:     "544",
+			Expire:         expire,
+			Sn:             string(displayName[0]),
+			PwdLastSet:     "0",
+			DisplayName:    string(displayName),
+			GivenName:      string(displayName[1:]),
+			Email:          applicant.Mail,
+			Phone:          applicant.Mobile,
+			Company:        applicant.Company,
+			WeworkExpire:   weworkExpireStr,
+			WeworkDepartId: weworkDepartId,
 		}
 
 		// 将平台切片转为map 用于判断是否存在某平台
