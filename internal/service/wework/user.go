@@ -14,6 +14,7 @@ import (
 	"gitee.com/RandolphCYG/akita/pkg/util"
 	"gitee.com/RandolphCYG/akita/pkg/wework/api"
 	"gitee.com/RandolphCYG/akita/pkg/wework/order"
+	"github.com/kirinlabs/HttpRequest"
 	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 )
@@ -275,6 +276,7 @@ func ScanExpiredWeworkUsers() {
 					if len(weworkUser.Extattr.Attrs) >= 1 && weworkUser.Extattr.Attrs[0].Name == "工号" {
 						// DisableUser(weworkUser) // 禁用 暂不启用
 						model.CreateWeworkUserSyncRecord(weworkUser.Userid, weworkUser.Name, weworkUser.Extattr.Attrs[0].Value, "待禁用")
+						SednRobotMsg(weworkUser)
 					}
 				}
 			}
@@ -291,6 +293,7 @@ func ScanExpiredWeworkUsers() {
 				if util.IsExpire(weworkUser.Extattr.Attrs[1].Value) { // 若已经过期
 					// DisableUser(weworkUser) // 禁用 暂不启用
 					model.CreateWeworkUserSyncRecord(weworkUser.Userid, weworkUser.Name, weworkUser.Extattr.Attrs[0].Value, "待禁用")
+					SednRobotMsg(weworkUser)
 				} else { // 若即将过期，符合条件则发送即将过期通知
 					remainingDays := util.SubDays(util.ExpireStrToTime(weworkUser.Extattr.Attrs[1].Value), time.Now())
 					if remainingDays == 1 || remainingDays == 2 || remainingDays == 3 || remainingDays == 7 || remainingDays == 14 { // 倒数三天以及倒数1/2周都发通知
@@ -302,6 +305,32 @@ func ScanExpiredWeworkUsers() {
 	}()
 
 	log.Info("扫描过期企业用户完成!")
+}
+
+// SednRobotMsg 发送机器人信息
+func SednRobotMsg(user UserDetails) {
+	// 从缓存取url
+	weworkRobot, err := cache.HGet("third_party_sys_cfg", "wework_robot")
+	if err != nil {
+		log.Error("读取三方系统-c7n配置错误: ", err)
+		return
+	}
+	req := HttpRequest.NewRequest()
+	data := map[string]interface{}{
+		"msgtype": "markdown",
+		"markdown": map[string]interface{}{
+			"content": `>企业微信用户<font color="warning"> ` + user.Name + ` </font>账号<font color="comment"> ` + user.Userid + ` </font>过期被禁用！`,
+		},
+	}
+
+	msg, _ := json.Marshal(data)
+	res, err := req.Post(weworkRobot, msg)
+	if err != nil {
+		// 抛错
+		log.Error("Fail to fetch token, err: ", err)
+		return
+	}
+	log.Info(res.Content())
 }
 
 // SendWeworkOuterUserExpiredMsg 给企业微信即将过期用户发送续期通知

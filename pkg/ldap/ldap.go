@@ -10,8 +10,10 @@ import (
 
 	"gitee.com/RandolphCYG/akita/bootstrap"
 	"gitee.com/RandolphCYG/akita/internal/model"
+	"gitee.com/RandolphCYG/akita/pkg/cache"
 	"gitee.com/RandolphCYG/akita/pkg/util"
 	"github.com/go-ldap/ldap/v3"
+	"github.com/kirinlabs/HttpRequest"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/text/encoding/unicode"
 )
@@ -440,6 +442,7 @@ func (user *LdapAttributes) Update() (err error) {
 					}
 				}
 				fmt.Println(user.DisplayName, user.Num, " 岗位变动:[", oldDepart, "]转到[", newDepart, "],类型:", level)
+				SednRobotMsg(user, oldDepart, newDepart, level) // 发送企业微信消息
 				model.CreateLdapUserDepartRecord(user.DisplayName, user.Num, oldDepart, newDepart, level)
 				CheckOuTree(user.Dn)
 				err = user.MoveDn(user.Dn)
@@ -448,6 +451,32 @@ func (user *LdapAttributes) Update() (err error) {
 		}
 	}
 	return
+}
+
+// SednRobotMsg 发送机器人信息
+func SednRobotMsg(user *LdapAttributes, oldDepart, newDepart, level string) {
+	// 从缓存取url
+	weworkRobot, err := cache.HGet("third_party_sys_cfg", "wework_robot")
+	if err != nil {
+		log.Error("读取三方系统-c7n配置错误: ", err)
+		return
+	}
+	req := HttpRequest.NewRequest()
+	data := map[string]interface{}{
+		"msgtype": "markdown",
+		"markdown": map[string]interface{}{
+			"content": `>LDAP用户<font color="warning"> ` + user.DisplayName + ` </font>岗位变动:<font color="comment"> ` + oldDepart + ` </font>到<font color="info"> ` + newDepart + ` </font>级别<font color="warning"> ` + level + ` </font>`,
+		},
+	}
+
+	msg, _ := json.Marshal(data)
+	res, err := req.Post(weworkRobot, msg)
+	if err != nil {
+		// 抛错
+		log.Error("Fail to fetch token, err: ", err)
+		return
+	}
+	log.Info(res.Content())
 }
 
 // ModifyInfo 人工修改用户信息
