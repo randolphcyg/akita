@@ -128,3 +128,13 @@ type LdapUserDepartRecord struct {
 func CreateLdapUserDepartRecord(name string, eid string, oldDepart string, newDepart string, level string) {
 	DB.Model(&LdapUserDepartRecord{}).Create((&LdapUserDepartRecord{Name: name, Eid: eid, OldDepart: oldDepart, NewDepart: newDepart, Level: level}))
 }
+
+// FetchTodayLdapUserDepartRecord 查询今日用户架构变化记录
+func FetchTodayLdapUserDepartRecord() (ldapUserDepartRecords []LdapUserDepartRecord, err error) {
+	todayBegin, _ := time.Parse("2006-01-02", time.Now().Format("2006-01-02")) // 当日零点
+	todayEnd, _ := time.Parse("2006-01-02", time.Now().AddDate(0, 0, 1).Format("2006-01-02"))
+	delta, _ := time.ParseDuration("-1s")
+	todayEnd = todayEnd.Add(delta) // 当日最后一秒
+	_ = DB.Where("created_at BETWEEN ? AND ?", todayBegin, todayEnd).Find(&ldapUserDepartRecords)
+	return
+}

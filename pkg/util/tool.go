@@ -1,11 +1,16 @@
 package util
 
 import (
+	"encoding/json"
 	"math/rand"
 	"strings"
 	"time"
 	"unicode"
 	"unsafe"
+
+	"gitee.com/RandolphCYG/akita/pkg/cache"
+	"github.com/kirinlabs/HttpRequest"
+	"github.com/sirupsen/logrus"
 )
 
 // Unix 时间转换为 Window NT 时间
@@ -185,4 +190,30 @@ func ExpireStrToTime(expireDateStr string) time.Time {
 func IsExpire(expireDateStr string) bool {
 	expireDate, _ := time.Parse("2006/01/02", expireDateStr)
 	return time.Now().After(expireDate)
+}
+
+// SendRobotMsg 发送机器人信息
+func SendRobotMsg(msg string) {
+	// 从缓存取url
+	weworkRobot, err := cache.HGet("third_party_sys_cfg", "wework_robot")
+	if err != nil {
+		logrus.Error("读取三方系统-c7n配置错误: ", err)
+		return
+	}
+	req := HttpRequest.NewRequest()
+	data := map[string]interface{}{
+		"msgtype": "markdown",
+		"markdown": map[string]interface{}{
+			"content": msg,
+		},
+	}
+
+	msgPkg, _ := json.Marshal(data)
+	res, err := req.Post(weworkRobot, msgPkg)
+	if err != nil {
+		// 抛错
+		logrus.Error("Fail to fetch token, err: ", err)
+		return
+	}
+	logrus.Info(res.Content())
 }

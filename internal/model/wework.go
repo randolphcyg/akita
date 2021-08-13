@@ -1,6 +1,8 @@
 package model
 
 import (
+	"time"
+
 	"gorm.io/gorm"
 )
 
@@ -83,4 +85,14 @@ type WeworkUserSyncRecord struct {
 // CreateWeworkUserSyncRecord 企业微信用户变化记录
 func CreateWeworkUserSyncRecord(userId string, name string, eid string, syncKind string) {
 	DB.Model(&WeworkUserSyncRecord{}).Create((&WeworkUserSyncRecord{UserId: userId, Name: name, Eid: eid, SyncKind: syncKind}))
+}
+
+// FetchTodayWeworkUserSyncRecord 查询今日企业微信用户变化记录
+func FetchTodayWeworkUserSyncRecord() (weworkUserSyncRecord []WeworkUserSyncRecord, err error) {
+	todayBegin, _ := time.Parse("2006-01-02", time.Now().Format("2006-01-02")) // 当日零点
+	todayEnd, _ := time.Parse("2006-01-02", time.Now().AddDate(0, 0, 1).Format("2006-01-02"))
+	delta, _ := time.ParseDuration("-1s")
+	todayEnd = todayEnd.Add(delta) // 当日最后一秒
+	_ = DB.Where("created_at BETWEEN ? AND ?", todayBegin, todayEnd).Find(&weworkUserSyncRecord)
+	return
 }
