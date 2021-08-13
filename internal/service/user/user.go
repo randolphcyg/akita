@@ -112,7 +112,7 @@ func CacheHrUsers() {
 	})
 
 	// 先清空缓存
-	_, err := cache.HDel("ldap_users")
+	_, err := cache.HDel("hr_users")
 	if err != nil {
 		log.Error("Fail to clean ldap users cache,:", err)
 	}
@@ -120,7 +120,7 @@ func CacheHrUsers() {
 	// 将HR接口元数据写入缓存
 	for _, user := range hrUsers {
 		userData, _ := json.Marshal(user)
-		_, err := cache.HSet("ldap_users", user.Name+user.Eid, userData)
+		_, err := cache.HSet("hr_users", user.Name+user.Eid, userData)
 		if err != nil {
 			log.Error("Fail to update ldap users to cache,:", err)
 		}
@@ -131,7 +131,7 @@ func CacheHrUsers() {
 // SyncLdapUsers 更新ldap用户
 func SyncLdapUsers() {
 	// 从缓存取HR元数据
-	ldapUsers, err := cache.HGetAll("ldap_users")
+	ldapUsers, err := cache.HGetAll("hr_users")
 	if err != nil {
 		log.Error("Fail to fetch ldap users cache,:", err)
 	}

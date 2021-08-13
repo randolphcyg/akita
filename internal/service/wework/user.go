@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"gitee.com/RandolphCYG/akita/internal/model"
@@ -148,6 +149,31 @@ func FetchUser(eid string) (userDetails UserDetails, err error) {
 	return
 }
 
+// FetchDeparts 通过部门名称获取唯一部门ID
+func FetchDepart(departName string) (depart Depart, err error) {
+	corpAPIUserManager := api.NewCorpAPI(model.WeworkUserManageCfg.CorpId, model.WeworkUserManageCfg.AppSecret)
+	res, err := corpAPIUserManager.DepartmentList(map[string]interface{}{})
+	if err != nil {
+		logrus.Error(err)
+		return
+	}
+	b, err := json.Marshal(res)
+	var departsMsg DepartsMsg
+	json.Unmarshal(b, &departsMsg)
+
+	if departsMsg.Errcode != 0 {
+		logrus.Error("Fail to fetch wework user list, err:", departsMsg.Errmsg)
+		return
+	}
+	for _, d := range departsMsg.Department {
+		if departName == d.Name { // 只返回查到的第一个
+			return d, nil
+		}
+	}
+
+	return
+}
+
 // FetchDeparts 获取部门列表
 func FetchDeparts() (departsMsg DepartsMsg, err error) {
 	corpAPIUserManager := api.NewCorpAPI(model.WeworkUserManageCfg.CorpId, model.WeworkUserManageCfg.AppSecret)
@@ -250,6 +276,53 @@ func RenewalUser(weworkUserId string, applicant order.RenewalApplicant, expireDa
 	return nil
 }
 
+// ScanNewHrUsersManual 手动触发扫描HR数据并为新员工创建企业微信账号
+func ScanNewHrUsersManual() serializer.Response {
+	go func() {
+		ScanNewHrUsers()
+	}()
+	return serializer.Response{Data: 0, Msg: "Success to scan new hr users to wework!"}
+}
+
+// ScanNewHrUsers 扫描HR数据并为新员工创建企业微信账号
+func ScanNewHrUsers() {
+	go func() {
+		hrUsers, err := cache.HGetAll("hr_users") // 从缓存取HR元数据
+		if err != nil {
+			log.Error("Fail to fetch ldap users cache,:", err)
+		}
+		for _, u := range hrUsers {
+			var hrUser hr.HrUser
+			json.Unmarshal([]byte(u), &hrUser) // 反序列化
+			// 判断如果企业微信没这个本公司用户，则进行创建，并记录到数据库这个操作
+			if hrUser.Stat != "离职" && hrUser.CompanyCode == "2600" {
+				u, _ := FetchUser(hrUser.Eid)
+				if u.Name == "" {
+					dp, _ := FetchDepart(strings.Split(hrUser.Department, ".")[len(strings.Split(hrUser.Department, "."))-1])
+					if dp.Name != "" {
+						// 组装LDAP用户数据
+						userInfos := &ldap.LdapAttributes{
+							Sam:            hrUser.Eid,
+							Num:            hrUser.Eid,
+							DisplayName:    hrUser.Name,
+							Email:          strings.ToLower(hrUser.Mail),
+							Phone:          hrUser.Mobile,
+							WeworkExpire:   "",
+							WeworkDepartId: dp.Id,
+						}
+						fmt.Println(userInfos)
+						CreateUser(userInfos) // 新建该用户
+						// break
+					} else {
+						log.Error("未找到与该新用户的HR数据部门对应的同名企业微信部门！") // 新用户的HR部门与企业微信的任意部门不匹配，需要人事进行维护!!
+					}
+
+				}
+			}
+		}
+	}()
+}
+
 // ScanExpiredWeworkUsersManual 手动触发扫描企业微信过期用户
 func ScanExpiredWeworkUsersManual() serializer.Response {
 	go func() {
@@ -262,11 +335,11 @@ func ScanExpiredWeworkUsersManual() serializer.Response {
 func ScanExpiredWeworkUsers() {
 	// 检查HR数据中过期的内部用户
 	go func() {
-		ldapUsers, err := cache.HGetAll("ldap_users") // 从缓存取HR元数据
+		hrUsers, err := cache.HGetAll("hr_users") // 从缓存取HR元数据
 		if err != nil {
 			log.Error("Fail to fetch ldap users cache,:", err)
 		}
-		for _, u := range ldapUsers {
+		for _, u := range hrUsers {
 			var hrUser hr.HrUser
 			json.Unmarshal([]byte(u), &hrUser) // 反序列化
 

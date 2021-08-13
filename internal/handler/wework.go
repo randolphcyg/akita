@@ -39,3 +39,13 @@ func ScanExpiredWeworkUsersManual(ctx *gin.Context) {
 		ctx.JSON(200, err)
 	}
 }
+
+// ScanNewHrUsersManual 手动触发扫描HR数据并未新员工创建企业微信账号
+func ScanNewHrUsersManual(ctx *gin.Context) {
+	if err := ctx.ShouldBind(0); err == nil {
+		res := wework.ScanNewHrUsersManual()
+		ctx.JSON(200, res)
+	} else {
+		ctx.JSON(200, err)
+	}
+}

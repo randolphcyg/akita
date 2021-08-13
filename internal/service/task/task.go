@@ -24,27 +24,40 @@ var CacheWeworkUsers = wework.CacheWeworkUsers
 var SyncLdapUsers = user.SyncLdapUsers
 var ScanExpiredLdapUsers = user.ScanExpiredLdapUsers
 var ScanExpiredWeworkUsers = wework.ScanExpiredWeworkUsers
+var ScanNewHrUsers = wework.ScanNewHrUsers
 
-// StartAll 注册并启动所有定时任务
+// StartAll 注册并启动所有定时任务 TODO 需要全部修正为cron并修正错误
 func StartAll() serializer.Response {
-	// 更新ldap用户缓存【频繁】
-	_, _ = crontab.Scheduler.Every(1).Day().Tag("CacheHrUsers").At("9:50").Do(CacheHrUsers)
+	// 更新HR用户缓存【频繁】
+	// _, _ = crontab.Scheduler.Every(1).Day().Tag("CacheHrUsers").At("9:00").Do(CacheHrUsers)
+	// _, _ = crontab.Scheduler.Every("3m").Tag("CacheHrUsers").Do(CacheHrUsers)
+	_, _ = crontab.Scheduler.Cron("0 9,13,21 * * *").Tag("CacheHrUsers").Do(CacheHrUsers)
 	crontab.Scheduler.StartAsync()
 
 	// 更新企业微信用户缓存【频繁】
-	_, _ = crontab.Scheduler.Every(1).Day().Tag("CacheWeworkUsers").At("9:50").Do(CacheWeworkUsers)
+	// _, _ = crontab.Scheduler.Every(1).Day().Tag("CacheWeworkUsers").At("9:00").Do(CacheWeworkUsers)
+	// _, _ = crontab.Scheduler.Every("2m").Tag("CacheWeworkUsers").Do(CacheWeworkUsers)
+	_, _ = crontab.Scheduler.Cron("5 9,13,21 * * *").Tag("CacheWeworkUsers").Do(CacheWeworkUsers)
 	crontab.Scheduler.StartAsync()
 
-	// 扫描过期企业微信用户并发通知【每天】
-	_, _ = crontab.Scheduler.Every(1).Day().Tag("ScanExpiredWeworkUsers").At("9:55").Do(ScanExpiredWeworkUsers)
+	// 全量为内部新用户创建企业微信账号【每天 多次】
+	_, _ = crontab.Scheduler.Every(1).Day().Tag("ScanNewHrUsers").At("9:30").Do(ScanNewHrUsers)
+	// _, _ = crontab.Scheduler.Cron("10 9,13,21 * * *").Tag("ScanNewHrUsers").Do(ScanNewHrUsers)
+	crontab.Scheduler.StartAsync()
+
+	// 扫描过期企业微信用户并发汇总通知【每天】
+	_, _ = crontab.Scheduler.Every(1).Day().Tag("ScanExpiredWeworkUsers").At("17:10").Do(ScanExpiredWeworkUsers)
+	// _, _ = crontab.Scheduler.Cron("15 9 * * *").Tag("ScanExpiredWeworkUsers").Do(ScanExpiredWeworkUsers)
 	crontab.Scheduler.StartAsync()
 
 	// 扫描过期ldap用户并发通知【每天】
 	_, _ = crontab.Scheduler.Every(1).Day().Tag("ScanExpiredLdapUsers").At("10:00").Do(ScanExpiredLdapUsers)
+	// _, _ = crontab.Scheduler.Cron("25 9 * * *").Tag("ScanExpiredLdapUsers").Do(ScanExpiredLdapUsers)
 	crontab.Scheduler.StartAsync()
 
-	// 全量更新ldap用户信息【每天】
-	_, _ = crontab.Scheduler.Every(1).Day().Tag("SyncLdapUsers").At("17:00").Do(SyncLdapUsers)
+	// 全量更新ldap用户信息并发汇总通知【慢 每天】
+	_, _ = crontab.Scheduler.Every(1).Day().Tag("SyncLdapUsers").At("17:15").Do(SyncLdapUsers)
+	// _, _ = crontab.Scheduler.Cron("0 17 * * *").Tag("SyncLdapUsers").Do(SyncLdapUsers)
 	crontab.Scheduler.StartAsync()
 
 	for _, j := range crontab.Scheduler.Jobs() {
