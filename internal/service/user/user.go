@@ -188,18 +188,23 @@ func SyncLdapUsers() {
 
 	log.Info("更新ldap用户成功!")
 	// 更新完成后，将数据库更改记录统一公布
-	ldapUserDepartRecords, _ := model.FetchTodayLdapUserDepartRecord()
+	todayLdapUserDepartRecords, _ := model.FetchTodayLdapUserDepartRecord()
 	today := time.Now().Format("2006年01月02日")
 	tempTitle := `<font color="warning"> ` + today + ` </font>LDAP用户架构变化：`
 	temp := `>%s. <font color="warning"> %s </font>岗位变动:<font color="comment"> %s </font>到<font color="info"> %s </font>级别<font color="warning"> %s </font>`
 	var msgs string
-	for i, r := range ldapUserDepartRecords {
-		if i != len(ldapUserDepartRecords) {
+	for i, r := range todayLdapUserDepartRecords {
+		if i != len(todayLdapUserDepartRecords) {
 			msgs += "\n\n"
 		}
 		msgs += fmt.Sprintf(temp, strconv.Itoa(i+1), r.Name, r.OldDepart, r.NewDepart, r.Level)
 	}
-	util.SendRobotMsg(tempTitle + msgs) // 发送机器消息
+	if len(todayLdapUserDepartRecords) == 0 {
+		util.SendRobotMsg(`<font color="warning"> ` + today + ` </font>LDAP用户架构无变化`) // 发送机器消息
+	} else {
+		util.SendRobotMsg(tempTitle + msgs) // 发送机器消息
+	}
+
 	log.Info("汇总通知发送成功!")
 }
 

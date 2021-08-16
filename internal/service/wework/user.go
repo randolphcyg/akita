@@ -2,6 +2,7 @@ package wework
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -231,11 +232,11 @@ func CreateUser(user *ldap.LdapAttributes) (err error) {
 	b, err := json.Marshal(res)
 	json.Unmarshal(b, &msg)
 	if msg.Errcode != 0 {
-		logrus.Error("企业微信用户创建出错: ", user.DisplayName, user.Sam, msg.Errmsg)
+		err = errors.New(msg.Errmsg)
+	} else {
+		model.CreateWeworkUserSyncRecord(user.Sam, user.DisplayName, user.Num, "新建") // 保存操作记录
 	}
-	model.CreateWeworkUserSyncRecord(user.Sam, user.DisplayName, user.Num, "新建") // 保存操作记录
-	logrus.Info("Success to create wework user!")
-	return nil
+	return
 }
 
 // RenewalUser 企业微信用户续期
@@ -299,9 +300,10 @@ func ScanNewHrUsers() {
 				u, _ := FetchUser(hrUser.Eid)
 				if u.Name == "" {
 					dp, _ := FetchDepart(strings.Split(hrUser.Department, ".")[len(strings.Split(hrUser.Department, "."))-1])
+					var userInfos *ldap.LdapAttributes
 					if dp.Name != "" {
 						// 组装LDAP用户数据
-						userInfos := &ldap.LdapAttributes{
+						userInfos = &ldap.LdapAttributes{
 							Sam:            hrUser.Eid,
 							Num:            hrUser.Eid,
 							DisplayName:    hrUser.Name,
@@ -310,13 +312,25 @@ func ScanNewHrUsers() {
 							WeworkExpire:   "",
 							WeworkDepartId: dp.Id,
 						}
-						fmt.Println(userInfos)
-						CreateUser(userInfos) // 新建该用户
-						// break
 					} else {
-						log.Error("未找到与该新用户的HR数据部门对应的同名企业微信部门！") // 新用户的HR部门与企业微信的任意部门不匹配，需要人事进行维护!!
+						// 组装LDAP用户数据
+						userInfos = &ldap.LdapAttributes{
+							Sam:            hrUser.Eid,
+							Num:            hrUser.Eid,
+							DisplayName:    hrUser.Name,
+							Email:          strings.ToLower(hrUser.Mail),
+							Phone:          hrUser.Mobile,
+							WeworkExpire:   "",
+							WeworkDepartId: 69,
+						}
+						log.Error("未找到与该新用户【" + userInfos.DisplayName + "】的HR数据部门对应的同名企业微信部门！将用户暂存在待分配~")
 					}
-
+					model.CreateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "HR数据部门【"+hrUser.Department+"】自动分配到企业微信部门【69新加入待分配】") // 保存操作记录
+					err = CreateUser(userInfos)                                                                                                                 // 新建该用户
+					if err != nil {
+						log.Error("Fail to create wework automatically, ", err)
+						model.UpdateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "HR数据部门【"+hrUser.Department+"】自动分配到企业微信部门【69新加入待分配】", "自动创建失败, "+err.Error()) // 保存操作记录
+					}
 				}
 			}
 		}
@@ -390,7 +404,11 @@ func ScanExpiredWeworkUsers() {
 		}
 		msgs += fmt.Sprintf(temp, strconv.Itoa(i+1), u.Name, u.UserId, u.SyncKind)
 	}
-	util.SendRobotMsg(tempTitle + msgs) //  发送机器消息
+	if len(todayWeworkUserSyncRecords) == 0 {
+		util.SendRobotMsg(`<font color="warning"> ` + today + ` </font>企业微信用户无变化`) // 发送机器消息
+	} else {
+		util.SendRobotMsg(tempTitle + msgs) //  发送机器消息
+	}
 	log.Info("汇总通知发送成功!")
 }
 
