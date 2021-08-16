@@ -3,6 +3,8 @@ module gitee.com/RandolphCYG/akita
 go 1.16
 
 require (
+	github.com/Lofanmi/chinese-calendar-golang v0.0.0-20210509153801-69ebfdebb1e4 // indirect
+	github.com/bitly/go-simplejson v0.5.0 // indirect
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/gin-gonic/gin v1.7.2
 	github.com/go-ldap/ldap/v3 v3.3.0
@@ -14,6 +16,7 @@ require (
 	github.com/kirinlabs/HttpRequest v1.1.1
 	github.com/lestrrat-go/file-rotatelogs v2.4.0+incompatible
 	github.com/lestrrat-go/strftime v1.0.5 // indirect
+	github.com/nosixtools/solarlunar v0.0.0-20200711032723-669c9e27ecc5 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/rifflock/lfshook v0.0.0-20180920164130-b9218ef580f5
 	github.com/robfig/cron/v3 v3.0.0

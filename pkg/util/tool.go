@@ -10,8 +10,20 @@ import (
 
 	"gitee.com/RandolphCYG/akita/pkg/cache"
 	"github.com/kirinlabs/HttpRequest"
+	"github.com/nosixtools/solarlunar/festival"
 	"github.com/sirupsen/logrus"
 )
+
+// IsFestival 判断是否为节日
+func IsFestival(t time.Time) (isFestival bool, result []string) {
+	isFestival = false
+	festival := festival.NewFestival("./festival.json")
+	result = festival.GetFestivals(t.Format("2006-01-02"))
+	if len(result) >= 1 {
+		isFestival = true
+	}
+	return
+}
 
 // Unix 时间转换为 Window NT 时间
 func UnixToNt(expireTime time.Time) (ntTimestamp int64) {
