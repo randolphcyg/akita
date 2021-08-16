@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"gitee.com/RandolphCYG/akita/internal/service/task"
-	"gitee.com/RandolphCYG/akita/pkg/crontab"
 	"github.com/gin-gonic/gin"
 )
 
@@ -32,11 +31,24 @@ func TaskStart(ctx *gin.Context) {
 		})
 		return
 	}
-	task.TaskRegister(taskField.Name)
-	ctx.JSON(200, "定时任务已经启动")
+	res := task.TaskSart(taskField.Name)
+	ctx.JSON(200, res)
 }
 
-// TaskStop 停止定时任务
+// TaskRemove 移除定时任务
+func TaskRemove(ctx *gin.Context) {
+	var taskField TaskField
+	if err := ctx.ShouldBindJSON(&taskField); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	res := task.TaskRemove(taskField.Name)
+	ctx.JSON(200, res)
+}
+
+// TaskStop 停止所有定时任务
 func TaskStop(ctx *gin.Context) {
 	var taskField TaskField
 	if err := ctx.ShouldBindJSON(&taskField); err != nil {
@@ -45,7 +57,7 @@ func TaskStop(ctx *gin.Context) {
 		})
 		return
 	}
-	res := crontab.TaskStop(taskField.Name)
+	res := task.TaskStop()
 	ctx.JSON(200, res)
 }
 
@@ -57,6 +69,6 @@ func FetchAll(ctx *gin.Context) {
 		})
 		return
 	}
-	res := task.FetchCurrentJobs()
+	res := task.FetchTasks()
 	ctx.JSON(200, res)
 }

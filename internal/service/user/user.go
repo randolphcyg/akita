@@ -59,10 +59,6 @@ func ScanExpiredLdapUsersManual() serializer.Response {
 	return serializer.Response{Data: 0}
 }
 
-func TestTask() {
-	fmt.Println("【执行定任务...】")
-}
-
 // ScanExpiredLdapUsers 扫描过期ldap用户
 func ScanExpiredLdapUsers() {
 	// 初始化连接
