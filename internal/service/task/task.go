@@ -45,22 +45,22 @@ func init() {
 	CurrentTasks = make(map[string]Job)   // 初始化当前所有任务
 	// 更新HR用户缓存【频繁】
 	AllTasks["CacheHrUsers"] = JobWapper{
-		Cron: "10 2,9,14,20 * * *",
+		Cron: "0 2,9,14,20 * * *",
 		Func: CacheHrUsers,
 	}
 	// 更新企业微信用户缓存【频繁】
 	AllTasks["CacheWeworkUsers"] = JobWapper{
-		Cron: "15 2,9,14,20 * * *",
+		Cron: "0 2,9,14,20 * * *",
 		Func: CacheWeworkUsers,
 	}
 	// 全量为内部新用户创建企业微信账号【每天 多次】
 	AllTasks["ScanNewHrUsers"] = JobWapper{
-		Cron: "10 9,15,21 * * *",
+		Cron: "5 9,15,21 * * *",
 		Func: ScanNewHrUsers,
 	}
 	// 扫描过期ldap用户并发通知【每天一次】
 	AllTasks["ScanExpiredLdapUsers"] = JobWapper{
-		Cron: "30 9 * * *",
+		Cron: "10 9 * * *",
 		Func: ScanExpiredLdapUsers,
 	}
 	// 扫描过期企业微信用户并发汇总通知【每天一次】

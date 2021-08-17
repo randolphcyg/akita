@@ -181,8 +181,10 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 			// 执行生成 企业微信账号 操作
 			err = CreateUser(userInfos)
 			if err != nil {
-				log.Error(err)
+				log.Error("Fail to create user by wework order, ", err)
+				model.CreateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "自动创建失败, "+err.Error())
 			}
+			model.CreateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "新用户 工单填写公司["+userInfos.Company+"]自动分配至企微部门["+strconv.Itoa(userInfos.WeworkDepartId)+"]")
 		}
 
 		if _, ok := platforms["猪齿鱼"]; ok {

@@ -233,8 +233,6 @@ func CreateUser(user *ldap.LdapAttributes) (err error) {
 	json.Unmarshal(b, &msg)
 	if msg.Errcode != 0 {
 		err = errors.New(msg.Errmsg)
-	} else {
-		model.CreateWeworkUserSyncRecord(user.Sam, user.DisplayName, user.Num, "新建") // 保存操作记录
 	}
 	return
 }
@@ -312,6 +310,12 @@ func ScanNewHrUsers() {
 							WeworkExpire:   "",
 							WeworkDepartId: dp.Id,
 						}
+						err = CreateUser(userInfos)
+						if err != nil {
+							log.Error("Fail to create wework automatically, ", err)
+							model.CreateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "自动创建失败, "+err.Error())
+						}
+						model.CreateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "新用户 分配至企微["+dp.Name+"]")
 					} else {
 						// 组装LDAP用户数据
 						userInfos = &ldap.LdapAttributes{
@@ -323,13 +327,14 @@ func ScanNewHrUsers() {
 							WeworkExpire:   "",
 							WeworkDepartId: 69,
 						}
-						log.Error("未找到与该新用户【" + userInfos.DisplayName + "】的HR数据部门对应的同名企业微信部门！将用户暂存在待分配~")
-					}
-					model.CreateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "HR数据部门【"+hrUser.Department+"】自动分配到企业微信部门【69新加入待分配】") // 保存操作记录
-					err = CreateUser(userInfos)                                                                                                                 // 新建该用户
-					if err != nil {
-						log.Error("Fail to create wework automatically, ", err)
-						model.UpdateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "HR数据部门【"+hrUser.Department+"】自动分配到企业微信部门【69新加入待分配】", "自动创建失败, "+err.Error()) // 保存操作记录
+						log.Warning("未找到与该新用户[" + userInfos.DisplayName + "]的HR数据部门对应的同名企业微信部门！将用户暂存在待分配~")
+						model.CreateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "HR数据部门["+hrUser.Department+"]自动分配至企业微信部门[69新加入待分配]")
+						err = CreateUser(userInfos)
+						if err != nil {
+							log.Error("Fail to create wework automatically, ", err)
+							model.UpdateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "HR数据部门["+hrUser.Department+"]自动分配至企微部门[69新加入待分配]", "自动创建失败, "+err.Error())
+						}
+						model.UpdateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "HR数据部门["+hrUser.Department+"]自动分配至企微部门[69新加入待分配]", "新用户 HR数据部门["+hrUser.Department+"]自动分配至企微部门[69新加入待分配]")
 					}
 				}
 			}
