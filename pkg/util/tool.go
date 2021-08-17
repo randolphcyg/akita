@@ -25,6 +25,28 @@ func IsFestival(t time.Time) (isFestival bool, result []string) {
 	return
 }
 
+// IsWeekend 判断是否为周末
+func IsWeekend(t time.Time) (isWeekend bool) {
+	if int(t.Weekday()) == 6 || int(t.Weekday()) == 0 {
+		return true
+	}
+	return false
+}
+
+// IsHolidaySilentMode 假期静默模式
+func IsHolidaySilentMode(t time.Time) (isHolidaySilentMode bool, festival string) {
+	isFestival, festivals := IsFestival(t)
+	if isFestival && (festivals[0] == "除夕" || festivals[0] == "春节") {
+		return true, festivals[0]
+	}
+	// 周末判断
+	if IsWeekend(t) {
+		return false, ""
+	} else {
+		return true, ""
+	}
+}
+
 // Unix 时间转换为 Window NT 时间
 func UnixToNt(expireTime time.Time) (ntTimestamp int64) {
 	ntTimestamp = expireTime.Unix()*int64(1e+7) + int64(1.1644473600125e+17)
