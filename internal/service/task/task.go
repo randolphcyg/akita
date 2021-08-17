@@ -3,7 +3,6 @@ package task
 import (
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"gitee.com/RandolphCYG/akita/internal/service/user"
 	"gitee.com/RandolphCYG/akita/internal/service/wework"
@@ -74,12 +73,6 @@ func init() {
 		Cron: "5 17 * * *",
 		Func: SyncLdapUsers,
 	}
-
-	// 测试
-	AllTasks["Test"] = JobWapper{
-		Cron: "* * * * *",
-		Func: Test,
-	}
 }
 
 // StartAll 注册并启动所有定时任务
@@ -121,13 +114,6 @@ func TaskRemove(taskName string) serializer.Response {
 	}
 	fmt.Println("动态移除定时任务，当前剩余任务:", CurrentTasks)
 	return serializer.Response{Msg: "移除定时任务[" + taskName + "]成功!", Data: 0}
-}
-
-// 测试任务
-func Test() {
-	fmt.Println("Test开始执行")
-	time.Sleep(10 * time.Second)
-	fmt.Println("Test执行完成")
 }
 
 //  FetchTasks 查询所有任务 TODO bug 无法将定时任务序列化返回
