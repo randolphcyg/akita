@@ -31,7 +31,7 @@ func (service *Order) HandleOrders(o *Order) (err error) {
 	// 判断工单是否存在 若存在则不处理，若不存在则保存一份 处理失败情况要记录到表中
 	result, orderExecuteRecord := model.FetchOrder(o.SpNo)
 	if result.RowsAffected == 1 && orderExecuteRecord.ExecuteStatus {
-		err = errors.New("thanks,tabby! 【" + o.SpNo + "】该工单已经处理过，忽略此次操作~")
+		err = errors.New("thanks,tabby! [" + o.SpNo + "]该工单已经处理过，忽略此次操作~")
 		log.Warning(err)
 		return
 	}
@@ -251,7 +251,7 @@ func handleOrderUuapPwdRetrieve(o order.WeworkOrderDetailsUuapPwdRetrieve) (err 
 	if err != nil {
 		log.Error("Fail to send wework msg, err: ", err)
 	}
-	log.Info("企业微信回执消息:工单【" + o.SpName + "】用户【" + o.Userid + "】姓名【" + o.DisplayName + "】工号【" + o.Eid + "】状态【密码找回】")
+	log.Info("企业微信回执消息:工单[" + o.SpName + "]用户[" + o.Userid + "]姓名[" + o.DisplayName + "]工号[" + o.Eid + "]状态[密码找回]")
 	return
 }
 
@@ -285,7 +285,7 @@ func handleOrderUuapDisable(o order.WeworkOrderDetailsUuapDisable) (err error) {
 	if err != nil {
 		log.Error("Fail to send wework msg, err: ", err)
 	}
-	log.Info("企业微信回执消息:工单【" + o.SpName + "】用户【" + o.Userid + "】姓名【" + o.DisplayName + "】工号【" + o.Eid + "】状态【注销】")
+	log.Info("企业微信回执消息:工单[" + o.SpName + "]用户[" + o.Userid + "]姓名[" + o.DisplayName + "]工号[" + o.Eid + "]状态[注销]")
 	return
 }
 
@@ -350,17 +350,54 @@ func RenewalUuap(o order.WeworkOrderDetailsUuapRenewal, applicant order.RenewalA
 	if err != nil {
 		log.Error("Fail to send wework msg, err: ", err)
 	}
-	log.Info("企业微信回执消息:工单【" + o.SpName + "】用户【" + o.Userid + "】姓名【" + applicant.DisplayName + "】工号【" + applicant.Eid + "】状态【续期" + applicant.Days + "天】")
+	log.Info("企业微信回执消息:工单[" + o.SpName + "]用户[" + o.Userid + "]姓名[" + applicant.DisplayName + "]工号[" + applicant.Eid + "]状态[续期" + applicant.Days + "天]")
 	return
+}
+
+// handleC7nOrderFindUserErr 处理未找到c7n用户错误
+func handleC7nOrderFindUserErr(o order.WeworkOrderDetailsC7nAuthority, name, eid string) {
+	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
+	c7nFindProjectErrMsgTemplate, _ := cache.HGet("wework_templates", "wework_template_c7n_find_user_err")
+	msg := map[string]interface{}{
+		"touser":  o.Userid,
+		"msgtype": "markdown",
+		"agentid": model.WeworkUuapCfg.AppId,
+		"markdown": map[string]interface{}{
+			"content": fmt.Sprintf(c7nFindProjectErrMsgTemplate, o.SpName, o.DisplayName, name, eid),
+		},
+	}
+	_, err := corpAPIMsg.MessageSend(msg)
+	if err != nil {
+		log.Error("Fail to send wework msg, err: ", err)
+	}
+	log.Info("企业微信回执消息:工单[" + o.SpName + "]用户[" + o.Userid + "]姓名[" + o.DisplayName + "]工号[" + o.Eid + "]状态[c7n项目权限|未找到c7n用户,姓名: " + name + " 工号: " + eid + "]")
+}
+
+// handleC7nOrderFindProjectErr 处理未找到c7n项目错误
+func handleC7nOrderFindProjectErr(o order.WeworkOrderDetailsC7nAuthority, p string) {
+	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
+	c7nFindProjectErrMsgTemplate, _ := cache.HGet("wework_templates", "wework_template_c7n_find_project_err")
+	msg := map[string]interface{}{
+		"touser":  o.Userid,
+		"msgtype": "markdown",
+		"agentid": model.WeworkUuapCfg.AppId,
+		"markdown": map[string]interface{}{
+			"content": fmt.Sprintf(c7nFindProjectErrMsgTemplate, o.SpName, o.DisplayName, p),
+		},
+	}
+	_, err := corpAPIMsg.MessageSend(msg)
+	if err != nil {
+		log.Error("Fail to send wework msg, err: ", err)
+	}
+	log.Info("企业微信回执消息:工单[" + o.SpName + "]用户[" + o.Userid + "]姓名[" + o.DisplayName + "]工号[" + o.Eid + "]状态[c7n项目权限|未找到c7n项目: " + p + " ]")
 }
 
 // handleOrderC7nAuthority c7n权限处理
 func handleOrderC7nAuthority(order order.WeworkOrderDetailsC7nAuthority) (err error) {
 	// c7n 用户处理流程
 	c7nUser, err := c7n.FtechC7nUser(order.DisplayName, order.Eid)
-	if err != nil {
-		err = errors.New("没有这个c7n用户，发信给用户确认,: " + err.Error())
-		logrus.Error(err)
+	if err != nil || c7nUser.Id == "" { // 有报错或者未查询到用户则回执执行错误消息
+		handleC7nOrderFindUserErr(order, order.DisplayName, order.Eid)
 		return
 	}
 
@@ -368,7 +405,7 @@ func handleOrderC7nAuthority(order order.WeworkOrderDetailsC7nAuthority) (err er
 	for _, p := range order.C7nProjects {
 		project, err := c7n.FetchC7nProject(p.Project)
 		if err != nil {
-			logrus.Error("没有这个猪齿鱼项目，发信给用户确认! ", err)
+			handleC7nOrderFindProjectErr(order, p.Project)
 			break
 		}
 
@@ -385,7 +422,7 @@ func handleOrderC7nAuthority(order order.WeworkOrderDetailsC7nAuthority) (err er
 		if err != nil {
 			logrus.Info("为用户[" + c7nUser.RealName + "]分配项目[" + project.Name + "]的[" + string(s) + "]失败, " + err.Error())
 		}
-		logrus.Info("成功为用户[" + c7nUser.RealName + "]分配项目[" + project.Name + "]的[" + string(s) + "]")
+		logrus.Info("成功为用户[" + c7nUser.RealName + "]分配项目[" + project.Name + "]的[" + string(s) + "]角色")
 	}
 
 	return

@@ -210,7 +210,7 @@ func SyncLdapUsers() {
 	log.Info("汇总通知发送成功!")
 }
 
-// TruncateMsg 截断企业微信机器人消息 将长消息按行判断切分，返回给原消息
+// TruncateMsg 截断企业微信机器人消息 将长消息按行判断切分，返回给原消息 TODO
 func TruncateMsg(originalMsg string) (resMsgs []string) {
 
 	return

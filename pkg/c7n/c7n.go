@@ -9,7 +9,6 @@ import (
 	"gitee.com/RandolphCYG/akita/pkg/cache"
 	"gitee.com/RandolphCYG/akita/pkg/serializer"
 	"github.com/kirinlabs/HttpRequest"
-	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -133,7 +132,7 @@ func FetchC7nProject(projectName string) (c7nProject C7nProjectFields, err error
 	project, err := cache.HGet("c7n_projects", strings.ToUpper(projectName))
 	err = json.Unmarshal([]byte(project), &c7nProject)
 	if err != nil {
-		logrus.Error(err)
+		return
 	}
 	return
 }
