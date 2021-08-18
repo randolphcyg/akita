@@ -181,8 +181,8 @@ func SyncLdapUsers() {
 		}(cn, u)
 		<-done
 	}
-
 	log.Info("更新ldap用户成功!")
+
 	// 更新完成后，将数据库更改记录统一公布
 	todayLdapUserDepartRecords, _ := model.FetchTodayLdapUserDepartRecord()
 	now := time.Now()
@@ -201,19 +201,18 @@ func SyncLdapUsers() {
 	if isHolidaySilentMode && festival != "" {
 		util.SendRobotMsg(`<font color="warning"> ` + festival + "快乐！祝各位阖家团圆、岁岁平安~" + ` </font>`)
 	} else {
+		// 工作日正常发送通知
 		if len(todayLdapUserDepartRecords) == 0 {
 			util.SendRobotMsg(`<font color="warning"> ` + today + ` </font>LDAP用户架构无变化`)
 		} else {
-			util.SendRobotMsg(tempTitle + msgs)
+			// 消息过长的作剪裁处理
+			msgs := util.TruncateMsg(tempTitle+msgs, "\n\n")
+			for _, m := range msgs {
+				util.SendRobotMsg(m)
+			}
 		}
 	}
 	log.Info("汇总通知发送成功!")
-}
-
-// TruncateMsg 截断企业微信机器人消息 将长消息按行判断切分，返回给原消息 TODO
-func TruncateMsg(originalMsg string) (resMsgs []string) {
-
-	return
 }
 
 // FormatData 校验邮箱和手机号格式

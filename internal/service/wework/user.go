@@ -399,7 +399,8 @@ func ScanExpiredWeworkUsers() {
 	// 汇总通知
 	todayWeworkUserSyncRecords, _ := model.FetchTodayWeworkUserSyncRecord()
 	// 发消息
-	today := time.Now().Format("2006年01月02日")
+	now := time.Now()
+	today := now.Format("2006年01月02日")
 	tempTitle := `<font color="warning"> ` + today + ` </font>企业微信用户变化：`
 	temp := `>%s. <font color="warning"> %s </font>账号<font color="comment"> %s </font>变化类别<font color="info"> %s </font>`
 	var msgs string
@@ -409,11 +410,24 @@ func ScanExpiredWeworkUsers() {
 		}
 		msgs += fmt.Sprintf(temp, strconv.Itoa(i+1), u.Name, u.UserId, u.SyncKind)
 	}
-	if len(todayWeworkUserSyncRecords) == 0 {
-		util.SendRobotMsg(`<font color="warning"> ` + today + ` </font>企业微信用户无变化`) // 发送机器消息
+
+	// 根据是否为节假日决定是否发消息
+	isHolidaySilentMode, festival := util.IsHolidaySilentMode(now)
+	if isHolidaySilentMode && festival != "" {
+		// 消息静默
 	} else {
-		util.SendRobotMsg(tempTitle + msgs) //  发送机器消息
+		// 工作日正常发送通知
+		if len(todayWeworkUserSyncRecords) == 0 {
+			util.SendRobotMsg(`<font color="warning"> ` + today + ` </font>企业微信用户无变化`)
+		} else {
+			// 消息过长的作剪裁处理
+			msgs := util.TruncateMsg(tempTitle+msgs, "\n\n")
+			for _, m := range msgs {
+				util.SendRobotMsg(m)
+			}
+		}
 	}
+
 	log.Info("汇总通知发送成功!")
 }
 

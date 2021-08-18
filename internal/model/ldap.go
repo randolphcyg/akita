@@ -1,8 +1,10 @@
 package model
 
 import (
+	"strconv"
 	"time"
 
+	"gitee.com/RandolphCYG/akita/pkg/util"
 	"gorm.io/gorm"
 )
 
@@ -131,8 +133,15 @@ func CreateLdapUserDepartRecord(name string, eid string, oldDepart string, newDe
 
 // FetchTodayLdapUserDepartRecord 查询今日用户架构变化记录
 func FetchTodayLdapUserDepartRecord() (ldapUserDepartRecords []LdapUserDepartRecord, err error) {
-	todayBegin, _ := time.Parse("2006-01-02", time.Now().Format("2006-01-02")) // 当日零点
-	todayEnd, _ := time.Parse("2006-01-02", time.Now().AddDate(0, 0, 1).Format("2006-01-02"))
+	now := time.Now()
+	if util.IsMonday(now) { // 如果是周一 则将周末两天未发的通知一起发出
+		s := "-" + strconv.Itoa(2*24) + "h"
+		oneDay, _ := time.ParseDuration(s)
+		now = now.Add(oneDay)
+	}
+
+	todayBegin, _ := time.Parse("2006-01-02", now.Format("2006-01-02")) // 当日零点
+	todayEnd, _ := time.Parse("2006-01-02", now.AddDate(0, 0, 1).Format("2006-01-02"))
 	delta, _ := time.ParseDuration("-1s")
 	todayEnd = todayEnd.Add(delta) // 当日最后一秒
 	_ = DB.Where("created_at BETWEEN ? AND ?", todayBegin, todayEnd).Find(&ldapUserDepartRecords)

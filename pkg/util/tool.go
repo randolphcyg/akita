@@ -33,10 +33,18 @@ func IsWeekend(t time.Time) (isWeekend bool) {
 	return false
 }
 
+// IsMonday 判断是否为周一
+func IsMonday(t time.Time) (isMonday bool) {
+	if int(t.Weekday()) == 1 {
+		return true
+	}
+	return false
+}
+
 // IsHolidaySilentMode 假期静默模式
 func IsHolidaySilentMode(t time.Time) (isHolidaySilentMode bool, festival string) {
 	isFestival, festivals := IsFestival(t)
-	if isFestival && (festivals[0] == "除夕" || festivals[0] == "春节") {
+	if isFestival && (festivals[0] == "除夕" || festivals[0] == "春节" || festivals[0] == "国庆节") {
 		return true, festivals[0]
 	}
 	// 周末判断
@@ -250,4 +258,28 @@ func SendRobotMsg(msg string) {
 		return
 	}
 	logrus.Info(res.Content())
+}
+
+// TruncateMsg 裁剪企业微信机器人消息 将长消息按行判断切分，返回消息切片
+func TruncateMsg(originalMsg, sep string) (resMsgSegments []string) {
+	if len([]byte(originalMsg)) < 4096 {
+		resMsgSegments = append(resMsgSegments, originalMsg)
+	} else {
+		// 按行做切割处理
+		msgSegments := strings.Split(originalMsg, sep)
+
+		var segment string
+		for _, s := range msgSegments {
+			countLen := len([]byte(segment + s))
+			if countLen > 4096 {
+				resMsgSegments = append(resMsgSegments, segment)
+				segment = s + sep
+			} else {
+				segment += s
+				segment += sep
+			}
+		}
+		resMsgSegments = append(resMsgSegments, segment) // 将最后一段消息加上
+	}
+	return
 }
