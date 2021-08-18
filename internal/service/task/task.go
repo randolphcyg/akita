@@ -6,6 +6,7 @@ import (
 
 	"gitee.com/RandolphCYG/akita/internal/service/user"
 	"gitee.com/RandolphCYG/akita/internal/service/wework"
+	"gitee.com/RandolphCYG/akita/pkg/c7n"
 	"gitee.com/RandolphCYG/akita/pkg/crontab"
 	"gitee.com/RandolphCYG/akita/pkg/serializer"
 	"github.com/robfig/cron/v3"
@@ -38,6 +39,7 @@ var SyncLdapUsers = user.SyncLdapUsers
 var ScanExpiredLdapUsers = user.ScanExpiredLdapUsers
 var ScanExpiredWeworkUsers = wework.ScanExpiredWeworkUsers
 var ScanNewHrUsers = wework.ScanNewHrUsers
+var CacheC7nProjects = c7n.CacheC7nProjects
 
 // crontab表达式检查 https://crontab.guru/
 func init() {
@@ -52,6 +54,11 @@ func init() {
 	AllTasks["CacheWeworkUsers"] = JobWapper{
 		Cron: "0 2,9,14,20 * * *",
 		Func: CacheWeworkUsers,
+	}
+	// 更新c7n项目缓存【频繁】
+	AllTasks["CacheC7nProjects"] = JobWapper{
+		Cron: "0 2,9,14,20 * * *",
+		Func: CacheC7nProjects,
 	}
 	// 全量为内部新用户创建企业微信账号【每天 多次】
 	AllTasks["ScanNewHrUsers"] = JobWapper{

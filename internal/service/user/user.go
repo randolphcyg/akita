@@ -210,6 +210,12 @@ func SyncLdapUsers() {
 	log.Info("汇总通知发送成功!")
 }
 
+// TruncateMsg 截断企业微信机器人消息 将长消息按行判断切分，返回给原消息
+func TruncateMsg(originalMsg string) (resMsgs []string) {
+
+	return
+}
+
 // FormatData 校验邮箱和手机号格式
 func FormatData(mail string, mobile string) (err error) {
 	if strings.Contains(mail, " ") || strings.Contains(mobile, " ") || len(mobile) != 11 {
@@ -291,13 +297,11 @@ func HandleExpiredLdapUsers(user *ldap.LdapAttributes, expireDays int) (err erro
 	}
 
 	if expireDays == 7 || expireDays == 14 { // 即将过期提醒 7|14天前
-		// fmt.Println(emailTempUuaplateExpiring)
 		address := []string{user.Email}
 		htmlContent := fmt.Sprintf(emailTempUuaplateExpiring, user.DisplayName, user.Sam, strconv.Itoa(expireDays))
 		email.SendMailHtml(address, "UUAP账号即将过期通知", htmlContent)
 		log.Info("邮件发送成功！用户【" + user.DisplayName + "】账号【" + user.Sam + "】状态【即将过期】")
 	} else if expireDays == -7 { // 已经过期提醒 7天后
-		// fmt.Println(emailTemplateUuapExpired)
 		address := []string{user.Email}
 		htmlContent := fmt.Sprintf(emailTemplateUuapExpired, user.DisplayName, user.Sam, strconv.Itoa(-expireDays)) // 此时过期天数为负值
 		email.SendMailHtml(address, "UUAP账号已过期通知", htmlContent)

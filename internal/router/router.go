@@ -69,6 +69,10 @@ func router() *gin.Engine {
 		weworkUsers.GET("manual/scan/expire", handler.ScanExpiredWeworkUsersManual) // 手动触发扫描企业微信过期用户
 		weworkUsers.GET("manual/scan/new", handler.ScanNewHrUsersManual)            // 手动触发扫描HR缓存数据并为新员工创建企业微信账号
 
+		// c7n
+		c7nProjects := v1.Group("c7n/projects")
+		c7nProjects.GET("manual/cache", handler.CacheC7nProjectsManual)
+
 		// 任务
 		tasks := v1.Group("tasks")
 		tasks.GET("startall", handler.StartAll)  // 注册并启动所有定时任务

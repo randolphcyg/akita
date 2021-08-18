@@ -2,7 +2,6 @@ package order
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	"gitee.com/RandolphCYG/akita/internal/model"
@@ -303,7 +302,7 @@ func ParseRawOrder(rawInfo interface{}) (orderData map[string]interface{}, err e
 						temp[con.Title[0].Text] = c.Value.Date.STimestamp
 					case "Selector": // 明细选择
 						if c.Value.Selector.Type == "multi" { // 多选
-							tempSel := make([]string, len(c.Value.Selector.Options))
+							tempSel := make([]string, 0)
 							for _, v := range c.Value.Selector.Options {
 								tempSel = append(tempSel, v.Value[0].Text)
 							}
@@ -332,7 +331,6 @@ func ParseRawOrder(rawInfo interface{}) (orderData map[string]interface{}, err e
 			return
 		}
 	}
-	fmt.Println(orderData)
 	return
 }
 
@@ -452,13 +450,20 @@ func RawToUuapRenewal(weworkOrder map[string]interface{}) (orderDetails WeworkOr
 	return
 }
 
+// c7n项目
+type C7nProject struct {
+	Project string   `mapstructure:"项目"`
+	Roles   []string `mapstructure:"角色"`
+}
+
 // c7n项目权限 工单详情
 type WeworkOrderDetailsC7nAuthority struct {
-	SpName      string `mapstructure:"spName"`
-	Userid      string `mapstructure:"userid"`
-	DisplayName string `mapstructure:"姓名"`
-	Eid         string `mapstructure:"账号"`
-	Days        string `mapstructure:"项目名称"`
+	SpName      string       `mapstructure:"spName"`
+	Userid      string       `mapstructure:"userid"`
+	Eid         string       `mapstructure:"工号"`
+	DisplayName string       `mapstructure:"姓名"`
+	Remark      string       `mapstructure:"备注"`
+	C7nProjects []C7nProject `mapstructure:"猪齿鱼项目"`
 }
 
 // 原始工单转换为 c7n项目权限 结构体

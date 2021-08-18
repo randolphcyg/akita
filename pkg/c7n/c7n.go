@@ -1,12 +1,15 @@
 package c7n
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
 
 	"gitee.com/RandolphCYG/akita/pkg/cache"
+	"gitee.com/RandolphCYG/akita/pkg/serializer"
 	"github.com/kirinlabs/HttpRequest"
+	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -127,56 +130,16 @@ func FetchToken() (header map[string]string, err error) {
 
 // 查询 c7n 项目 返回唯一值，忽略其他结果
 func FetchC7nProject(projectName string) (c7nProject C7nProjectFields, err error) {
-	// 从缓存取url
-	fetchAllProjectsUrl, err := cache.HGet("third_party_sys_cfg", "fetch_all_projects_url")
+	project, err := cache.HGet("c7n_projects", strings.ToUpper(projectName))
+	err = json.Unmarshal([]byte(project), &c7nProject)
 	if err != nil {
-		log.Error("读取三方系统-c7n配置错误: ", err)
-		return
-	}
-
-	// 取token
-	header, err := FetchToken()
-	if err != nil {
-		log.Error("Fail to fetch token, err: ", err)
-		return
-	}
-
-	// 发送请求
-	req := HttpRequest.NewRequest()
-	req.SetHeaders(header)
-	respFetchData, err := req.Get(fetchAllProjectsUrl)
-	if err != nil {
-		log.Error("Fail to fetch c7n project, err: ", err)
-		return
-	}
-	defer respFetchData.Close() // 关闭
-
-	// 反序列化
-	var c7nPros []C7nProjectFields
-	err = respFetchData.Json(&c7nPros)
-	if err != nil {
-		log.Error("Fail to convert response to json, err: ", err)
-		return
-	}
-	// 数据筛选
-	projectName = strings.ToUpper(projectName) // 将待查询项目大写化
-	for _, project := range c7nPros {
-		if project.Enabled {
-			// 先判断有没有相等的
-			if project.Name == projectName {
-				c7nProject = project
-				return
-			} else if strings.Contains(project.Name, projectName) {
-				c7nProject = project
-				return
-			}
-		}
+		logrus.Error(err)
 	}
 	return
 }
 
 // FtechC7nUser 根据登录名查询用户
-func FtechC7nUser(loginName string) (c7nUser C7nUserFields, err error) {
+func FtechC7nUser(realName, loginName string) (c7nUser C7nUserFields, err error) {
 	// 取token
 	header, err := FetchToken()
 	if err != nil {
@@ -194,7 +157,7 @@ func FtechC7nUser(loginName string) (c7nUser C7nUserFields, err error) {
 	// 发送请求
 	req := HttpRequest.NewRequest()
 	req.SetHeaders(header)
-	fetchC7nUserUrlEncoded := fmt.Sprintf(fetchC7nUserUrl, url.QueryEscape(loginName)) // url中中文部分编码为url
+	fetchC7nUserUrlEncoded := fmt.Sprintf(fetchC7nUserUrl, url.QueryEscape(realName), url.QueryEscape(loginName)) // url中中文部分编码为url
 	respFetchC7nUser, err := req.Get(fetchC7nUserUrlEncoded)
 	if err != nil {
 		log.Error("Fail to fetch c7n user, err: ", err)
@@ -333,4 +296,57 @@ func UpdateC7nUsers() (err error) {
 	}
 	defer respSyncC7nLdapUsersUrl.Close() // 关闭
 	return
+}
+
+// CacheC7nProjectsManual 手动触发缓存所有c7n项目
+func CacheC7nProjectsManual() serializer.Response {
+	go func() {
+		CacheC7nProjects()
+	}()
+	return serializer.Response{Data: 0, Msg: "手动触发缓存c7n项目成功!"}
+}
+
+// CacheC7nProjects 缓存所有c7n项目
+func CacheC7nProjects() {
+	log.Info("开始更新c7n项目缓存...")
+	// 从缓存取url
+	fetchAllC7nProjectsUrl, err := cache.HGet("third_party_sys_cfg", "fetch_all_c7n_projects_url")
+	if err != nil {
+		log.Error("读取三方系统-c7n配置错误: ", err)
+		return
+	}
+
+	// 取token
+	header, err := FetchToken()
+	if err != nil {
+		log.Error("Fail to fetch token, err: ", err)
+		return
+	}
+
+	// 发送请求
+	req := HttpRequest.NewRequest()
+	req.SetHeaders(header)
+	respFetchData, err := req.Get(fetchAllC7nProjectsUrl)
+	if err != nil {
+		return
+	}
+
+	defer respFetchData.Close() // 关闭
+
+	var c7nPros []C7nProjectFields
+	err = respFetchData.Json(&c7nPros)
+	if err != nil {
+		return
+	}
+
+	// 清空缓存
+	_, err = cache.HDel("c7n_projects")
+
+	for _, project := range c7nPros {
+		if project.Enabled {
+			data, _ := json.Marshal(project)
+			_, err = cache.HSet("c7n_projects", project.Name, data)
+		}
+	}
+	log.Info("更新c7n项目缓存完成")
 }

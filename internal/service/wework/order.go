@@ -1,6 +1,7 @@
 package wework
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -198,7 +199,7 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 
 			// 执行初始化 猪齿鱼 操作
 			err = c7n.UpdateC7nUsers()                                             // 更新ldap用户
-			c7nUser, _ := c7n.FtechC7nUser(applicant.Eid)                          // 将新ldap用户添加到默认空项目
+			c7nUser, _ := c7n.FtechC7nUser(applicant.DisplayName, applicant.Eid)   // 将新ldap用户添加到默认空项目
 			role, _ := c7n.FetchC7nRoles("项目成员")                                   // 获取项目成员角色的ID
 			err = c7n.AssignC7nUserProjectRole("4", c7nUser.Id, []string{role.Id}) // 分配角色
 			if err != nil {
@@ -353,20 +354,39 @@ func RenewalUuap(o order.WeworkOrderDetailsUuapRenewal, applicant order.RenewalA
 	return
 }
 
-// c7n权限处理 TODO 逻辑未完成
+// handleOrderC7nAuthority c7n权限处理
 func handleOrderC7nAuthority(order order.WeworkOrderDetailsC7nAuthority) (err error) {
-	// project, _ := c7n.FetchC7nProject("XXX")
-	// fmt.Println(project)
-	// user, _ := c7n.FtechC7nUser("XXX")
-	// fmt.Println(user)
+	// c7n 用户处理流程
+	c7nUser, err := c7n.FtechC7nUser(order.DisplayName, order.Eid)
+	if err != nil {
+		err = errors.New("没有这个c7n用户，发信给用户确认,: " + err.Error())
+		logrus.Error(err)
+		return
+	}
 
-	// var c7nRoleIds []string
-	// // TODO 需要该项目该用户的旧角色作增操作
-	// role, _ := c7n.FetchC7nRoles("项目成员")
-	// c7nRoleIds = append(c7nRoleIds, role.Id)
-	// fmt.Println(c7nRoleIds)
+	// c7n项目及角色处理流程
+	for _, p := range order.C7nProjects {
+		project, err := c7n.FetchC7nProject(p.Project)
+		if err != nil {
+			logrus.Error("没有这个猪齿鱼项目，发信给用户确认! ", err)
+			break
+		}
 
-	// c7n.AssignC7nUserProjectRole(strconv.Itoa(project.Id), user.Id, c7nRoleIds)
+		// 角色的处理流程
+		var c7nRoleIds []string
+		for _, r := range p.Roles {
+			role, _ := c7n.FetchC7nRoles(r)
+			c7nRoleIds = append(c7nRoleIds, role.Id)
+		}
+
+		// 将用户添加到对应项目对应角色
+		err = c7n.AssignC7nUserProjectRole(strconv.Itoa(project.Id), c7nUser.Id, c7nRoleIds)
+		s, _ := json.Marshal(p.Roles)
+		if err != nil {
+			logrus.Info("为用户[" + c7nUser.RealName + "]分配项目[" + project.Name + "]的[" + string(s) + "]失败, " + err.Error())
+		}
+		logrus.Info("成功为用户[" + c7nUser.RealName + "]分配项目[" + project.Name + "]的[" + string(s) + "]")
+	}
 
 	return
 }
