@@ -102,13 +102,17 @@ func CacheHrUsers() {
 	if result := model.DB.First(&hrDataConn); result.Error != nil {
 		log.Error("Fail to get HR data connection cfg!")
 	}
-	hrUsers := hr.FetchHrData(&hr.HrDataConn{
+	hrUsers, err := hr.FetchHrData(&hr.HrDataConn{
 		UrlGetToken: hrDataConn.UrlGetToken,
 		UrlGetData:  hrDataConn.UrlGetData,
 	})
+	if err != nil {
+		log.Error(err)
+		return
+	}
 
 	// 先清空缓存
-	_, err := cache.HDel("hr_users")
+	_, err = cache.HDel("hr_users")
 	if err != nil {
 		log.Error("Fail to clean ldap users cache,:", err)
 	}

@@ -55,7 +55,7 @@ type HrDataConn struct {
 }
 
 // FetchToken 获取token
-func FetchToken(h *HrDataConn) (token HrToken) {
+func FetchToken(h *HrDataConn) (token HrToken, err error) {
 	req := HttpRequest.NewRequest()
 	respFetchToken, err := req.Post(h.UrlGetToken)
 	if err != nil {
@@ -70,7 +70,7 @@ func FetchToken(h *HrDataConn) (token HrToken) {
 		log.Error("Fail to convert response to json, err: ", err)
 		return
 	}
-	if !token.Success {
+	if !token.Success && token.ErrorDescription != "" {
 		// 抛错
 		log.Error(token.ErrorDescription)
 		return
@@ -79,9 +79,12 @@ func FetchToken(h *HrDataConn) (token HrToken) {
 }
 
 // FetchHrData 带着token去获取HR数据
-func FetchHrData(h *HrDataConn) (hrUsers []HrUser) {
+func FetchHrData(h *HrDataConn) (hrUsers []HrUser, err error) {
 	req := HttpRequest.NewRequest()
-	hrToken := FetchToken(h)
+	hrToken, err := FetchToken(h)
+	if err != nil {
+		return
+	}
 	header := map[string]string{
 		"Authorization": hrToken.TokenType + " " + hrToken.AccessToken,
 		"Content-Type":  "application/json;charset=UTF-8",
