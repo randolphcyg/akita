@@ -16,7 +16,6 @@ import (
 	"gitee.com/RandolphCYG/akita/pkg/util"
 	"gitee.com/RandolphCYG/akita/pkg/wework/api"
 	"gitee.com/RandolphCYG/akita/pkg/wework/order"
-	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -88,7 +87,7 @@ func CacheWeworkUsersManual() (err error) {
 
 // CacheWeworkUsers 缓存企业微信用户
 func CacheWeworkUsers() {
-	logrus.Info("开始更新企业微信用户缓存...")
+	log.Info("开始更新企业微信用户缓存...")
 	var usersMsg UsersMsg
 	corpAPIUserManager := api.NewCorpAPI(model.WeworkUserManageCfg.CorpId, model.WeworkUserManageCfg.AppSecret)
 	res, err := corpAPIUserManager.UserSimpleList(map[string]interface{}{
@@ -96,20 +95,20 @@ func CacheWeworkUsers() {
 		"fetch_child":   "1",
 	})
 	if err != nil {
-		logrus.Error(err)
+		log.Error(err)
 	}
 
 	temp, err := json.Marshal(res)
 	json.Unmarshal(temp, &usersMsg)
 
 	if usersMsg.Errcode != 0 {
-		logrus.Error("Fail to fetch wework user list, err:", usersMsg.Errmsg)
+		log.Error("Fail to fetch wework user list, err:", usersMsg.Errmsg)
 	}
 
 	// 先清空缓存
 	_, err = cache.HDel("wework_users")
 	if err != nil {
-		logrus.Error("Fail to clean wework users cache,:", err)
+		log.Error("Fail to clean wework users cache,:", err)
 	}
 
 	done := make(chan int, 20) // 带 20 个缓存
@@ -120,7 +119,7 @@ func CacheWeworkUsers() {
 				"userid": userInfo.Userid,
 			})
 			if err != nil {
-				logrus.Error(err)
+				log.Error(err)
 			}
 
 			temp, err := json.Marshal(getUserDetailRes)
@@ -129,21 +128,21 @@ func CacheWeworkUsers() {
 			if len(userDetails.Extattr.Attrs) >= 1 && userDetails.Extattr.Attrs[0].Name == "工号" { // 忽略不符合规范的用户
 				_, err = cache.HSet("wework_users", userDetails.Extattr.Attrs[0].Value, temp) // 缓存用户
 				if err != nil {
-					logrus.Error("Fail to cache wework user,:", err)
+					log.Error("Fail to cache wework user,:", err)
 				}
 			}
 			<-done
 		}(i, userInfo)
 		done <- 1
 	}
-	logrus.Info("更新企业微信用户缓存完成!")
+	log.Info("更新企业微信用户缓存完成!")
 }
 
 // FetchUser 根据工号查找用户
 func FetchUser(eid string) (userDetails UserDetails, err error) {
 	user, err := cache.HGet("wework_users", eid)
 	if err != nil {
-		// logrus.Error("无此用户: ", err)
+		// log.Error("无此用户: ", err)
 		return
 	}
 	json.Unmarshal([]byte(user), &userDetails)
@@ -155,7 +154,7 @@ func FetchDepart(departName string) (depart Depart, err error) {
 	corpAPIUserManager := api.NewCorpAPI(model.WeworkUserManageCfg.CorpId, model.WeworkUserManageCfg.AppSecret)
 	res, err := corpAPIUserManager.DepartmentList(map[string]interface{}{})
 	if err != nil {
-		logrus.Error(err)
+		log.Error(err)
 		return
 	}
 	b, err := json.Marshal(res)
@@ -163,7 +162,7 @@ func FetchDepart(departName string) (depart Depart, err error) {
 	json.Unmarshal(b, &departsMsg)
 
 	if departsMsg.Errcode != 0 {
-		logrus.Error("Fail to fetch wework user list, err:", departsMsg.Errmsg)
+		log.Error("Fail to fetch wework user list, err:", departsMsg.Errmsg)
 		return
 	}
 	for _, d := range departsMsg.Department {
@@ -180,14 +179,14 @@ func FetchDeparts() (departsMsg DepartsMsg, err error) {
 	corpAPIUserManager := api.NewCorpAPI(model.WeworkUserManageCfg.CorpId, model.WeworkUserManageCfg.AppSecret)
 	res, err := corpAPIUserManager.DepartmentList(map[string]interface{}{})
 	if err != nil {
-		logrus.Error(err)
+		log.Error(err)
 		return
 	}
 	b, err := json.Marshal(res)
 	json.Unmarshal(b, &departsMsg)
 
 	if departsMsg.Errcode != 0 {
-		logrus.Error("Fail to fetch wework user list, err:", departsMsg.Errmsg)
+		log.Error("Fail to fetch wework user list, err:", departsMsg.Errmsg)
 		return
 	}
 
@@ -268,10 +267,10 @@ func RenewalUser(weworkUserId string, applicant order.RenewalApplicant, expireDa
 	b, err := json.Marshal(res)
 	json.Unmarshal(b, &msg)
 	if err != nil {
-		logrus.Error(err)
+		log.Error(err)
 		return
 	}
-	logrus.Info("Success to renewal wework user!")
+	log.Info("Success to renewal wework user!")
 	return nil
 }
 
@@ -468,7 +467,7 @@ func DisableUser(u UserDetails) (err error) {
 	b, err := json.Marshal(res)
 	json.Unmarshal(b, &msg)
 	if err != nil {
-		logrus.Error(err)
+		log.Error(err)
 		return
 	}
 	// 此处将禁用企业微信用户的记录保存下
@@ -476,7 +475,7 @@ func DisableUser(u UserDetails) (err error) {
 		model.CreateWeworkUserSyncRecord(u.Userid, u.Name, u.Extattr.Attrs[0].Value, "禁用")
 	}
 
-	logrus.Info("Success to disable wework user!")
+	log.Info("Success to disable wework user!")
 	return
 }
 
@@ -505,9 +504,9 @@ func FormatHistoryUser(user UserDetails, formatEid string, formatMail string) (e
 	b, err := json.Marshal(res)
 	json.Unmarshal(b, &msg)
 	if err != nil {
-		logrus.Error(err)
+		log.Error(err)
 		return
 	}
-	logrus.Info("Success to format wework user!")
+	log.Info("Success to format wework user!")
 	return nil
 }

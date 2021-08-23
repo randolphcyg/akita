@@ -9,9 +9,10 @@ import (
 	"unsafe"
 
 	"gitee.com/RandolphCYG/akita/pkg/cache"
+
 	"github.com/kirinlabs/HttpRequest"
 	"github.com/nosixtools/solarlunar/festival"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 )
 
 // IsFestival 判断是否为节日
@@ -239,7 +240,7 @@ func SendRobotMsg(msg string) {
 	// 从缓存取url
 	weworkRobot, err := cache.HGet("third_party_sys_cfg", "wework_robot")
 	if err != nil {
-		logrus.Error("读取三方系统-c7n配置错误: ", err)
+		log.Error("读取三方系统-c7n配置错误: ", err)
 		return
 	}
 	req := HttpRequest.NewRequest()
@@ -254,10 +255,10 @@ func SendRobotMsg(msg string) {
 	res, err := req.Post(weworkRobot, msgPkg)
 	if err != nil {
 		// 抛错
-		logrus.Error("Fail to fetch token, err: ", err)
+		log.Error("Fail to fetch token, err: ", err)
 		return
 	}
-	logrus.Info(res.Content())
+	log.Info(res.Content())
 }
 
 // TruncateMsg 裁剪企业微信机器人消息 将长消息按行判断切分，返回消息切片

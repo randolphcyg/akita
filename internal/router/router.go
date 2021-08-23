@@ -1,8 +1,6 @@
 package router
 
 import (
-	"fmt"
-
 	"gitee.com/RandolphCYG/akita/internal/conf"
 	"gitee.com/RandolphCYG/akita/internal/handler"
 	"gitee.com/RandolphCYG/akita/pkg/logger"
@@ -27,7 +25,6 @@ func InitRouter() *gin.Engine {
 
 // InitDebugRouter debug模式路由
 func router() *gin.Engine {
-	fmt.Println(gin.Mode())
 	r := gin.New()
 	r.Use(logger.LogerMiddleware())
 	v1 := r.Group("/api/v1")

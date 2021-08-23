@@ -15,7 +15,6 @@ import (
 	"gitee.com/RandolphCYG/akita/pkg/util"
 	"gitee.com/RandolphCYG/akita/pkg/wework/api"
 	"gitee.com/RandolphCYG/akita/pkg/wework/order"
-	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -202,7 +201,7 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 			role, _ := c7n.FetchC7nRoles("项目成员")                                   // 获取项目成员角色的ID
 			err = c7n.AssignC7nUserProjectRole("4", c7nUser.Id, []string{role.Id}) // 分配角色
 			if err != nil {
-				logrus.Error("Fail to assign new user c7n default project!", err)
+				log.Error("Fail to assign new user c7n default project!", err)
 			}
 		}
 
@@ -419,9 +418,9 @@ func handleOrderC7nAuthority(order order.WeworkOrderDetailsC7nAuthority) (err er
 		err = c7n.AssignC7nUserProjectRole(strconv.Itoa(project.Id), c7nUser.Id, c7nRoleIds)
 		s, _ := json.Marshal(p.Roles)
 		if err != nil {
-			logrus.Info("为用户[" + c7nUser.RealName + "]分配项目[" + project.Name + "]的[" + string(s) + "]失败, " + err.Error())
+			log.Info("为用户[" + c7nUser.RealName + "]分配项目[" + project.Name + "]的[" + string(s) + "]失败, " + err.Error())
 		}
-		logrus.Info("成功为用户[" + c7nUser.RealName + "]分配项目[" + project.Name + "]的[" + string(s) + "]角色")
+		log.Info("成功为用户[" + c7nUser.RealName + "]分配项目[" + project.Name + "]的[" + string(s) + "]角色")
 	}
 
 	return
