@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"gitee.com/RandolphCYG/akita/internal/model"
-	"gitee.com/RandolphCYG/akita/pkg/ldap"
+	"gitee.com/RandolphCYG/akita/internal/service/ldap"
 	"gitee.com/RandolphCYG/akita/pkg/serializer"
 	"gorm.io/gorm"
 )

@@ -8,12 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"gitee.com/RandolphCYG/akita/bootstrap"
 	"gitee.com/RandolphCYG/akita/internal/model"
+	"gitee.com/RandolphCYG/akita/internal/service/ldap"
 	"gitee.com/RandolphCYG/akita/pkg/cache"
 	"gitee.com/RandolphCYG/akita/pkg/email"
 	"gitee.com/RandolphCYG/akita/pkg/hr"
-	"gitee.com/RandolphCYG/akita/pkg/ldap"
 	"gitee.com/RandolphCYG/akita/pkg/serializer"
 	"gitee.com/RandolphCYG/akita/pkg/util"
 	"gitee.com/RandolphCYG/akita/pkg/wework/api"
@@ -148,8 +147,8 @@ func SyncLdapUsers() {
 			json.Unmarshal([]byte(u), &user) // 反序列化
 			if user.Stat == "离职" {
 				userStat = "546"
-				dn = bootstrap.LdapField.BaseDnDisabled // 禁用部门
-				expire = 0                              // 账号失效
+				dn = model.LdapFields.BaseDnDisabled // 禁用部门
+				expire = 0                           // 账号失效
 			} else { // 在职员工
 				userStat = "544"                      // 账号有效
 				dn = ldap.DepartToDn(user.Department) // 将部门转换为DN
@@ -325,7 +324,7 @@ func HandleUuapDuplicateRegister(user *ldap.LdapAttributes, order order.WeworkOr
 	}
 
 	// 初始化连接
-	err = ldap.Init(&bootstrap.LdapCfg)
+	err = ldap.Init(&model.LdapCfgs)
 	if err != nil {
 		log.Error("Fail to get ldap connection, err: ", err)
 		return

@@ -12,16 +12,6 @@ type TaskField struct {
 	Name string `form:"name" json:"name" xml:"name" binding:"required"`
 }
 
-// StartAll 注册所有用户定时任务
-func StartAll(ctx *gin.Context) {
-	if err := ctx.ShouldBind(0); err == nil {
-		res := task.StartAll()
-		ctx.JSON(200, res)
-	} else {
-		ctx.JSON(200, err)
-	}
-}
-
 // TaskStart 启动定时任务
 func TaskStart(ctx *gin.Context) {
 	var taskField TaskField

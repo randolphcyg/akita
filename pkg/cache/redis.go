@@ -9,11 +9,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-/*
-TODO:序列化与反序列化需要优化并测试其他类型的数据
-需要增加删除和修改封装，暂时没需要
-*/
-
 // 最新版本的redis需要传上下文参数
 var ctx = context.Background()
 
@@ -55,35 +50,11 @@ func Init(c *Config) (err error) {
 	return
 }
 
-// func serializer(value interface{}) ([]byte, error) {
-// 	var buffer bytes.Buffer
-// 	enc := gob.NewEncoder(&buffer)
-// 	storeValue := item{
-// 		Value: value,
-// 	}
-// 	err := enc.Encode(storeValue)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return buffer.Bytes(), nil
-// }
-
 // Serializer 序列化 将go结构体对象转换为字节流
 func Serializer(value interface{}) (res []byte, err error) {
 	res, err = json.Marshal(value)
 	return
 }
-
-// func deserializer(value []byte) (interface{}, error) {
-// 	var res item
-// 	buffer := bytes.NewReader(value)
-// 	dec := gob.NewDecoder(buffer)
-// 	err := dec.Decode(&res)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return res.Value, nil
-// }
 
 // Deserializer 反序列化 将字节流转换为go结构体对象
 func Deserializer(value []byte, res interface{}) (interface{}, error) {

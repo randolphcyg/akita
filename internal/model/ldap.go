@@ -8,7 +8,12 @@ import (
 	"gorm.io/gorm"
 )
 
-// LdapCfg LDAP服务器连接配置
+var (
+	LdapCfgs   LdapCfg
+	LdapFields LdapField
+)
+
+// LdapConnCfg LDAP服务器连接配置
 type LdapCfg struct {
 	gorm.Model
 	// 连接地址

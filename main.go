@@ -30,9 +30,9 @@ func init() {
 
 func main() {
 	api := router.InitRouter()
-	log.Info("Success to listen server on " + conf.Conf.System.Addr)
+	log.Info("Success to listen server on " + "http://" + conf.Conf.System.Addr)
 
 	if err := api.Run(conf.Conf.System.Addr); err != nil {
-		log.Error("Fail to listen server on "+conf.Conf.System.Addr, err)
+		log.Error("Fail to listen server on "+"http://"+conf.Conf.System.Addr, err)
 	}
 }

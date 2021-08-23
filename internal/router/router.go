@@ -75,7 +75,6 @@ func router() *gin.Engine {
 
 		// 任务
 		tasks := v1.Group("tasks")
-		tasks.GET("startall", handler.StartAll)  // 注册并启动所有定时任务
 		tasks.GET("fetchall", handler.FetchAll)  // 停止定时任务
 		tasks.POST("start", handler.TaskStart)   // 启动定时任务
 		tasks.POST("remove", handler.TaskRemove) // 移除定时任务

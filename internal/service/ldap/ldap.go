@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"gitee.com/RandolphCYG/akita/bootstrap"
 	"gitee.com/RandolphCYG/akita/internal/model"
 	"gitee.com/RandolphCYG/akita/pkg/util"
 	"github.com/go-ldap/ldap/v3"
@@ -104,7 +103,7 @@ func Init(c *model.LdapCfg) (err error) {
 // 多条件查询用户 返回符合搜索条件的用户列表
 func FetchLdapUsers(user *LdapAttributes) (result []*ldap.Entry) {
 	// 初始化连接
-	err := Init(&bootstrap.LdapCfg)
+	err := Init(&model.LdapCfgs)
 	if err != nil {
 		log.Error("Fail to get ldap connection, err: ", err)
 	}
@@ -147,7 +146,7 @@ func FetchLdapUsers(user *LdapAttributes) (result []*ldap.Entry) {
 	searchFilter = "(&" + searchFilter + ")"
 
 	searchRequest := ldap.NewSearchRequest(
-		bootstrap.LdapCfg.BaseDn,
+		model.LdapCfgs.BaseDn,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
 		searchFilter,
 		attrs,
@@ -176,7 +175,7 @@ func ExpireTime(expireDays int64) (expireTimestamp int64) {
 // AddUser 新增用户
 func AddUser(user *LdapAttributes) (pwd string, err error) {
 	// 初始化连接
-	err = Init(&bootstrap.LdapCfg)
+	err = Init(&model.LdapCfgs)
 	if err != nil {
 		log.Error("Fail to get ldap connection, err:", err)
 		return
@@ -225,7 +224,7 @@ func AddUser(user *LdapAttributes) (pwd string, err error) {
 // RetrievePwd 密码找回
 func (user *LdapAttributes) RetrievePwd() (sam string, newPwd string, err error) {
 	// 初始化连接
-	err = Init(&bootstrap.LdapCfg)
+	err = Init(&model.LdapCfgs)
 	if err != nil {
 		log.Error("Fail to get ldap connection, err: ", err)
 		return
@@ -253,7 +252,7 @@ func (user *LdapAttributes) RetrievePwd() (sam string, newPwd string, err error)
 // ModifyPwd 修改用户密码 这种修改密码的方法有延迟性 大约五分钟，新旧密码都能使用
 func (user *LdapAttributes) ModifyPwd(newUserPwd string) (err error) {
 	// 初始化连接
-	err = Init(&bootstrap.LdapCfg)
+	err = Init(&model.LdapCfgs)
 	if err != nil {
 		log.Error("Fail to get ldap connection, err: ", err)
 		return
@@ -281,7 +280,7 @@ func (user *LdapAttributes) ModifyPwd(newUserPwd string) (err error) {
  */
 func FetchUser(user *LdapAttributes) (result *ldap.Entry, err error) {
 	// 初始化连接
-	err = Init(&bootstrap.LdapCfg)
+	err = Init(&model.LdapCfgs)
 	if err != nil {
 		log.Error("Fail to get ldap connection, err: ", err)
 		return
@@ -296,7 +295,7 @@ func FetchUser(user *LdapAttributes) (result *ldap.Entry, err error) {
 	searchFilter = "(&" + searchFilter + ")"
 
 	searchRequest := ldap.NewSearchRequest(
-		bootstrap.LdapCfg.BaseDn,
+		model.LdapCfgs.BaseDn,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
 		searchFilter,
 		attrs,
@@ -318,7 +317,7 @@ func FetchUser(user *LdapAttributes) (result *ldap.Entry, err error) {
 // ModifyDn 修改dn
 func (user *LdapAttributes) ModifyDn(cn string) {
 	// 初始化连接
-	err := Init(&bootstrap.LdapCfg)
+	err := Init(&model.LdapCfgs)
 	if err != nil {
 		log.Error("Fail to get ldap connection, err: ", err)
 	}
@@ -334,7 +333,7 @@ func (user *LdapAttributes) ModifyDn(cn string) {
 // MoveDn 移动dn
 func (user *LdapAttributes) MoveDn(newOu string) (err error) {
 	// 初始化连接
-	err = Init(&bootstrap.LdapCfg)
+	err = Init(&model.LdapCfgs)
 	if err != nil {
 		log.Error("Fail to get ldap connection, err: ", err)
 		return
@@ -353,7 +352,7 @@ func (user *LdapAttributes) MoveDn(newOu string) (err error) {
 // NewUser 将 ldap.Entry 类型转换为自定义类型 LdapAttributes
 func NewUser(entry *ldap.Entry) *LdapAttributes {
 	// 初始化连接
-	err := Init(&bootstrap.LdapCfg)
+	err := Init(&model.LdapCfgs)
 	if err != nil {
 		log.Error("Fail to get ldap connection, err: ", err)
 	}
@@ -381,7 +380,7 @@ func NewUser(entry *ldap.Entry) *LdapAttributes {
 // Update 更新用户信息
 func (user *LdapAttributes) Update() (err error) {
 	// 初始化连接
-	err = Init(&bootstrap.LdapCfg)
+	err = Init(&model.LdapCfgs)
 	if err != nil {
 		log.Error("Fail to get ldap connection, err: ", err)
 		return
@@ -453,7 +452,7 @@ func (user *LdapAttributes) Update() (err error) {
 // ModifyInfo 人工修改用户信息
 func (user *LdapAttributes) ModifyInfo() (err error) {
 	// 初始化连接
-	err = Init(&bootstrap.LdapCfg)
+	err = Init(&model.LdapCfgs)
 	if err != nil {
 		log.Error("Fail to get ldap connection, err: ", err)
 	}
@@ -505,12 +504,12 @@ func (user *LdapAttributes) ModifyInfo() (err error) {
 // 查询OU是否存在
 func IsOuExist(newOu string) (isOuExist bool) {
 	// 初始化连接
-	err := Init(&bootstrap.LdapCfg)
+	err := Init(&model.LdapCfgs)
 	if err != nil {
 		log.Error("Fail to get ldap connection, err: ", err)
 	}
 	searchRequest := ldap.NewSearchRequest(
-		bootstrap.LdapCfg.BaseDn,
+		model.LdapCfgs.BaseDn,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
 		"(&(objectClass=organizationalUnit)(distinguishedName="+newOu+"))",
 		attrs,
@@ -532,7 +531,7 @@ func IsOuExist(newOu string) (isOuExist bool) {
 // AddOu 新增OU 只处理当前OU，不考虑父子OU
 func AddOu(newOu string) {
 	// 初始化连接
-	err := Init(&bootstrap.LdapCfg)
+	err := Init(&model.LdapCfgs)
 	if err != nil {
 		log.Error("Fail to get ldap connection, err: ", err)
 	}
@@ -565,10 +564,10 @@ func CheckOuTree(newOu string) {
 func DepartToDn(depart string) (dn string) {
 	// 从内存中获取公司列表
 	var companies map[string]model.CompanyType
-	json.Unmarshal([]byte(bootstrap.LdapField.CompanyType), &companies)
+	json.Unmarshal([]byte(model.LdapFields.CompanyType), &companies)
 	// 如果是外部公司用户
 	if companies[strings.Split(depart, ".")[0]].IsOuter {
-		depart = DnToDepart(bootstrap.LdapField.BasicPullNode) + ".合作伙伴." + depart
+		depart = DnToDepart(model.LdapFields.BasicPullNode) + ".合作伙伴." + depart
 	}
 
 	ous := strings.Split(depart, ".")
@@ -578,7 +577,7 @@ func DepartToDn(depart string) (dn string) {
 		reversedOus = append(reversedOus, ous[len(ous)-i-1])
 	}
 	dn = strings.Join(reversedOus, ",OU=")
-	dn = "OU=" + dn + "," + bootstrap.LdapCfg.BaseDn
+	dn = "OU=" + dn + "," + model.LdapCfgs.BaseDn
 	return
 }
 
@@ -614,7 +613,7 @@ func Reverse(s []string) []string {
 // ldap用户方法——禁用用户
 func (user *LdapAttributes) Disable() (err error) {
 	// 初始化连接
-	err = Init(&bootstrap.LdapCfg)
+	err = Init(&model.LdapCfgs)
 	if err != nil {
 		log.Error("Fail to get ldap connection, err: ", err)
 		return
@@ -635,8 +634,8 @@ func (user *LdapAttributes) Disable() (err error) {
 	}
 
 	// 对用户DN进行更新
-	CheckOuTree(bootstrap.LdapField.BaseDnDisabled)
-	err = user.MoveDn(bootstrap.LdapField.BaseDnDisabled)
+	CheckOuTree(model.LdapFields.BaseDnDisabled)
+	err = user.MoveDn(model.LdapFields.BaseDnDisabled)
 	return
 }
 
@@ -644,7 +643,7 @@ func (user *LdapAttributes) Disable() (err error) {
 func (user *LdapAttributes) Renewal() (err error) {
 	expireTimeStampStr := strconv.FormatInt(user.Expire, 10)
 	// 初始化连接
-	err = Init(&bootstrap.LdapCfg)
+	err = Init(&model.LdapCfgs)
 	if err != nil {
 		log.Error("Fail to get ldap connection, err: ", err)
 		return

@@ -6,13 +6,12 @@ import (
 	"fmt"
 	"strconv"
 
-	"gitee.com/RandolphCYG/akita/bootstrap"
 	"gitee.com/RandolphCYG/akita/internal/model"
 	"gitee.com/RandolphCYG/akita/internal/service/conn"
+	"gitee.com/RandolphCYG/akita/internal/service/ldap"
 	"gitee.com/RandolphCYG/akita/internal/service/user"
 	"gitee.com/RandolphCYG/akita/pkg/c7n"
 	"gitee.com/RandolphCYG/akita/pkg/cache"
-	"gitee.com/RandolphCYG/akita/pkg/ldap"
 	"gitee.com/RandolphCYG/akita/pkg/util"
 	"gitee.com/RandolphCYG/akita/pkg/wework/api"
 	"gitee.com/RandolphCYG/akita/pkg/wework/order"
@@ -119,7 +118,7 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 		var companyTypes map[string]model.CompanyType
 		displayName := []rune(applicant.DisplayName)
 		cn := string(displayName) + applicant.Eid
-		companyTypes, err = conn.Str2CompanyTypes(bootstrap.LdapField.CompanyType)
+		companyTypes, err = conn.Str2CompanyTypes(model.LdapFields.CompanyType)
 		if err != nil {
 			log.Error("Fail to deserialize str, err: ", err)
 			return
@@ -135,13 +134,13 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 		// 不同公司个性化用户名与OU
 		if isOutsideComp {
 			sam = companyTypes[applicant.Company].Prefix + applicant.Eid // 用户名带前缀
-			dn = "CN=" + cn + ",OU=" + applicant.Company + "," + bootstrap.LdapField.BaseDnOuter
+			dn = "CN=" + cn + ",OU=" + applicant.Company + "," + model.LdapFields.BaseDnOuter
 			expire = ldap.ExpireTime(int64(90)) // 90天过期
 			weworkExpireStr = util.ExpireStr(90)
 			weworkDepartId = 79 // 外部公司企业微信部门为合作伙伴
 		} else { // 公司内部人员默认放到待分配区 后面每天程序自动将用户架构刷新
 			sam = applicant.Eid
-			dn = "CN=" + cn + "," + bootstrap.LdapField.BaseDnToBeAssigned
+			dn = "CN=" + cn + "," + model.LdapFields.BaseDnToBeAssigned
 			expire = ldap.ExpireTime(int64(-1)) // 永不过期
 			weworkDepartId = 69                 // 本公司企业微信部门为待分配
 		}
