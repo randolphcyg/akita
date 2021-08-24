@@ -2,15 +2,16 @@ package task
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"gitee.com/RandolphCYG/akita/internal/service/user"
 	"gitee.com/RandolphCYG/akita/internal/service/wework"
 	"gitee.com/RandolphCYG/akita/pkg/c7n"
 	"gitee.com/RandolphCYG/akita/pkg/serializer"
 	"github.com/robfig/cron/v3"
+	"github.com/sirupsen/logrus"
 )
 
+var log = logrus.New()
 var C *cron.Cron
 
 // JobWapper 包装塞入方法名
@@ -41,6 +42,7 @@ var ScanExpiredLdapUsers = user.ScanExpiredLdapUsers
 var ScanExpiredWeworkUsers = wework.ScanExpiredWeworkUsers
 var ScanNewHrUsers = wework.ScanNewHrUsers
 var CacheC7nProjects = c7n.CacheC7nProjects
+var UpdateC7nUsers = c7n.UpdateC7nUsers
 
 // crontab表达式检查 https://crontab.guru/
 func init() {
@@ -49,6 +51,12 @@ func init() {
 	C.Start()
 	AllTasks = make(map[string]JobWapper) // 注册任务
 	CurrentTasks = make(map[string]Job)   // 初始化当前所有任务
+
+	// 同步ldap用户到C7N【频繁】
+	AllTasks["UpdateC7nUsers"] = JobWapper{
+		Cron: "*/3 * * * *",
+		Func: UpdateC7nUsers,
+	}
 
 	// 更新HR用户缓存【频繁】
 	AllTasks["CacheHrUsers"] = JobWapper{
@@ -94,7 +102,7 @@ func StartAll() {
 		enterId, _ := C.AddJob(t.Cron, JobWapper{name, t.Cron, t.Func}) // cron.EntryID(len(C.Entries()) - 1),
 		CurrentTasks[name] = Job{enterId}
 	}
-	fmt.Println("启动全部定时任务成功, :", CurrentTasks)
+	log.Info("启动全部定时任务成功, :", CurrentTasks)
 }
 
 // TaskSart 启动定时任务 TODO bug 无法将定时任务序列化返回
@@ -108,8 +116,7 @@ func TaskSart(taskName string) serializer.Response {
 		enterId, _ := C.AddJob(t.Cron, JobWapper{taskName, t.Cron, t.Func}) // cron.EntryID(len(C.Entries()) - 1),
 		CurrentTasks[taskName] = Job{enterId}
 	}
-	fmt.Println("动态添加定时任务，当前所有任务:", C.Entries())
-	fmt.Println("所有任务", CurrentTasks)
+	log.Info("动态添加定时任务，当前所有任务:", C.Entries(), "所有任务CurrentTasks:", CurrentTasks)
 	res, _ := json.Marshal(CurrentTasks)
 	return serializer.Response{Msg: "启动定时任务[" + taskName + "]成功!", Data: string(res)}
 }
@@ -122,21 +129,21 @@ func TaskRemove(taskName string) serializer.Response {
 		C.Remove(CurrentTasks[taskName].Id)
 		delete(CurrentTasks, taskName)
 	}
-	fmt.Println("动态移除定时任务，当前剩余任务:", CurrentTasks)
+	log.Info("动态移除定时任务，当前剩余任务:", CurrentTasks)
 	return serializer.Response{Msg: "移除定时任务[" + taskName + "]成功!", Data: 0}
 }
 
 //  FetchTasks 查询所有任务 TODO bug 无法将定时任务序列化返回
 func FetchTasks() serializer.Response {
 	res, _ := json.Marshal(CurrentTasks)
-	fmt.Println("当前所有任务:", CurrentTasks)
+	log.Info("当前所有任务CurrentTasks:", CurrentTasks)
 	return serializer.Response{Data: string(res)}
 }
 
 // TaskStop 停止所有定时任务
 func TaskStop() serializer.Response {
-	fmt.Println("停止之前当前所有任务:", C.Entries())
+	log.Info("停止之前当前所有任务:", C.Entries())
 	C.Stop()
-	fmt.Println("停止后当前所有任务:", C.Entries())
+	log.Info("停止后当前所有任务:", C.Entries())
 	return serializer.Response{Msg: "停止所有定时任务成功，在执行中的不会被打断!"}
 }

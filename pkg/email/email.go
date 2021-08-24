@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"net/smtp"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/jordan-wright/email"
+	"github.com/sirupsen/logrus"
 )
+
+var log = logrus.New()
 
 // Config email config
 type Config struct {

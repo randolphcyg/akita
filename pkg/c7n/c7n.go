@@ -9,8 +9,10 @@ import (
 	"gitee.com/RandolphCYG/akita/pkg/cache"
 	"gitee.com/RandolphCYG/akita/pkg/serializer"
 	"github.com/kirinlabs/HttpRequest"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
+
+var log = logrus.New()
 
 // C7nToken 获取 c7n token 接口返回数据结构体
 type C7nToken struct {
@@ -249,8 +251,16 @@ func AssignC7nUserProjectRole(c7nProjectId string, c7nUserId string, c7nRoleIds 
 	return
 }
 
+// UpdateC7nUsersManual 手动触发LDAP用户同步到C7N
+func UpdateC7nUsersManual() serializer.Response {
+	go func() {
+		UpdateC7nUsers()
+	}()
+	return serializer.Response{Data: 0, Msg: "手动触发LDAP用户同步到C7N成功!"}
+}
+
 // UpdateC7nUsers 同步c7n ldap用户
-func UpdateC7nUsers() (err error) {
+func UpdateC7nUsers() {
 	// 取token
 	header, err := FetchToken()
 	if err != nil {

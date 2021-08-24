@@ -2,8 +2,10 @@ package hr
 
 import (
 	"github.com/kirinlabs/HttpRequest"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
+
+var log = logrus.New()
 
 // HrToken 获取token接口返回数据结构体
 type HrToken struct {

@@ -7,9 +7,10 @@ import (
 	"gitee.com/RandolphCYG/akita/pkg/cache"
 	"gitee.com/RandolphCYG/akita/pkg/email"
 	"gitee.com/RandolphCYG/akita/pkg/hr"
-
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
+
+var log = logrus.New()
 
 // Init 初始化启动
 func Init(cfg string) {
@@ -20,6 +21,7 @@ func Init(cfg string) {
 	if err != nil {
 		panic(err)
 	}
+
 	// 初始化 db
 	model.Init(&c.Database)
 	// 数据迁移
@@ -55,8 +57,13 @@ func Init(cfg string) {
 		log.Error("初始化企业微信通讯录管理配置信息错误, err: ", err)
 	}
 
-	// 初始化crontab
-	log.Info("Init crontab Scheduler...")
-	task.StartAll()
-	log.Info("Init crontab Scheduler successful...")
+	// 初始化定时任务
+	if c.System.Debug {
+		log.Warn("debug模式不开启定时任务")
+	} else {
+		log.Info("Init crontab Scheduler...")
+		task.StartAll()
+		log.Info("Init crontab Scheduler successful...")
+	}
+
 }

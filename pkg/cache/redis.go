@@ -6,8 +6,10 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
+
+var log = logrus.New()
 
 // 最新版本的redis需要传上下文参数
 var ctx = context.Background()

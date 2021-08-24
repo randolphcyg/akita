@@ -11,9 +11,11 @@ import (
 	"gitee.com/RandolphCYG/akita/internal/model"
 	"gitee.com/RandolphCYG/akita/pkg/util"
 	"github.com/go-ldap/ldap/v3"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/text/encoding/unicode"
 )
+
+var log = logrus.New()
 
 // 禁用/启用用户的 UserAccountControl 状态码
 var DisabledLdapUserCodes = [5]int32{514, 546, 66050, 66080, 66082}

@@ -7,13 +7,15 @@ import (
 	"gitee.com/RandolphCYG/akita/internal/model"
 	"github.com/goinggo/mapstructure"
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // 全局变量
 var (
 	WeworkCfg *model.WeworkCfg
 )
+
+var log = logrus.New()
 
 // 企业微信工单结构体
 type WeworkOrder struct {

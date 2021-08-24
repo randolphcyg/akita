@@ -12,8 +12,10 @@ import (
 
 	"github.com/kirinlabs/HttpRequest"
 	"github.com/nosixtools/solarlunar/festival"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
+
+var log = logrus.New()
 
 // IsFestival 判断是否为节日
 func IsFestival(t time.Time) (isFestival bool, result []string) {

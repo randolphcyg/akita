@@ -2,7 +2,7 @@
 
 ## 1. 项目介绍
 
-此项目负责管理active diretory(ldap)用户和处理企业微信工单，做到用户从入职到离职整个生命周期的账号自治，用户主要用企业微信工单与管理员、后端系统交互。发信可以配置成企业微信通知和邮件通知。
+此项目负责管理active diretory(ldap)用户和处理企业微信工单，做到用户从入职到离职整个生命周期的账号自治，用户主要用企业微信工单与管理员、后端系统交互。发信可以配置成企业微信和邮件通知。
 
 ## 2. 启动
 
@@ -20,7 +20,7 @@ GET：http://127.0.0.1:8099/api/v1/ldap/user/start
 
 ### `/pkg`
 
-其他项目也可以引用的公共包，redis、mysql、ldap、log、email、crontab、wework自己封装的库。
+其他项目也可以引用的公共包，redis、mysql、log、email、crontab、wework的封装
 
 ### `/web`
 
@@ -41,7 +41,7 @@ system:
 database:
   Type: mysql
   UserName: root
-  Password: adqwe123
+  Password: root
   Addr: 127.0.0.1:3306
   Name: akita
   ShowLog: true                   # 是否打印SQL日志
@@ -76,4 +76,3 @@ email:
   ReplyTo: NULL                         # 回复地址
   KeepAlive: 30                         # 连接保持时长
 ```
-

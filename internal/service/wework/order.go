@@ -15,7 +15,6 @@ import (
 	"gitee.com/RandolphCYG/akita/pkg/util"
 	"gitee.com/RandolphCYG/akita/pkg/wework/api"
 	"gitee.com/RandolphCYG/akita/pkg/wework/order"
-	log "github.com/sirupsen/logrus"
 )
 
 // Order 企业微信工单查询条件
@@ -196,7 +195,7 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 			}
 
 			// 执行初始化 猪齿鱼 操作
-			err = c7n.UpdateC7nUsers()                                             // 更新ldap用户
+			c7n.UpdateC7nUsers()                                                   // 更新ldap用户
 			c7nUser, _ := c7n.FtechC7nUser(applicant.DisplayName, applicant.Eid)   // 将新ldap用户添加到默认空项目
 			role, _ := c7n.FetchC7nRoles("项目成员")                                   // 获取项目成员角色的ID
 			err = c7n.AssignC7nUserProjectRole("4", c7nUser.Id, []string{role.Id}) // 分配角色

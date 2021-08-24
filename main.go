@@ -15,7 +15,6 @@ import (
 	"gitee.com/RandolphCYG/akita/internal/conf"
 	"gitee.com/RandolphCYG/akita/internal/router"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 )
 
@@ -26,9 +25,8 @@ func init() {
 }
 
 func main() {
-	api := router.InitRouter()
-	if err := api.Run(conf.Conf.System.Addr); err != nil {
-		log.Error("Fail to listen server on "+"http://"+conf.Conf.System.Addr, err)
+	engine := router.InitRouter() // 初始化路由
+	if err := engine.Run(conf.Conf.System.Addr); err == nil {
+		panic("Fail to listen server on " + "http://" + conf.Conf.System.Addr + " ERR: " + err.Error())
 	}
-	log.Info("Success to listen server on " + "http://" + conf.Conf.System.Addr)
 }
