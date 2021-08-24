@@ -240,7 +240,7 @@ func IsExpire(expireDateStr string) bool {
 // SendRobotMsg 发送机器人信息
 func SendRobotMsg(msg string) {
 	// 从缓存取url
-	weworkRobot, err := cache.HGet("third_party_sys_cfg", "wework_robot")
+	weworkRobotStaffChangesNotifier, err := cache.HGet("third_party_sys_cfg", "wework_robot_staff_changes_notifier")
 	if err != nil {
 		log.Error("读取三方系统-c7n配置错误: ", err)
 		return
@@ -254,7 +254,7 @@ func SendRobotMsg(msg string) {
 	}
 
 	msgPkg, _ := json.Marshal(data)
-	res, err := req.Post(weworkRobot, msgPkg)
+	res, err := req.Post(weworkRobotStaffChangesNotifier, msgPkg)
 	if err != nil {
 		// 抛错
 		log.Error("Fail to fetch token, err: ", err)
