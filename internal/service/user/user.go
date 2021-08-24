@@ -319,7 +319,7 @@ func HandleExpiredLdapUsers(user *ldap.LdapAttributes, expireDays int) (err erro
 // HandleUuapDuplicateRegister 处理重复注册
 func HandleUuapDuplicateRegister(user *ldap.LdapAttributes, order order.WeworkOrderDetailsAccountsRegister) (err error) {
 	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
-	duplicateRegisterUuapWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_uuap_duplicate_register")
+	duplicateRegisterUuapUserWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_uuap_user_duplicate_register")
 	if err != nil {
 		log.Error("读取企业微信消息模板错误: ", err)
 	}
@@ -339,13 +339,13 @@ func HandleUuapDuplicateRegister(user *ldap.LdapAttributes, order order.WeworkOr
 		"msgtype": "markdown",
 		"agentid": model.WeworkUuapCfg.AppId,
 		"markdown": map[string]interface{}{
-			"content": fmt.Sprintf(duplicateRegisterUuapWeworkMsgTemplate, order.SpName, user.DisplayName, sam),
+			"content": fmt.Sprintf(duplicateRegisterUuapUserWeworkMsgTemplate, order.SpName, user.DisplayName, sam),
 		},
 	})
 	if err != nil {
 		log.Error("Fail to send wework msg, err: ", err)
 		// TODO 发送企业微信消息错误，应当考虑重发逻辑
 	}
-	log.Info("企业微信回执消息:工单【" + order.SpName + "】用户【" + order.Userid + "】姓名【" + user.DisplayName + "】工号【" + user.Num + "】状态【已注册过的用户】")
+	log.Info("企业微信回执消息:工单【" + order.SpName + "】用户【" + order.Userid + "】姓名【" + user.DisplayName + "】工号【" + user.Num + "】状态【已注册过的UUAP用户】")
 	return
 }

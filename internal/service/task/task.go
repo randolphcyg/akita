@@ -65,7 +65,7 @@ func init() {
 	}
 	// 更新企业微信用户缓存【频繁】
 	AllTasks["CacheWeworkUsers"] = JobWapper{
-		Cron: "10 8-22 * * *",
+		Cron: "10 7-22 * * *",
 		Func: CacheWeworkUsers,
 	}
 	// 更新c7n项目缓存【频繁】
@@ -75,7 +75,7 @@ func init() {
 	}
 	// 全量为内部新用户创建企业微信账号【每天 工作时间】 依赖HR缓存和企业微信缓存
 	AllTasks["ScanNewHrUsers"] = JobWapper{
-		Cron: "25 9-15 * * *",
+		Cron: "25 9-17 * * *",
 		Func: ScanNewHrUsers,
 	}
 	// 扫描过期ldap用户并发通知【每天一次】

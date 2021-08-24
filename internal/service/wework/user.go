@@ -144,7 +144,7 @@ func CacheWeworkUsers() {
 func FetchUser(eid string) (userDetails UserDetails, err error) {
 	user, err := cache.HGet("wework_users", eid)
 	if err != nil {
-		// log.Error("无此用户: ", err)
+		err = errors.New("无此用户: " + err.Error())
 		return
 	}
 	json.Unmarshal([]byte(user), &userDetails)

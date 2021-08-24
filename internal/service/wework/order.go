@@ -176,13 +176,19 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 		}
 
 		if _, ok := platforms["企业微信"]; ok {
-			// 执行生成 企业微信账号 操作
-			err = CreateUser(userInfos)
-			if err != nil {
-				log.Error("Fail to create user by wework order, ", err)
-				model.CreateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "自动创建失败, "+err.Error())
+			weworkUser, err := FetchUser(userInfos.Num)
+			if err == nil && weworkUser.Userid != "" && weworkUser.Name == userInfos.DisplayName {
+				HandleWeworkDuplicateRegister(o, userInfos)
+			} else {
+				// 执行生成 企业微信账号 操作
+				err = CreateUser(userInfos)
+				if err != nil {
+					log.Error("Fail to create user by wework order, ", err)
+					model.CreateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "自动创建失败, "+err.Error())
+				}
+				model.CreateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "新用户 工单填写公司["+userInfos.Company+"]自动分配至企微部门["+strconv.Itoa(userInfos.WeworkDepartId)+"]")
 			}
-			model.CreateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "新用户 工单填写公司["+userInfos.Company+"]自动分配至企微部门["+strconv.Itoa(userInfos.WeworkDepartId)+"]")
+
 		}
 
 		if _, ok := platforms["猪齿鱼"]; ok {
@@ -216,6 +222,39 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 			// TODO 执行初始化 UVPN 操作
 		}
 	}
+	return
+}
+
+// HandleWeworkDuplicateRegister 处理企业微信用户重复注册
+func HandleWeworkDuplicateRegister(o order.WeworkOrderDetailsAccountsRegister, user *ldap.LdapAttributes) (err error) {
+	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
+	duplicateRegisterWeworkUserWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_wework_user_duplicate_register")
+	if err != nil {
+		log.Error("读取企业微信消息模板错误: ", err)
+	}
+
+	// 初始化连接
+	err = ldap.Init(&model.LdapCfgs)
+	if err != nil {
+		log.Error("Fail to get ldap connection, err: ", err)
+		return
+	}
+
+	entry, _ := ldap.FetchUser(user)
+	sam := entry.GetAttributeValue("sAMAccountName")
+
+	_, err = corpAPIMsg.MessageSend(map[string]interface{}{
+		"touser":  o.Userid,
+		"msgtype": "markdown",
+		"agentid": model.WeworkUuapCfg.AppId,
+		"markdown": map[string]interface{}{
+			"content": fmt.Sprintf(duplicateRegisterWeworkUserWeworkMsgTemplate, o.SpName, user.DisplayName, sam),
+		},
+	})
+	if err != nil {
+		log.Error("Fail to send wework msg, err: ", err)
+	}
+	log.Info("企业微信回执消息:工单【" + o.SpName + "】用户【" + o.Userid + "】姓名【" + user.DisplayName + "】工号【" + user.Num + "】状态【已注册过的企业微信用户】")
 	return
 }
 
