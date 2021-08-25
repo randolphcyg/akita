@@ -76,6 +76,7 @@ func ScanExpiredLdapUsers() {
 				HandleExpiredLdapUsers(ldapUser, expireDays) // 处理过期账号
 			}
 		}
+
 	}
 }
 
