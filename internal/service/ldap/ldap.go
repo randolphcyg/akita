@@ -149,13 +149,13 @@ func FetchLdapUsers(user *LdapAttributes) (result []*ldap.Entry) {
 
 	searchRequest := ldap.NewSearchRequest(
 		model.LdapCfgs.BaseDn,
-		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
+		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 500, 0, false,
 		searchFilter,
 		attrs,
 		nil,
 	)
 
-	sr, err := LdapConn.Search(searchRequest)
+	sr, err := LdapConn.SearchWithPaging(searchRequest, 100)
 	if err != nil {
 		log.Error("Fail to search users, err: ", err)
 	}

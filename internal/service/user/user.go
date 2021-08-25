@@ -72,7 +72,7 @@ func ScanExpiredLdapUsers() {
 			if expireDays >= -7 && expireDays <= 14 { // 未/已经过期 7 天内的账号
 				ldapUser := ldap.NewUser(u) // 初始化速度较慢 适用定时异步任务处理少量数据
 				// expireLdapUsers = append(expireLdapUsers, ldapUser)
-				log.Info(ldapUser, "过期天数: ", expireDays)
+				log.Info(ldapUser, " 过期天数: ", expireDays)
 				HandleExpiredLdapUsers(ldapUser, expireDays) // 处理过期账号
 			}
 		}
@@ -302,7 +302,11 @@ func HandleExpiredLdapUsers(user *ldap.LdapAttributes, expireDays int) (err erro
 	if expireDays == 7 || expireDays == 14 { // 即将过期提醒 7|14天前
 		address := []string{user.Email}
 		htmlContent := fmt.Sprintf(emailTempUuaplateExpiring, user.DisplayName, user.Sam, strconv.Itoa(expireDays))
-		email.SendMailHtml(address, "UUAP账号即将过期通知", htmlContent)
+		err = email.SendMailHtml(address, "UUAP账号即将过期通知", htmlContent)
+		if err != nil {
+			log.Error("发邮件错误: ", err)
+			return
+		}
 		log.Info("邮件发送成功！用户【" + user.DisplayName + "】账号【" + user.Sam + "】状态【即将过期】")
 	} else if expireDays == -7 { // 已经过期提醒 7天后
 		address := []string{user.Email}
