@@ -2,6 +2,7 @@ package log
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"time"
@@ -15,6 +16,7 @@ import (
 var (
 	logFilePath = "./"
 	logFileName = "akita.log"
+	Log         *logrus.Logger
 )
 
 func LogerMiddleware() gin.HandlerFunc {
@@ -26,12 +28,21 @@ func LogerMiddleware() gin.HandlerFunc {
 		fmt.Println("Open log file err:", err)
 	}
 	// 实例化
-	logger := logrus.New()
+	Log = logrus.New()
 	//设置日志级别
-	logger.SetLevel(logrus.DebugLevel)
+	Log.SetLevel(logrus.DebugLevel)
 	logrus.SetReportCaller(true)
 	//设置输出
-	logger.Out = src
+	writers := []io.Writer{
+		src,
+		os.Stdout}
+	// Log.Out = src
+	fileAndStdoutWriter := io.MultiWriter(writers...)
+	if err == nil {
+		Log.SetOutput(fileAndStdoutWriter)
+	} else {
+		Log.Info("failed to log to file.")
+	}
 
 	// 设置 rotatelogs
 	logWriter, err := rotatelogs.New(
@@ -52,7 +63,7 @@ func LogerMiddleware() gin.HandlerFunc {
 		logrus.PanicLevel: logWriter,
 	}
 
-	logger.AddHook(lfshook.NewHook(writeMap, &logrus.JSONFormatter{
+	Log.AddHook(lfshook.NewHook(writeMap, &logrus.JSONFormatter{
 		TimestampFormat: "2006-01-02 2006-01-02 15:04:05.000",
 	}))
 
@@ -64,12 +75,12 @@ func LogerMiddleware() gin.HandlerFunc {
 		reqMethod := c.Request.Method         //请求方式
 		reqUrl := c.Request.RequestURI        //请求路由
 		statusCode := c.Writer.Status()       //状态码
-		clientIP := c.ClientIP()              //请求IP
+		remoteIP, _ := c.RemoteIP()           //请求IP
 		// 日志格式
-		logger.WithFields(logrus.Fields{
+		Log.WithFields(logrus.Fields{
 			"status_code":  statusCode,
 			"latency_time": latencyTime,
-			"client_ip":    clientIP,
+			"remote_ip":    remoteIP,
 			"req_method":   reqMethod,
 			"req_uri":      reqUrl,
 		}).Info()

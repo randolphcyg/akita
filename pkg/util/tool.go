@@ -8,14 +8,12 @@ import (
 	"unicode"
 	"unsafe"
 
-	"gitee.com/RandolphCYG/akita/pkg/cache"
-
 	"github.com/kirinlabs/HttpRequest"
 	"github.com/nosixtools/solarlunar/festival"
-	"github.com/sirupsen/logrus"
-)
 
-var log = logrus.New()
+	"gitee.com/RandolphCYG/akita/pkg/cache"
+	"gitee.com/RandolphCYG/akita/pkg/log"
+)
 
 // IsFestival 判断是否为节日
 func IsFestival(t time.Time) (isFestival bool, result []string) {
@@ -242,7 +240,7 @@ func SendRobotMsg(msg string) {
 	// 从缓存取url
 	weworkRobotStaffChangesNotifier, err := cache.HGet("third_party_sys_cfg", "wework_robot_staff_changes_notifier")
 	if err != nil {
-		log.Error("读取三方系统-c7n配置错误: ", err)
+		log.Log.Error("读取三方系统-c7n配置错误: ", err)
 		return
 	}
 	req := HttpRequest.NewRequest()
@@ -257,10 +255,10 @@ func SendRobotMsg(msg string) {
 	res, err := req.Post(weworkRobotStaffChangesNotifier, msgPkg)
 	if err != nil {
 		// 抛错
-		log.Error("Fail to fetch token, err: ", err)
+		log.Log.Error("Fail to fetch token, err: ", err)
 		return
 	}
-	log.Info(res.Content())
+	log.Log.Info(res.Content())
 }
 
 // TruncateMsg 裁剪企业微信机器人消息 将长消息按行判断切分，返回消息切片

@@ -4,18 +4,17 @@ import (
 	"encoding/json"
 	"strings"
 
-	"gitee.com/RandolphCYG/akita/internal/model"
 	"github.com/goinggo/mapstructure"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+
+	"gitee.com/RandolphCYG/akita/internal/model"
+	"gitee.com/RandolphCYG/akita/pkg/log"
 )
 
 // 全局变量
 var (
 	WeworkCfg *model.WeworkCfg
 )
-
-var log = logrus.New()
 
 // 企业微信工单结构体
 type WeworkOrder struct {
@@ -234,13 +233,13 @@ func ParseRawOrder(rawInfo interface{}) (orderData map[string]interface{}, err e
 	var weworkOrder WeworkOrder
 	// 反序列化工单详情
 	if err = mapstructure.Decode(rawInfo, &weworkOrder); err != nil {
-		log.Error("Fail to deserialize map to struct, err: ", err)
+		log.Log.Error("Fail to deserialize map to struct, err: ", err)
 		return
 	}
 
 	// 判断工单状态 TODO 可考虑拓展操作
 	if weworkOrder.SpStatus != 2 {
-		log.Error("The ticket is not approved, refused to handdle!")
+		log.Log.Error("The ticket is not approved, refused to handdle!")
 		return
 	}
 
@@ -374,7 +373,7 @@ func RawToAccountsRegister(weworkOrder map[string]interface{}) (orderDetails Wew
 	if _, ok := weworkOrder["姓名"]; ok {
 		var temp WeworkOrderDetailsAccountsRegisterSingle
 		if err := mapstructure.Decode(weworkOrder, &temp); err != nil {
-			log.Error("Fail to convert raw oder, err: ", err)
+			log.Log.Error("Fail to convert raw oder, err: ", err)
 		}
 		// 将单转多
 		orderDetails.Partyid = temp.Partyid
@@ -391,7 +390,7 @@ func RawToAccountsRegister(weworkOrder map[string]interface{}) (orderDetails Wew
 		})
 	} else {
 		if err := mapstructure.Decode(weworkOrder, &orderDetails); err != nil {
-			log.Error("Fail to convert raw oder, err: ", err)
+			log.Log.Error("Fail to convert raw oder, err: ", err)
 		}
 	}
 	return
@@ -408,7 +407,7 @@ type WeworkOrderDetailsUuapPwdRetrieve struct {
 // 原始工单转换为UUAP密码找回结构体
 func RawToUuapPwdRetrieve(weworkOrder map[string]interface{}) (orderDetails WeworkOrderDetailsUuapPwdRetrieve) {
 	if err := mapstructure.Decode(weworkOrder, &orderDetails); err != nil {
-		log.Error("Fail to convert raw oder, err: ", err)
+		log.Log.Error("Fail to convert raw oder, err: ", err)
 	}
 	return
 }
@@ -424,7 +423,7 @@ type WeworkOrderDetailsUuapDisable struct {
 // 原始工单转换为UUAP账号注销结构体
 func RawToUuapPwdDisable(weworkOrder map[string]interface{}) (orderDetails WeworkOrderDetailsUuapDisable) {
 	if err := mapstructure.Decode(weworkOrder, &orderDetails); err != nil {
-		log.Error("Fail to convert raw oder, err: ", err)
+		log.Log.Error("Fail to convert raw oder, err: ", err)
 	}
 	return
 }
@@ -447,7 +446,7 @@ type WeworkOrderDetailsUuapRenewal struct {
 // 原始工单转换为UUAP账号续期结构体
 func RawToUuapRenewal(weworkOrder map[string]interface{}) (orderDetails WeworkOrderDetailsUuapRenewal) {
 	if err := mapstructure.Decode(weworkOrder, &orderDetails); err != nil {
-		log.Error("Fail to convert raw oder, err: ", err)
+		log.Log.Error("Fail to convert raw oder, err: ", err)
 	}
 	return
 }
@@ -471,7 +470,7 @@ type WeworkOrderDetailsC7nAuthority struct {
 // 原始工单转换为 c7n项目权限 结构体
 func RawToC7nAuthority(weworkOrder map[string]interface{}) (orderDetails WeworkOrderDetailsC7nAuthority) {
 	if err := mapstructure.Decode(weworkOrder, &orderDetails); err != nil {
-		log.Error("Fail to convert raw oder, err: ", err)
+		log.Log.Error("Fail to convert raw oder, err: ", err)
 	}
 	return
 }

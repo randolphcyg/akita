@@ -6,13 +6,12 @@ import (
 	"net/url"
 	"strings"
 
-	"gitee.com/RandolphCYG/akita/pkg/cache"
-	"gitee.com/RandolphCYG/akita/pkg/serializer"
 	"github.com/kirinlabs/HttpRequest"
-	"github.com/sirupsen/logrus"
-)
 
-var log = logrus.New()
+	"gitee.com/RandolphCYG/akita/pkg/cache"
+	"gitee.com/RandolphCYG/akita/pkg/log"
+	"gitee.com/RandolphCYG/akita/pkg/serializer"
+)
 
 // C7nFetchTokenRes 获取 c7n token 接口返回数据结构体
 type C7nFetchTokenRes struct {
@@ -100,7 +99,7 @@ func FetchToken() (header map[string]string, err error) {
 	// 从缓存取url
 	c7nFetchToken, err := cache.HGet("third_party_sys_cfg", "c7n_fetch_token")
 	if err != nil {
-		log.Error("读取三方系统-c7n配置错误: ", err)
+		log.Log.Error("读取三方系统-c7n配置错误: ", err)
 		return
 	}
 
@@ -108,7 +107,7 @@ func FetchToken() (header map[string]string, err error) {
 	req := HttpRequest.NewRequest()
 	respC7nFetchToken, err := req.Post(c7nFetchToken)
 	if err != nil {
-		log.Error("Fail to fetch token, err: ", err)
+		log.Log.Error("Fail to fetch token, err: ", err)
 		return
 	}
 	defer respC7nFetchToken.Close() // 关闭
@@ -116,11 +115,11 @@ func FetchToken() (header map[string]string, err error) {
 	// 反序列化
 	err = respC7nFetchToken.Json(&c7nFetchTokenRes)
 	if err != nil {
-		log.Error("Fail to convert response to json, err: ", err)
+		log.Log.Error("Fail to convert response to json, err: ", err)
 		return
 	}
 	if c7nFetchTokenRes.Error != "" {
-		log.Error(c7nFetchTokenRes.ErrorDescription)
+		log.Log.Error(c7nFetchTokenRes.ErrorDescription)
 		return
 	}
 	header = map[string]string{
@@ -145,14 +144,14 @@ func FtechC7nUser(realName, loginName string) (c7nUser C7nUserFields, err error)
 	// 取token
 	header, err := FetchToken()
 	if err != nil {
-		log.Error("Fail to fetch token, err: ", err)
+		log.Log.Error("Fail to fetch token, err: ", err)
 		return
 	}
 
 	// 从缓存取url
 	c7nFetchUser, err := cache.HGet("third_party_sys_cfg", "c7n_fetch_user")
 	if err != nil {
-		log.Error("读取三方系统-c7n配置错误: ", err)
+		log.Log.Error("读取三方系统-c7n配置错误: ", err)
 		return
 	}
 
@@ -161,7 +160,7 @@ func FtechC7nUser(realName, loginName string) (c7nUser C7nUserFields, err error)
 	req.SetHeaders(header)
 	respC7nFetchUser, err := req.Get(fmt.Sprintf(c7nFetchUser, url.QueryEscape(realName), url.QueryEscape(loginName)))
 	if err != nil {
-		log.Error("Fail to fetch c7n user, err: ", err)
+		log.Log.Error("Fail to fetch c7n user, err: ", err)
 		return
 	}
 	defer respC7nFetchUser.Close() // 关闭
@@ -170,7 +169,7 @@ func FtechC7nUser(realName, loginName string) (c7nUser C7nUserFields, err error)
 	var c7nFetchUserRes C7nFetchUserRes
 	err = respC7nFetchUser.Json(&c7nFetchUserRes)
 	if err != nil {
-		log.Error("Fail to convert response to json, err: ", err)
+		log.Log.Error("Fail to convert response to json, err: ", err)
 		return
 	}
 
@@ -187,14 +186,14 @@ func FetchC7nRoles(roleName string) (c7nRole C7nRoleFields, err error) {
 	// 取token
 	header, err := FetchToken()
 	if err != nil {
-		log.Error("Fail to fetch token, err: ", err)
+		log.Log.Error("Fail to fetch token, err: ", err)
 		return
 	}
 
 	// 从缓存取url
 	c7nFetchRoles, err := cache.HGet("third_party_sys_cfg", "c7n_fetch_roles")
 	if err != nil {
-		log.Error("读取三方系统-c7n配置错误: ", err)
+		log.Log.Error("读取三方系统-c7n配置错误: ", err)
 		return
 	}
 
@@ -203,7 +202,7 @@ func FetchC7nRoles(roleName string) (c7nRole C7nRoleFields, err error) {
 	req.SetHeaders(header)
 	respC7nFetchRoles, err := req.Get(c7nFetchRoles)
 	if err != nil {
-		log.Error("Fail to fetch c7n user, err: ", err)
+		log.Log.Error("Fail to fetch c7n user, err: ", err)
 		return
 	}
 	defer respC7nFetchRoles.Close() // 关闭
@@ -212,7 +211,7 @@ func FetchC7nRoles(roleName string) (c7nRole C7nRoleFields, err error) {
 	var c7nFetchRoleRes C7nFetchRoleRes
 	err = respC7nFetchRoles.Json(&c7nFetchRoleRes)
 	if err != nil {
-		log.Error("Fail to convert response to json, err: ", err)
+		log.Log.Error("Fail to convert response to json, err: ", err)
 		return
 	}
 
@@ -232,14 +231,14 @@ func AssignC7nUserProjectRole(c7nProjectId string, c7nUserId string, c7nRoleIds 
 	// 取token
 	header, err := FetchToken()
 	if err != nil {
-		log.Error("Fail to fetch token, err: ", err)
+		log.Log.Error("Fail to fetch token, err: ", err)
 		return
 	}
 
 	// 从缓存取url
 	c7nAssignUserProjectRole, err := cache.HGet("third_party_sys_cfg", "c7n_assign_user_project_role")
 	if err != nil {
-		log.Error("读取三方系统-c7n配置错误: ", err)
+		log.Log.Error("读取三方系统-c7n配置错误: ", err)
 		return
 	}
 
@@ -263,13 +262,13 @@ func UpdateC7nUsers() {
 	// 取token
 	header, err := FetchToken()
 	if err != nil {
-		log.Error("Fail to fetch token, err: ", err)
+		log.Log.Error("Fail to fetch token, err: ", err)
 	}
 
 	// 从缓存取url
 	c7nFetchLdapConn, err := cache.HGet("third_party_sys_cfg", "c7n_fetch_ldap_conn")
 	if err != nil {
-		log.Error("读取三方系统-c7n配置错误: ", err)
+		log.Log.Error("读取三方系统-c7n配置错误: ", err)
 	}
 
 	// 发送请求
@@ -277,7 +276,7 @@ func UpdateC7nUsers() {
 	req.SetHeaders(header)
 	respC7nFetchLdapConn, err := req.Get(c7nFetchLdapConn)
 	if err != nil {
-		log.Error("Fail to fetch c7n user, err: ", err)
+		log.Log.Error("Fail to fetch c7n user, err: ", err)
 	}
 	defer respC7nFetchLdapConn.Close() // 关闭
 
@@ -285,7 +284,7 @@ func UpdateC7nUsers() {
 	var c7nFetchLdapRes C7nFetchLdapRes
 	err = respC7nFetchLdapConn.Json(&c7nFetchLdapRes)
 	if err != nil {
-		log.Error("Fail to convert response to json, err: ", err)
+		log.Log.Error("Fail to convert response to json, err: ", err)
 	}
 
 	// 数据筛选
@@ -295,11 +294,11 @@ func UpdateC7nUsers() {
 	// 从缓存取url
 	c7nSyncLdapUsers, err := cache.HGet("third_party_sys_cfg", "c7n_sync_ldap_users")
 	if err != nil {
-		log.Error("读取三方系统-c7n配置错误: ", err)
+		log.Log.Error("读取三方系统-c7n配置错误: ", err)
 	}
 	respC7nSyncLdapUsers, err := req.Post(fmt.Sprintf(c7nSyncLdapUsers, LdapId))
 	if err != nil {
-		log.Error("Fail to fetch token, err: ", err)
+		log.Log.Error("Fail to fetch token, err: ", err)
 	}
 	defer respC7nSyncLdapUsers.Close() // 关闭
 	return
@@ -315,18 +314,18 @@ func CacheC7nProjectsManual() serializer.Response {
 
 // CacheC7nProjects 缓存所有c7n项目
 func CacheC7nProjects() {
-	log.Info("开始更新c7n项目缓存...")
+	log.Log.Info("开始更新c7n项目缓存...")
 	// 从缓存取url
 	c7nFetchAllProjects, err := cache.HGet("third_party_sys_cfg", "c7n_fetch_all_projects")
 	if err != nil {
-		log.Error("读取三方系统-c7n配置错误: ", err)
+		log.Log.Error("读取三方系统-c7n配置错误: ", err)
 		return
 	}
 
 	// 取token
 	header, err := FetchToken()
 	if err != nil {
-		log.Error("Fail to fetch token, err: ", err)
+		log.Log.Error("Fail to fetch token, err: ", err)
 		return
 	}
 
@@ -355,5 +354,5 @@ func CacheC7nProjects() {
 			_, err = cache.HSet("c7n_projects", project.Name, data)
 		}
 	}
-	log.Info("更新c7n项目缓存完成")
+	log.Log.Info("更新c7n项目缓存完成")
 }

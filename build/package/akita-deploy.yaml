@@ -42,10 +42,3 @@ spec:
             port: 8099
           initialDelaySeconds: 10
           timeoutSeconds: 3
-        readinessProbe:
-          httpGet:
-            path: /api/v1/site/ping
-            port: 8099
-          initialDelaySeconds: 10
-          periodSeconds: 60
-          timeoutSeconds: 2

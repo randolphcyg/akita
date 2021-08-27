@@ -5,38 +5,99 @@ import (
 	"os"
 	"strings"
 
+	"gitee.com/RandolphCYG/akita/bootstrap"
 	"gitee.com/RandolphCYG/akita/internal/conf"
 	"gitee.com/RandolphCYG/akita/internal/handler"
+	"gitee.com/RandolphCYG/akita/internal/model"
+	"gitee.com/RandolphCYG/akita/internal/service/task"
+	"gitee.com/RandolphCYG/akita/pkg/cache"
+	"gitee.com/RandolphCYG/akita/pkg/email"
+	"gitee.com/RandolphCYG/akita/pkg/hr"
 	"gitee.com/RandolphCYG/akita/pkg/log"
 
 	"github.com/gin-gonic/gin"
 )
 
-// InitRouter 初始化路由
-func InitRouter() *gin.Engine {
+var r *gin.Engine
+
+func init() {
+	gin.SetMode(gin.ReleaseMode) //  先设置为生产模式 保证日志静默
+	r = gin.New()                // 初始化gin引擎
+	r.Use(log.LogerMiddleware()) // 日志中间件
+}
+
+func Init(cfg string) {
+	// 初始化logo
+	bootstrap.InitApplication()
+	// 初始化系统配置
+	Cfg, err := conf.Init(cfg)
+	if err != nil {
+		panic(err)
+	}
+
+	// 根据路由模式执行操作
+	initRouterMode()
+
+	// 初始化 db
+	model.Init(&Cfg.Database)
+	// 执行数据迁移
+	log.Log.Info("Data migration begin ...")
+	model.DB.AutoMigrate(&model.LdapCfg{}, &model.LdapField{}, &hr.HrDataConn{}, &model.WeworkCfg{}, &model.WeworkOrder{}, &model.LdapUserDepartRecord{}, &model.WeworkUserSyncRecord{})
+	if result := model.DB.Limit(1).Find(&model.LdapCfg{}); result.RowsAffected == 0 {
+		model.DB.Create(&Cfg.LdapCfg)
+	}
+	log.Log.Info("Data migration successful ...")
+
+	// 初始化 redis
+	cache.Init(&Cfg.Redis)
+
+	// 初始化 email
+	email.Init(&Cfg.Email)
+
+	// 初始化ldap连接
+	model.LdapCfgs, _ = model.GetAllLdapConn() // 直接查询
+	// 初始化ldap字段配置
+	model.LdapFields, _ = model.GetLdapFieldByConnUrl(model.LdapCfgs.ConnUrl)
+
+	// 初始化企业微信配置信息
+	err = model.GetWeworkOrderCfg()
+	if err != nil {
+		log.Log.Error("初始化企业微信审批配置信息错误, err: ", err)
+	}
+	err = model.GetWeworkUuapCfg()
+	if err != nil {
+		log.Log.Error("初始化企业微信UUAP公告应用配置信息错误, err: ", err)
+	}
+	err = model.GetWeworkUserManageCfg()
+	if err != nil {
+		log.Log.Error("初始化企业微信通讯录管理配置信息错误, err: ", err)
+	}
+	log.Log.Info("UUAP server init successful ...")
+}
+
+// initRouterMode 根据路由模式执行操作
+func initRouterMode() {
 	switch conf.Conf.System.Mode {
 	case "debug":
 		gin.SetMode(gin.DebugMode)
+		log.Log.Warn("Debug mode will not start crontab tasks !!!")
 	case "release":
 		gin.SetMode(gin.ReleaseMode)
+		task.StartAll() // 启动所有定时任务
 	case "test":
 		gin.SetMode(gin.TestMode)
 	default:
 		panic("gin mode unknown: " + conf.Conf.System.Mode + " (available mode: debug release test)")
 	}
-	return router()
 }
 
 // router 路由
-func router() *gin.Engine {
-	r := gin.New()
-	r.Use(log.LogerMiddleware())
+func InitRouter() *gin.Engine {
 	v1 := r.Group("/api/v1")
-
 	{
 		// 全局设置
 		site := v1.Group("site")
-		site.GET("ping", handler.Ping) // 存活探针
+		site.GET("ping", handler.Ping) // 就绪探针
 
 		// ldap 连接
 		ldapConns := v1.Group("ldap/conns")

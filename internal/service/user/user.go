@@ -13,14 +13,12 @@ import (
 	"gitee.com/RandolphCYG/akita/pkg/cache"
 	"gitee.com/RandolphCYG/akita/pkg/email"
 	"gitee.com/RandolphCYG/akita/pkg/hr"
+	"gitee.com/RandolphCYG/akita/pkg/log"
 	"gitee.com/RandolphCYG/akita/pkg/serializer"
 	"gitee.com/RandolphCYG/akita/pkg/util"
 	"gitee.com/RandolphCYG/akita/pkg/wework/api"
 	"gitee.com/RandolphCYG/akita/pkg/wework/order"
-	"github.com/sirupsen/logrus"
 )
-
-var log = logrus.New()
 
 /*
 * 这里是外部接口(HR数据)的模型
@@ -72,7 +70,7 @@ func ScanExpiredLdapUsers() {
 			if expireDays >= -7 && expireDays <= 14 { // 未/已经过期 7 天内的账号
 				ldapUser := ldap.NewUser(u) // 初始化速度较慢 适用定时异步任务处理少量数据
 				// expireLdapUsers = append(expireLdapUsers, ldapUser)
-				log.Info(ldapUser, " 过期天数: ", expireDays)
+				log.Log.Info(ldapUser, " 过期天数: ", expireDays)
 				HandleExpiredLdapUsers(ldapUser, expireDays) // 处理过期账号
 			}
 		}
@@ -98,24 +96,24 @@ func SyncLdapUsersManual() serializer.Response {
 
 // CacheHrUsers 缓存HR用户
 func CacheHrUsers() {
-	log.Info("开始缓存HR用户...")
+	log.Log.Info("开始缓存HR用户...")
 	var hrDataConn hr.HrDataConn
 	if result := model.DB.First(&hrDataConn); result.Error != nil {
-		log.Error("Fail to get HR data connection cfg!")
+		log.Log.Error("Fail to get HR data connection cfg!")
 	}
 	hrUsers, err := hr.FetchHrData(&hr.HrDataConn{
 		UrlGetToken: hrDataConn.UrlGetToken,
 		UrlGetData:  hrDataConn.UrlGetData,
 	})
 	if err != nil {
-		log.Error(err)
+		log.Log.Error(err)
 		return
 	}
 
 	// 先清空缓存
 	_, err = cache.HDel("hr_users")
 	if err != nil {
-		log.Error("Fail to clean ldap users cache,:", err)
+		log.Log.Error("Fail to clean ldap users cache,:", err)
 	}
 
 	// 将HR接口元数据写入缓存
@@ -123,10 +121,10 @@ func CacheHrUsers() {
 		userData, _ := json.Marshal(user)
 		_, err := cache.HSet("hr_users", user.Name+user.Eid, userData)
 		if err != nil {
-			log.Error("Fail to update ldap users to cache,:", err)
+			log.Log.Error("Fail to update ldap users to cache,:", err)
 		}
 	}
-	log.Info("缓存HR用户成功!")
+	log.Log.Info("缓存HR用户成功!")
 }
 
 // SyncLdapUsers 更新ldap用户
@@ -134,11 +132,11 @@ func SyncLdapUsers() {
 	// 从缓存取HR元数据
 	ldapUsers, err := cache.HGetAll("hr_users")
 	if err != nil {
-		log.Error("Fail to fetch ldap users cache,:", err)
+		log.Log.Error("Fail to fetch ldap users cache,:", err)
 	}
 
 	// TODO 待优化 目前速度提升没有
-	log.Info("开始更新ldap用户...")
+	log.Log.Info("开始更新ldap用户...")
 	done := make(chan int, 30) // 带 20 个缓存
 	for cn, u := range ldapUsers {
 		go func(cn string, u string) {
@@ -180,13 +178,13 @@ func SyncLdapUsers() {
 			// 更新用户操作
 			err := ldapUser.Update()
 			if err != nil {
-				log.Error("Fail to update user form cache to ldap server,: ", err)
+				log.Log.Error("Fail to update user form cache to ldap server,: ", err)
 			}
 			done <- 30
 		}(cn, u)
 		<-done
 	}
-	log.Info("更新ldap用户成功!")
+	log.Log.Info("更新ldap用户成功!")
 
 	// 更新完成后，将数据库更改记录统一公布
 	todayLdapUserDepartRecords, _ := model.FetchTodayLdapUserDepartRecord()
@@ -217,7 +215,7 @@ func SyncLdapUsers() {
 			}
 		}
 	}
-	log.Info("汇总通知发送成功!")
+	log.Log.Info("汇总通知发送成功!")
 }
 
 // FormatData 校验邮箱和手机号格式
@@ -246,16 +244,16 @@ func CreateLdapUser(o order.WeworkOrderDetailsAccountsRegister, user *ldap.LdapA
 		}
 		_, err = corpAPIMsg.MessageSend(msg)
 		if err != nil {
-			log.Error("Fail to send wework msg, err: ", err)
+			log.Log.Error("Fail to send wework msg, err: ", err)
 		}
-		log.Info("企业微信回执消息:工单【" + o.SpName + "】用户【" + o.Userid + "】姓名【" + user.DisplayName + "】工号【" + user.Num + "】状态【初次注册-手机号|邮箱格式错误】")
+		log.Log.Info("企业微信回执消息:工单【" + o.SpName + "】用户【" + o.Userid + "】姓名【" + user.DisplayName + "】工号【" + user.Num + "】状态【初次注册-手机号|邮箱格式错误】")
 		return
 	}
 
 	// 创建LDAP用户 生成初始密码
 	pwd, err := ldap.AddUser(user)
 	if err != nil {
-		log.Error("Fail to create ldap user, err: ", err)
+		log.Log.Error("Fail to create ldap user, err: ", err)
 		// 此处的错误一般是账号已经存在 为了防止其他错误，这里输出日志
 		err = HandleUuapDuplicateRegister(user, o)
 		return
@@ -265,7 +263,7 @@ func CreateLdapUser(o order.WeworkOrderDetailsAccountsRegister, user *ldap.LdapA
 	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
 	createUuapWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_uuap_register")
 	if err != nil {
-		log.Error("读取企业微信消息模板错误: ", err)
+		log.Log.Error("读取企业微信消息模板错误: ", err)
 	}
 
 	msg := map[string]interface{}{
@@ -278,10 +276,10 @@ func CreateLdapUser(o order.WeworkOrderDetailsAccountsRegister, user *ldap.LdapA
 	}
 	_, err = corpAPIMsg.MessageSend(msg)
 	if err != nil {
-		log.Error("Fail to send wework msg, err: ", err)
+		log.Log.Error("Fail to send wework msg, err: ", err)
 		// TODO 发送企业微信消息错误，应当考虑重发逻辑
 	}
-	log.Info("企业微信回执消息:工单【" + o.SpName + "】用户【" + o.Userid + "】姓名【" + user.DisplayName + "】工号【" + user.Num + "】状态【初次注册】")
+	log.Log.Info("企业微信回执消息:工单【" + o.SpName + "】用户【" + o.Userid + "】姓名【" + user.DisplayName + "】工号【" + user.Num + "】状态【初次注册】")
 	return
 }
 
@@ -289,15 +287,15 @@ func CreateLdapUser(o order.WeworkOrderDetailsAccountsRegister, user *ldap.LdapA
 func HandleExpiredLdapUsers(user *ldap.LdapAttributes, expireDays int) (err error) {
 	emailTempUuaplateExpiring, err := cache.HGet("email_templates", "email_template_uuap_expiring")
 	if err != nil {
-		log.Error("读取即将过期邮件消息模板错误: ", err)
+		log.Log.Error("读取即将过期邮件消息模板错误: ", err)
 	}
 	emailTemplateUuapExpired, err := cache.HGet("email_templates", "email_template_uuap_expired")
 	if err != nil {
-		log.Error("读取已过期邮件消息模板错误: ", err)
+		log.Log.Error("读取已过期邮件消息模板错误: ", err)
 	}
 	emailTemplateUuapExpiredDisabled, err := cache.HGet("email_templates", "email_template_uuap_expired_disabled")
 	if err != nil {
-		log.Error("读取已过期禁用邮件消息模板错误: ", err)
+		log.Log.Error("读取已过期禁用邮件消息模板错误: ", err)
 	}
 
 	if expireDays == 7 || expireDays == 14 { // 即将过期提醒 7|14天前
@@ -305,18 +303,18 @@ func HandleExpiredLdapUsers(user *ldap.LdapAttributes, expireDays int) (err erro
 		htmlContent := fmt.Sprintf(emailTempUuaplateExpiring, user.DisplayName, user.Sam, strconv.Itoa(expireDays))
 		err = email.SendMailHtml(address, "UUAP账号即将过期通知", htmlContent)
 		if err != nil {
-			log.Error("发邮件错误: ", err)
+			log.Log.Error("发邮件错误: ", err)
 			return
 		}
-		log.Info("邮件发送成功！用户【" + user.DisplayName + "】账号【" + user.Sam + "】状态【即将过期】")
+		log.Log.Info("邮件发送成功！用户【" + user.DisplayName + "】账号【" + user.Sam + "】状态【即将过期】")
 	} else if expireDays == -7 { // 已经过期提醒 7天后
 		address := []string{user.Email}
 		htmlContent := fmt.Sprintf(emailTemplateUuapExpired, user.DisplayName, user.Sam, strconv.Itoa(-expireDays)) // 此时过期天数为负值
 		email.SendMailHtml(address, "UUAP账号已过期通知", htmlContent)
-		log.Info("邮件发送成功！用户【" + user.DisplayName + "】账号【" + user.Sam + "】状态【已经过期】")
+		log.Log.Info("邮件发送成功！用户【" + user.DisplayName + "】账号【" + user.Sam + "】状态【已经过期】")
 	} else if expireDays == -30 { // 已经过期且禁用提醒 30天后
 		fmt.Println(emailTemplateUuapExpiredDisabled)
-		log.Info("邮件发送成功！用户【" + user.DisplayName + "】账号【" + user.Sam + "】状态【已经过期禁用】")
+		log.Log.Info("邮件发送成功！用户【" + user.DisplayName + "】账号【" + user.Sam + "】状态【已经过期禁用】")
 	}
 	return
 }
@@ -326,13 +324,13 @@ func HandleUuapDuplicateRegister(user *ldap.LdapAttributes, order order.WeworkOr
 	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
 	duplicateRegisterUuapUserWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_uuap_user_duplicate_register")
 	if err != nil {
-		log.Error("读取企业微信消息模板错误: ", err)
+		log.Log.Error("读取企业微信消息模板错误: ", err)
 	}
 
 	// 初始化连接
 	err = ldap.Init(&model.LdapCfgs)
 	if err != nil {
-		log.Error("Fail to get ldap connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 		return
 	}
 
@@ -348,9 +346,9 @@ func HandleUuapDuplicateRegister(user *ldap.LdapAttributes, order order.WeworkOr
 		},
 	})
 	if err != nil {
-		log.Error("Fail to send wework msg, err: ", err)
+		log.Log.Error("Fail to send wework msg, err: ", err)
 		// TODO 发送企业微信消息错误，应当考虑重发逻辑
 	}
-	log.Info("企业微信回执消息:工单【" + order.SpName + "】用户【" + order.Userid + "】姓名【" + user.DisplayName + "】工号【" + user.Num + "】状态【已注册过的UUAP用户】")
+	log.Log.Info("企业微信回执消息:工单【" + order.SpName + "】用户【" + order.Userid + "】姓名【" + user.DisplayName + "】工号【" + user.Num + "】状态【已注册过的UUAP用户】")
 	return
 }

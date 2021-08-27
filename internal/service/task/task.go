@@ -3,15 +3,15 @@ package task
 import (
 	"encoding/json"
 
+	"github.com/robfig/cron/v3"
+
 	"gitee.com/RandolphCYG/akita/internal/service/user"
 	"gitee.com/RandolphCYG/akita/internal/service/wework"
 	"gitee.com/RandolphCYG/akita/pkg/c7n"
+	"gitee.com/RandolphCYG/akita/pkg/log"
 	"gitee.com/RandolphCYG/akita/pkg/serializer"
-	"github.com/robfig/cron/v3"
-	"github.com/sirupsen/logrus"
 )
 
-var log = logrus.New()
 var C *cron.Cron
 
 // JobWapper 包装塞入方法名
@@ -102,7 +102,7 @@ func StartAll() {
 		enterId, _ := C.AddJob(t.Cron, JobWapper{name, t.Cron, t.Func}) // cron.EntryID(len(C.Entries()) - 1),
 		CurrentTasks[name] = Job{enterId}
 	}
-	log.Info("启动全部定时任务成功, :", CurrentTasks)
+	log.Log.Info("启动全部定时任务成功, :", CurrentTasks)
 }
 
 // TaskSart 启动定时任务 TODO bug 无法将定时任务序列化返回
@@ -116,7 +116,7 @@ func TaskSart(taskName string) serializer.Response {
 		enterId, _ := C.AddJob(t.Cron, JobWapper{taskName, t.Cron, t.Func}) // cron.EntryID(len(C.Entries()) - 1),
 		CurrentTasks[taskName] = Job{enterId}
 	}
-	log.Info("动态添加定时任务，当前所有任务:", C.Entries(), "所有任务CurrentTasks:", CurrentTasks)
+	log.Log.Info("动态添加定时任务，当前所有任务:", C.Entries(), "所有任务CurrentTasks:", CurrentTasks)
 	res, _ := json.Marshal(CurrentTasks)
 	return serializer.Response{Msg: "启动定时任务[" + taskName + "]成功!", Data: string(res)}
 }
@@ -129,21 +129,21 @@ func TaskRemove(taskName string) serializer.Response {
 		C.Remove(CurrentTasks[taskName].Id)
 		delete(CurrentTasks, taskName)
 	}
-	log.Info("动态移除定时任务，当前剩余任务:", CurrentTasks)
+	log.Log.Info("动态移除定时任务，当前剩余任务:", CurrentTasks)
 	return serializer.Response{Msg: "移除定时任务[" + taskName + "]成功!", Data: 0}
 }
 
 //  FetchTasks 查询所有任务 TODO bug 无法将定时任务序列化返回
 func FetchTasks() serializer.Response {
 	res, _ := json.Marshal(CurrentTasks)
-	log.Info("当前所有任务CurrentTasks:", CurrentTasks)
+	log.Log.Info("当前所有任务CurrentTasks:", CurrentTasks)
 	return serializer.Response{Data: string(res)}
 }
 
 // TaskStop 停止所有定时任务
 func TaskStop() serializer.Response {
-	log.Info("停止之前当前所有任务:", C.Entries())
+	log.Log.Info("停止之前当前所有任务:", C.Entries())
 	C.Stop()
-	log.Info("停止后当前所有任务:", C.Entries())
+	log.Log.Info("停止后当前所有任务:", C.Entries())
 	return serializer.Response{Msg: "停止所有定时任务成功，在执行中的不会被打断!"}
 }

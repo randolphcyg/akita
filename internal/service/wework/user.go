@@ -12,14 +12,12 @@ import (
 	"gitee.com/RandolphCYG/akita/internal/service/ldap"
 	"gitee.com/RandolphCYG/akita/pkg/cache"
 	"gitee.com/RandolphCYG/akita/pkg/hr"
+	"gitee.com/RandolphCYG/akita/pkg/log"
 	"gitee.com/RandolphCYG/akita/pkg/serializer"
 	"gitee.com/RandolphCYG/akita/pkg/util"
 	"gitee.com/RandolphCYG/akita/pkg/wework/api"
 	"gitee.com/RandolphCYG/akita/pkg/wework/order"
-	"github.com/sirupsen/logrus"
 )
-
-var log = logrus.New()
 
 type WeworkMsg struct {
 	Errcode int    `json:"errcode"`
@@ -89,7 +87,7 @@ func CacheWeworkUsersManual() (err error) {
 
 // CacheWeworkUsers 缓存企业微信用户
 func CacheWeworkUsers() {
-	log.Info("开始更新企业微信用户缓存...")
+	log.Log.Info("开始更新企业微信用户缓存...")
 	var usersMsg UsersMsg
 	corpAPIUserManager := api.NewCorpAPI(model.WeworkUserManageCfg.CorpId, model.WeworkUserManageCfg.AppSecret)
 	res, err := corpAPIUserManager.UserSimpleList(map[string]interface{}{
@@ -97,20 +95,20 @@ func CacheWeworkUsers() {
 		"fetch_child":   "1",
 	})
 	if err != nil {
-		log.Error(err)
+		log.Log.Error(err)
 	}
 
 	temp, err := json.Marshal(res)
 	json.Unmarshal(temp, &usersMsg)
 
 	if usersMsg.Errcode != 0 {
-		log.Error("Fail to fetch wework user list, err:", usersMsg.Errmsg)
+		log.Log.Error("Fail to fetch wework user list, err:", usersMsg.Errmsg)
 	}
 
 	// 先清空缓存
 	_, err = cache.HDel("wework_users")
 	if err != nil {
-		log.Error("Fail to clean wework users cache,:", err)
+		log.Log.Error("Fail to clean wework users cache,:", err)
 	}
 
 	done := make(chan int, 20) // 带 20 个缓存
@@ -121,7 +119,7 @@ func CacheWeworkUsers() {
 				"userid": userInfo.Userid,
 			})
 			if err != nil {
-				log.Error(err)
+				log.Log.Error(err)
 			}
 
 			temp, err := json.Marshal(getUserDetailRes)
@@ -130,14 +128,14 @@ func CacheWeworkUsers() {
 			if len(userDetails.Extattr.Attrs) >= 1 && userDetails.Extattr.Attrs[0].Name == "工号" { // 忽略不符合规范的用户
 				_, err = cache.HSet("wework_users", userDetails.Extattr.Attrs[0].Value, temp) // 缓存用户
 				if err != nil {
-					log.Error("Fail to cache wework user,:", err)
+					log.Log.Error("Fail to cache wework user,:", err)
 				}
 			}
 			<-done
 		}(i, userInfo)
 		done <- 1
 	}
-	log.Info("更新企业微信用户缓存完成!")
+	log.Log.Info("更新企业微信用户缓存完成!")
 }
 
 // FetchUser 根据工号查找用户
@@ -156,7 +154,7 @@ func FetchDepart(departName string) (depart Depart, err error) {
 	corpAPIUserManager := api.NewCorpAPI(model.WeworkUserManageCfg.CorpId, model.WeworkUserManageCfg.AppSecret)
 	res, err := corpAPIUserManager.DepartmentList(map[string]interface{}{})
 	if err != nil {
-		log.Error(err)
+		log.Log.Error(err)
 		return
 	}
 	b, err := json.Marshal(res)
@@ -164,7 +162,7 @@ func FetchDepart(departName string) (depart Depart, err error) {
 	json.Unmarshal(b, &departsMsg)
 
 	if departsMsg.Errcode != 0 {
-		log.Error("Fail to fetch wework user list, err:", departsMsg.Errmsg)
+		log.Log.Error("Fail to fetch wework user list, err:", departsMsg.Errmsg)
 		return
 	}
 	for _, d := range departsMsg.Department {
@@ -181,14 +179,14 @@ func FetchDeparts() (departsMsg DepartsMsg, err error) {
 	corpAPIUserManager := api.NewCorpAPI(model.WeworkUserManageCfg.CorpId, model.WeworkUserManageCfg.AppSecret)
 	res, err := corpAPIUserManager.DepartmentList(map[string]interface{}{})
 	if err != nil {
-		log.Error(err)
+		log.Log.Error(err)
 		return
 	}
 	b, err := json.Marshal(res)
 	json.Unmarshal(b, &departsMsg)
 
 	if departsMsg.Errcode != 0 {
-		log.Error("Fail to fetch wework user list, err:", departsMsg.Errmsg)
+		log.Log.Error("Fail to fetch wework user list, err:", departsMsg.Errmsg)
 		return
 	}
 
@@ -269,10 +267,10 @@ func RenewalUser(weworkUserId string, applicant order.RenewalApplicant, expireDa
 	b, err := json.Marshal(res)
 	json.Unmarshal(b, &msg)
 	if err != nil {
-		log.Error(err)
+		log.Log.Error(err)
 		return
 	}
-	log.Info("Success to renewal wework user!")
+	log.Log.Info("Success to renewal wework user!")
 	return nil
 }
 
@@ -289,7 +287,7 @@ func ScanNewHrUsers() {
 	go func() {
 		hrUsers, err := cache.HGetAll("hr_users") // 从缓存取HR元数据
 		if err != nil {
-			log.Error("Fail to fetch ldap users cache,:", err)
+			log.Log.Error("Fail to fetch ldap users cache,:", err)
 		}
 		for _, u := range hrUsers {
 			var hrUser hr.HrUser
@@ -313,7 +311,7 @@ func ScanNewHrUsers() {
 						}
 						err = CreateUser(userInfos)
 						if err != nil {
-							log.Error("Fail to create wework automatically, ", err)
+							log.Log.Error("Fail to create wework automatically, ", err)
 							model.CreateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "自动创建失败, "+err.Error())
 						}
 						model.CreateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "新用户 分配至企微["+dp.Name+"]")
@@ -328,11 +326,11 @@ func ScanNewHrUsers() {
 							WeworkExpire:   "",
 							WeworkDepartId: 69,
 						}
-						log.Warning("未找到与该新用户[" + userInfos.DisplayName + "]的HR数据部门对应的同名企业微信部门！将用户暂存在待分配~")
+						log.Log.Warning("未找到与该新用户[" + userInfos.DisplayName + "]的HR数据部门对应的同名企业微信部门！将用户暂存在待分配~")
 						model.CreateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "HR数据部门["+hrUser.Department+"]自动分配至企业微信部门[69新加入待分配]")
 						err = CreateUser(userInfos)
 						if err != nil {
-							log.Error("Fail to create wework automatically, ", err)
+							log.Log.Error("Fail to create wework automatically, ", err)
 							model.UpdateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "HR数据部门["+hrUser.Department+"]自动分配至企微部门[69新加入待分配]", "自动创建失败, "+err.Error())
 						}
 						model.UpdateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "HR数据部门["+hrUser.Department+"]自动分配至企微部门[69新加入待分配]", "新用户 HR数据部门["+hrUser.Department+"]自动分配至企微部门[69新加入待分配]")
@@ -357,7 +355,7 @@ func ScanExpiredWeworkUsers() {
 	go func() {
 		hrUsers, err := cache.HGetAll("hr_users") // 从缓存取HR元数据
 		if err != nil {
-			log.Error("Fail to fetch ldap users cache,:", err)
+			log.Log.Error("Fail to fetch ldap users cache,:", err)
 		}
 		for _, u := range hrUsers {
 			var hrUser hr.HrUser
@@ -395,7 +393,7 @@ func ScanExpiredWeworkUsers() {
 		}
 	}()
 
-	log.Info("扫描过期企业用户完成!")
+	log.Log.Info("扫描过期企业用户完成!")
 
 	// 汇总通知
 	todayWeworkUserSyncRecords, _ := model.FetchTodayWeworkUserSyncRecord()
@@ -429,7 +427,7 @@ func ScanExpiredWeworkUsers() {
 		}
 	}
 
-	log.Info("汇总通知发送成功!")
+	log.Log.Info("汇总通知发送成功!")
 }
 
 // SendWeworkOuterUserExpiredMsg 给企业微信即将过期用户发送续期通知
@@ -437,7 +435,7 @@ func SendWeworkOuterUserExpiredMsg(user UserDetails, remainingDays int) {
 	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
 	renewalNotifyWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_wework_renewal_notify")
 	if err != nil {
-		log.Error("读取企业微信消息模板错误: ", err)
+		log.Log.Error("读取企业微信消息模板错误: ", err)
 	}
 
 	msg := map[string]interface{}{
@@ -450,10 +448,10 @@ func SendWeworkOuterUserExpiredMsg(user UserDetails, remainingDays int) {
 	}
 	_, err = corpAPIMsg.MessageSend(msg)
 	if err != nil {
-		log.Error("Fail to send wework msg, err: ", err)
+		log.Log.Error("Fail to send wework msg, err: ", err)
 		// TODO 发送企业微信消息错误，应当考虑重发逻辑
 	}
-	log.Info("企业微信回执消息:企业微信用户【" + user.Userid + "】姓名【" + user.Name + "】状态【即将过期】")
+	log.Log.Info("企业微信回执消息:企业微信用户【" + user.Userid + "】姓名【" + user.Name + "】状态【即将过期】")
 }
 
 // DisableUser 禁用企业微信用户
@@ -469,7 +467,7 @@ func DisableUser(u UserDetails) (err error) {
 	b, err := json.Marshal(res)
 	json.Unmarshal(b, &msg)
 	if err != nil {
-		log.Error(err)
+		log.Log.Error(err)
 		return
 	}
 	// 此处将禁用企业微信用户的记录保存下
@@ -477,7 +475,7 @@ func DisableUser(u UserDetails) (err error) {
 		model.CreateWeworkUserSyncRecord(u.Userid, u.Name, u.Extattr.Attrs[0].Value, "禁用")
 	}
 
-	log.Info("Success to disable wework user!")
+	log.Log.Info("Success to disable wework user!")
 	return
 }
 
@@ -506,9 +504,9 @@ func FormatHistoryUser(user UserDetails, formatEid string, formatMail string) (e
 	b, err := json.Marshal(res)
 	json.Unmarshal(b, &msg)
 	if err != nil {
-		log.Error(err)
+		log.Log.Error(err)
 		return
 	}
-	log.Info("Success to format wework user!")
+	log.Log.Info("Success to format wework user!")
 	return nil
 }

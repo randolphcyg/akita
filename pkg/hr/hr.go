@@ -2,10 +2,9 @@ package hr
 
 import (
 	"github.com/kirinlabs/HttpRequest"
-	"github.com/sirupsen/logrus"
-)
 
-var log = logrus.New()
+	"gitee.com/RandolphCYG/akita/pkg/log"
+)
 
 // HrToken 获取token接口返回数据结构体
 type HrToken struct {
@@ -62,19 +61,19 @@ func FetchToken(h *HrDataConn) (token HrToken, err error) {
 	respFetchToken, err := req.Post(h.UrlGetToken)
 	if err != nil {
 		// 抛错
-		log.Error("Fail to fetch token, err: ", err)
+		log.Log.Error("Fail to fetch token, err: ", err)
 		return
 	}
 	// 反序列化
 	err = respFetchToken.Json(&token)
 	if err != nil {
 		// 抛错
-		log.Error("Fail to convert response to json, err: ", err)
+		log.Log.Error("Fail to convert response to json, err: ", err)
 		return
 	}
 	if !token.Success && token.ErrorDescription != "" {
 		// 抛错
-		log.Error(token.ErrorDescription)
+		log.Log.Error(token.ErrorDescription)
 		return
 	}
 	return
@@ -95,14 +94,14 @@ func FetchHrData(h *HrDataConn) (hrUsers []HrUser, err error) {
 	req.SetHeaders(header)
 	respFetchData, err := req.Post(h.UrlGetData)
 	if err != nil {
-		log.Error("Fail to fetch hr data, err: ", err)
+		log.Log.Error("Fail to fetch hr data, err: ", err)
 		return
 	}
 	var hrdata HrData
 	respFetchData.Json(&hrdata)
 	// 返回数据是否有报错字段
 	if hrdata.Result != "" {
-		log.Error("Fail to fetch hr data, err: ", hrdata.Result)
+		log.Log.Error("Fail to fetch hr data, err: ", hrdata.Result)
 		return
 	}
 	hrUsers = hrdata.Content

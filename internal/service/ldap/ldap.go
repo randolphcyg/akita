@@ -8,14 +8,13 @@ import (
 	"strings"
 	"time"
 
-	"gitee.com/RandolphCYG/akita/internal/model"
-	"gitee.com/RandolphCYG/akita/pkg/util"
 	"github.com/go-ldap/ldap/v3"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/text/encoding/unicode"
-)
 
-var log = logrus.New()
+	"gitee.com/RandolphCYG/akita/internal/model"
+	"gitee.com/RandolphCYG/akita/pkg/log"
+	"gitee.com/RandolphCYG/akita/pkg/util"
+)
 
 // 禁用/启用用户的 UserAccountControl 状态码
 var DisabledLdapUserCodes = [5]int32{514, 546, 66050, 66080, 66082}
@@ -84,19 +83,19 @@ func Init(c *model.LdapCfg) (err error) {
 	// 建立ldap连接
 	LdapConn, err = ldap.DialURL(c.ConnUrl)
 	if err != nil {
-		log.Error("Fail to dial ldap url, err: ", err)
+		log.Log.Error("Fail to dial ldap url, err: ", err)
 		return
 	}
 
 	// 重新连接TLS
 	if err = LdapConn.StartTLS(&tls.Config{InsecureSkipVerify: true}); err != nil {
-		log.Error("Fail to start tls, err: ", err)
+		log.Log.Error("Fail to start tls, err: ", err)
 		return
 	}
 
 	// 与只读用户绑定
 	if err = LdapConn.Bind(LdapCfg.AdminAccount, LdapCfg.Password); err != nil {
-		log.Error("admin user auth failed, err: ", err)
+		log.Log.Error("admin user auth failed, err: ", err)
 		return
 	}
 	return
@@ -107,7 +106,7 @@ func FetchLdapUsers(user *LdapAttributes) (result []*ldap.Entry) {
 	// 初始化连接
 	err := Init(&model.LdapCfgs)
 	if err != nil {
-		log.Error("Fail to get ldap connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 	}
 	// 多查询条件
 	ldapFilterNum := "(employeeNumber=" + user.Num + ")"
@@ -157,7 +156,7 @@ func FetchLdapUsers(user *LdapAttributes) (result []*ldap.Entry) {
 
 	sr, err := LdapConn.SearchWithPaging(searchRequest, 100)
 	if err != nil {
-		log.Error("Fail to search users, err: ", err)
+		log.Log.Error("Fail to search users, err: ", err)
 	}
 	if len(sr.Entries) > 0 && len(sr.Entries[0].Attributes) > 0 {
 		result = sr.Entries
@@ -179,7 +178,7 @@ func AddUser(user *LdapAttributes) (pwd string, err error) {
 	// 初始化连接
 	err = Init(&model.LdapCfgs)
 	if err != nil {
-		log.Error("Fail to get ldap connection, err:", err)
+		log.Log.Error("Fail to get ldap connection, err:", err)
 		return
 	}
 	// 初始化创建用户请求
@@ -201,7 +200,7 @@ func AddUser(user *LdapAttributes) (pwd string, err error) {
 		if ldap.IsErrorWithCode(err, 68) {
 			return
 		} else {
-			log.Error("Fail to insert user, err: ", err)
+			log.Log.Error("Fail to insert user, err: ", err)
 		}
 		return
 	}
@@ -211,13 +210,13 @@ func AddUser(user *LdapAttributes) (pwd string, err error) {
 	pwd = util.PwdGenerator(8)                                           // 密码字符串
 	pwdEncoded, err := utf16.NewEncoder().String(fmt.Sprintf("%q", pwd)) // 密码字符字面值
 	if err != nil {
-		log.Error("Fail to encode pwd, err: ", err)
+		log.Log.Error("Fail to encode pwd, err: ", err)
 	}
 	modReq := ldap.NewModifyRequest(user.Dn, []ldap.Control{})
 	modReq.Replace("unicodePwd", []string{pwdEncoded})
 
 	if err = LdapConn.Modify(modReq); err != nil {
-		log.Error("Fail to init pwd, err: ", err)
+		log.Log.Error("Fail to init pwd, err: ", err)
 		return
 	}
 	return
@@ -228,7 +227,7 @@ func (user *LdapAttributes) RetrievePwd() (sam string, newPwd string, err error)
 	// 初始化连接
 	err = Init(&model.LdapCfgs)
 	if err != nil {
-		log.Error("Fail to get ldap connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 		return
 	}
 
@@ -239,13 +238,13 @@ func (user *LdapAttributes) RetrievePwd() (sam string, newPwd string, err error)
 	newPwd = util.PwdGenerator(8)                                           // 密码字符串
 	pwdEncoded, err := utf16.NewEncoder().String(fmt.Sprintf("%q", newPwd)) // 密码字符字面值
 	if err != nil {
-		log.Error("Fail to encode pwd, err: ", err)
+		log.Log.Error("Fail to encode pwd, err: ", err)
 	}
 	modReq := ldap.NewModifyRequest(entry.DN, []ldap.Control{})
 	modReq.Replace("unicodePwd", []string{pwdEncoded})
 
 	if err = LdapConn.Modify(modReq); err != nil {
-		log.Error("Fail to modify pwd, err: ", err)
+		log.Log.Error("Fail to modify pwd, err: ", err)
 		return
 	}
 	return
@@ -256,21 +255,21 @@ func (user *LdapAttributes) ModifyPwd(newUserPwd string) (err error) {
 	// 初始化连接
 	err = Init(&model.LdapCfgs)
 	if err != nil {
-		log.Error("Fail to get ldap connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 		return
 	}
 	entry, _ := FetchUser(user)
 	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
 	pwdEncoded, err := utf16.NewEncoder().String(fmt.Sprintf("%q", newUserPwd))
 	if err != nil {
-		log.Error("Fail to encode pwd, err: ", err)
+		log.Log.Error("Fail to encode pwd, err: ", err)
 	}
 
 	modReq := ldap.NewModifyRequest(entry.DN, []ldap.Control{})
 	modReq.Replace("unicodePwd", []string{pwdEncoded})
 
 	if err = LdapConn.Modify(modReq); err != nil {
-		log.Error("Fail to set pwd, err: ", err)
+		log.Log.Error("Fail to set pwd, err: ", err)
 		return
 	}
 	return
@@ -284,7 +283,7 @@ func FetchUser(user *LdapAttributes) (result *ldap.Entry, err error) {
 	// 初始化连接
 	err = Init(&model.LdapCfgs)
 	if err != nil {
-		log.Error("Fail to get ldap connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 		return
 	}
 
@@ -307,7 +306,7 @@ func FetchUser(user *LdapAttributes) (result *ldap.Entry, err error) {
 	// 这里LdapConn 为nil
 	sr, err := LdapConn.Search(searchRequest)
 	if err != nil {
-		log.Error("Fail to fetch user, err: ", err)
+		log.Log.Error("Fail to fetch user, err: ", err)
 		return
 	}
 	if len(sr.Entries) > 0 && len(sr.Entries[0].Attributes) > 0 {
@@ -321,14 +320,14 @@ func (user *LdapAttributes) ModifyDn(cn string) {
 	// 初始化连接
 	err := Init(&model.LdapCfgs)
 	if err != nil {
-		log.Error("Fail to get ldap connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 	}
 
 	entry, _ := FetchUser(user)
 	cn = "CN=" + cn
 	modReq := ldap.NewModifyDNRequest(entry.DN, cn, true, "")
 	if err := LdapConn.ModifyDN(modReq); err != nil {
-		log.Error("Fail to modify dn, err: ", err)
+		log.Log.Error("Fail to modify dn, err: ", err)
 	}
 }
 
@@ -337,14 +336,14 @@ func (user *LdapAttributes) MoveDn(newOu string) (err error) {
 	// 初始化连接
 	err = Init(&model.LdapCfgs)
 	if err != nil {
-		log.Error("Fail to get ldap connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 		return
 	}
 	entry, _ := FetchUser(user)
 	cn := strings.Split(entry.DN, ",")[0]
 	movReq := ldap.NewModifyDNRequest(entry.DN, cn, true, newOu)
 	if err = LdapConn.ModifyDN(movReq); err != nil {
-		log.Error("Fail to move user dn, err: ", err)
+		log.Log.Error("Fail to move user dn, err: ", err)
 		return
 	}
 	return
@@ -356,7 +355,7 @@ func NewUser(entry *ldap.Entry) *LdapAttributes {
 	// 初始化连接
 	err := Init(&model.LdapCfgs)
 	if err != nil {
-		log.Error("Fail to get ldap connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 	}
 	// 将用户过期字段转换为int64
 	expire, _ := strconv.ParseInt(entry.GetAttributeValue("accountExpires"), 10, 64)
@@ -384,12 +383,12 @@ func (user *LdapAttributes) Update() (err error) {
 	// 初始化连接
 	err = Init(&model.LdapCfgs)
 	if err != nil {
-		log.Error("Fail to get ldap connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 		return
 	}
 	entry, err := FetchUser(user)
 	if err != nil {
-		log.Error("Fail to fetch user, err: ", err)
+		log.Log.Error("Fail to fetch user, err: ", err)
 		return
 	}
 
@@ -417,7 +416,7 @@ func (user *LdapAttributes) Update() (err error) {
 			modReq.Replace("accountExpires", []string{strconv.FormatInt(user.Expire, 10)})
 
 			if err := LdapConn.Modify(modReq); err != nil {
-				log.Error("Fail to update user's infor: ", err)
+				log.Log.Error("Fail to update user's infor: ", err)
 			}
 		}
 
@@ -456,12 +455,12 @@ func (user *LdapAttributes) ModifyInfo() (err error) {
 	// 初始化连接
 	err = Init(&model.LdapCfgs)
 	if err != nil {
-		log.Error("Fail to get ldap connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 	}
 	entry, err := FetchUser(user)
 
 	if err != nil {
-		log.Error("Fail to fetch user, err: ", err)
+		log.Log.Error("Fail to fetch user, err: ", err)
 		return
 	}
 	modReq := ldap.NewModifyRequest(entry.DN, []ldap.Control{})
@@ -492,7 +491,7 @@ func (user *LdapAttributes) ModifyInfo() (err error) {
 	}
 
 	if err := LdapConn.Modify(modReq); err != nil {
-		log.Error("Fail to modify user's information, err: ", err)
+		log.Log.Error("Fail to modify user's information, err: ", err)
 	}
 
 	// 对用户DN进行更新 必须放在修改其他普通数据之后
@@ -508,7 +507,7 @@ func IsOuExist(newOu string) (isOuExist bool) {
 	// 初始化连接
 	err := Init(&model.LdapCfgs)
 	if err != nil {
-		log.Error("Fail to get ldap connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 	}
 	searchRequest := ldap.NewSearchRequest(
 		model.LdapCfgs.BaseDn,
@@ -520,7 +519,7 @@ func IsOuExist(newOu string) (isOuExist bool) {
 
 	sr, err := LdapConn.Search(searchRequest)
 	if err != nil {
-		log.Error("Fail to fetch ou, err: ", err)
+		log.Log.Error("Fail to fetch ou, err: ", err)
 		isOuExist = false
 
 	}
@@ -535,7 +534,7 @@ func AddOu(newOu string) {
 	// 初始化连接
 	err := Init(&model.LdapCfgs)
 	if err != nil {
-		log.Error("Fail to get ldap connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 	}
 	// 新增逻辑
 	addReq := ldap.NewAddRequest(newOu, []ldap.Control{})
@@ -543,7 +542,7 @@ func AddOu(newOu string) {
 	addReq.Attribute("cn", []string{strings.Split(strings.Split(newOu, ",")[0], "=")[1]})
 
 	if err := LdapConn.Add(addReq); err != nil {
-		log.Error("Fail to add ou, err: ", err)
+		log.Log.Error("Fail to add ou, err: ", err)
 	}
 }
 
@@ -617,13 +616,13 @@ func (user *LdapAttributes) Disable() (err error) {
 	// 初始化连接
 	err = Init(&model.LdapCfgs)
 	if err != nil {
-		log.Error("Fail to get ldap connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 		return
 	}
 
 	entry, err := FetchUser(user)
 	if err != nil {
-		log.Error("Fail to fetch user, err: ", err)
+		log.Log.Error("Fail to fetch user, err: ", err)
 		return
 	}
 
@@ -631,7 +630,7 @@ func (user *LdapAttributes) Disable() (err error) {
 	// 对用户的普通数据进行选择性更新
 	modReq.Replace("userAccountControl", []string{"546"})
 	if err = LdapConn.Modify(modReq); err != nil {
-		log.Error("Fail to disable user, err: ", err)
+		log.Log.Error("Fail to disable user, err: ", err)
 		return
 	}
 
@@ -647,13 +646,13 @@ func (user *LdapAttributes) Renewal() (err error) {
 	// 初始化连接
 	err = Init(&model.LdapCfgs)
 	if err != nil {
-		log.Error("Fail to get ldap connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 		return
 	}
 
 	entry, err := FetchUser(user)
 	if err != nil {
-		log.Error("Fail to fetch user, err: ", err)
+		log.Log.Error("Fail to fetch user, err: ", err)
 		return
 	}
 
@@ -661,7 +660,7 @@ func (user *LdapAttributes) Renewal() (err error) {
 	// 修改账号过期时间字段
 	modReq.Replace("accountExpires", []string{expireTimeStampStr})
 	if err = LdapConn.Modify(modReq); err != nil {
-		log.Error("Fail to renewal user, err: ", err)
+		log.Log.Error("Fail to renewal user, err: ", err)
 		return
 	}
 	return

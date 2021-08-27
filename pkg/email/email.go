@@ -5,10 +5,7 @@ import (
 	"net/smtp"
 
 	"github.com/jordan-wright/email"
-	"github.com/sirupsen/logrus"
 )
-
-var log = logrus.New()
 
 // Config email config
 type Config struct {
