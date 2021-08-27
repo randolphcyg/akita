@@ -411,8 +411,7 @@ func ScanExpiredWeworkUsers() {
 	}
 
 	// 根据是否为节假日决定是否发消息
-	isHolidaySilentMode, festival := util.IsHolidaySilentMode(now)
-	if isHolidaySilentMode && festival != "" {
+	if isSilent, _ := util.IsHolidaySilentMode(now); isSilent {
 		// 消息静默
 	} else {
 		// 工作日正常发送通知

@@ -15,6 +15,16 @@ import (
 	"gitee.com/RandolphCYG/akita/pkg/log"
 )
 
+// Find 判断切片是否有某元素
+func Find(slice []string, val string) (int, bool) {
+	for i, item := range slice {
+		if item == val {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
 // IsFestival 判断是否为节日
 func IsFestival(t time.Time) (isFestival bool, result []string) {
 	isFestival = false
@@ -45,14 +55,18 @@ func IsMonday(t time.Time) (isMonday bool) {
 // IsHolidaySilentMode 假期静默模式
 func IsHolidaySilentMode(t time.Time) (isHolidaySilentMode bool, festival string) {
 	isFestival, festivals := IsFestival(t)
-	if isFestival && (festivals[0] == "除夕" || festivals[0] == "春节" || festivals[0] == "国庆节") {
-		return true, festivals[0]
+	targetFestivals := []string{"除夕", "春节", "国庆节", "中秋节"}
+	for _, tf := range targetFestivals {
+		_, find := Find(festivals, tf)
+		if isFestival && find {
+			return true, tf
+		}
 	}
 	// 周末判断
 	if IsWeekend(t) {
-		return false, ""
-	} else {
 		return true, ""
+	} else {
+		return false, ""
 	}
 }
 

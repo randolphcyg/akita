@@ -199,10 +199,14 @@ func SyncLdapUsers() {
 		}
 		msgs += fmt.Sprintf(temp, strconv.Itoa(i+1), r.Name, r.OldDepart, r.NewDepart, r.Level)
 	}
+
 	// 根据是否为节假日决定是否发消息
-	isHolidaySilentMode, festival := util.IsHolidaySilentMode(now)
-	if isHolidaySilentMode && festival != "" {
-		util.SendRobotMsg(`<font color="warning"> ` + festival + "快乐！祝各位阖家团圆、岁岁平安~" + ` </font>`)
+	if isSilent, festival := util.IsHolidaySilentMode(now); isSilent {
+		if festival != "" {
+			util.SendRobotMsg(`<font color="warning"> ` + festival + "快乐！祝各位阖家团圆、岁岁平安~" + ` </font>`)
+		} else {
+			// 不是节日 只是周末静默
+		}
 	} else {
 		// 工作日正常发送通知
 		if len(todayLdapUserDepartRecords) == 0 {
@@ -215,6 +219,7 @@ func SyncLdapUsers() {
 			}
 		}
 	}
+
 	log.Log.Info("汇总通知发送成功!")
 }
 
