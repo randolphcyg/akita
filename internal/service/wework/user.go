@@ -351,6 +351,8 @@ func ScanExpiredWeworkUsersManual() serializer.Response {
 
 // ScanExpiredWeworkUsers 扫描企业微信过期用户 内部人员根据HR接口；外部人员根据过期标识，过期标识临近则发送提醒
 func ScanExpiredWeworkUsers() {
+	done := make(chan bool, 2)
+
 	// 检查HR数据中过期的内部用户
 	go func() {
 		hrUsers, err := cache.HGetAll("hr_users") // 从缓存取HR元数据
@@ -360,17 +362,15 @@ func ScanExpiredWeworkUsers() {
 		for _, u := range hrUsers {
 			var hrUser hr.HrUser
 			json.Unmarshal([]byte(u), &hrUser) // 反序列化
-
 			if hrUser.Stat == "离职" {
-				weworkUser, _ := FetchUser(hrUser.Eid)
-				if weworkUser.Userid != "" && weworkUser.Status == 0 {
-					if len(weworkUser.Extattr.Attrs) >= 1 && weworkUser.Extattr.Attrs[0].Name == "工号" {
-						model.CreateWeworkUserSyncRecord(weworkUser.Userid, weworkUser.Name, weworkUser.Extattr.Attrs[0].Value, "禁用")
-						DisableUser(weworkUser) // 禁用
-					}
+				weworkUser, _ := FetchUser(strings.TrimSpace(hrUser.Eid))
+				if weworkUser.Userid != "" && weworkUser.Status == 1 { // 若发现HR数据中离职的用户 企业微信状态还是1则禁用
+					model.CreateWeworkUserSyncRecord(weworkUser.Userid, weworkUser.Name, weworkUser.Extattr.Attrs[0].Value, "禁用")
+					DisableUser(weworkUser) // 禁用
 				}
 			}
 		}
+		done <- true
 	}()
 
 	// 检查企业微信中过期的外部用户
@@ -391,9 +391,11 @@ func ScanExpiredWeworkUsers() {
 				}
 			}
 		}
+		done <- true
 	}()
 
-	log.Log.Info("扫描过期企业用户完成!")
+	_, _ = <-done, <-done
+	log.Log.Info("扫描内外部公司过期企业微信用户完成!")
 
 	// 汇总通知
 	todayWeworkUserSyncRecords, _ := model.FetchTodayWeworkUserSyncRecord()
