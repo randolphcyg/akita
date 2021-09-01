@@ -85,7 +85,8 @@ func (service *Order) HandleOrders(o *Order) (err error) {
 			err = handleOrderC7nAuthority(weworkOrder)
 		}
 	default:
-		err = errors.New("Akita server has no handdler with this kind of order, please handle it manually!")
+		log.Log.Warning("UUAP server has no handdler with this kind of order, please handle it manually!")
+		return
 	}
 	// 统一处理工单的处理情况
 	if result.RowsAffected == 1 && !orderExecuteRecord.ExecuteStatus { // 非首次执行 重试

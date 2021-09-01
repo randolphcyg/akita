@@ -98,7 +98,7 @@ func CacheWeworkUsers() {
 		log.Log.Error(err)
 	}
 
-	temp, err := json.Marshal(res)
+	temp, _ := json.Marshal(res)
 	json.Unmarshal(temp, &usersMsg)
 
 	if usersMsg.Errcode != 0 {
@@ -122,7 +122,7 @@ func CacheWeworkUsers() {
 				log.Log.Error(err)
 			}
 
-			temp, err := json.Marshal(getUserDetailRes)
+			temp, _ := json.Marshal(getUserDetailRes)
 			json.Unmarshal(temp, &userDetails)
 
 			if len(userDetails.Extattr.Attrs) >= 1 && userDetails.Extattr.Attrs[0].Name == "工号" { // 忽略不符合规范的用户
@@ -227,7 +227,7 @@ func CreateUser(user *ldap.LdapAttributes) (err error) {
 	}
 
 	var msg WeworkMsg
-	res, err := corpAPIUserManager.UserCreate(weworkUserInfos)
+	res, _ := corpAPIUserManager.UserCreate(weworkUserInfos)
 	b, err := json.Marshal(res)
 	json.Unmarshal(b, &msg)
 	if msg.Errcode != 0 {
@@ -263,7 +263,7 @@ func RenewalUser(weworkUserId string, applicant order.RenewalApplicant, expireDa
 	}
 	// 更新用户
 	var msg WeworkMsg
-	res, err := corpAPIUserManager.UserUpdate(weworkUserInfos)
+	res, _ := corpAPIUserManager.UserUpdate(weworkUserInfos)
 	b, err := json.Marshal(res)
 	json.Unmarshal(b, &msg)
 	if err != nil {
@@ -462,7 +462,7 @@ func DisableUser(u UserDetails) (err error) {
 	}
 	// 更新用户
 	var msg WeworkMsg
-	res, err := corpAPIUserManager.UserUpdate(weworkUserInfos)
+	res, _ := corpAPIUserManager.UserUpdate(weworkUserInfos)
 	b, err := json.Marshal(res)
 	json.Unmarshal(b, &msg)
 	if err != nil {
@@ -499,7 +499,7 @@ func FormatHistoryUser(user UserDetails, formatEid string, formatMail string) (e
 	}
 	// 更新用户
 	var msg WeworkMsg
-	res, err := corpAPIUserManager.UserUpdate(weworkUserInfos)
+	res, _ := corpAPIUserManager.UserUpdate(weworkUserInfos)
 	b, err := json.Marshal(res)
 	json.Unmarshal(b, &msg)
 	if err != nil {
