@@ -365,7 +365,6 @@ func ScanExpiredWeworkUsers() {
 			if hrUser.Stat == "离职" {
 				weworkUser, _ := FetchUser(strings.TrimSpace(hrUser.Eid))
 				if weworkUser.Userid != "" && weworkUser.Status == 1 { // 若发现HR数据中离职的用户 企业微信状态还是1则禁用
-					model.CreateWeworkUserSyncRecord(weworkUser.Userid, weworkUser.Name, weworkUser.Extattr.Attrs[0].Value, "禁用")
 					DisableUser(weworkUser) // 禁用
 				}
 			}
@@ -381,7 +380,6 @@ func ScanExpiredWeworkUsers() {
 			json.Unmarshal([]byte(u), &weworkUser)
 			if len(weworkUser.Extattr.Attrs) >= 2 && weworkUser.Extattr.Attrs[1].Name == "过期日期" && weworkUser.Extattr.Attrs[1].Value != "" {
 				if util.IsExpire(weworkUser.Extattr.Attrs[1].Value) { // 若已经过期
-					model.CreateWeworkUserSyncRecord(weworkUser.Userid, weworkUser.Name, weworkUser.Extattr.Attrs[0].Value, "禁用")
 					DisableUser(weworkUser) // 禁用
 				} else { // 若即将过期，符合条件则发送即将过期通知
 					remainingDays := util.SubDays(util.ExpireStrToTime(weworkUser.Extattr.Attrs[1].Value), time.Now())
