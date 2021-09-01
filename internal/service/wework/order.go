@@ -24,7 +24,7 @@ type Order struct {
 	SpNo string `json:"sp_no"`
 }
 
-// 工单总入口
+// HandleOrders 企业微信工单总入口
 func (service *Order) HandleOrders(o *Order) (err error) {
 	// 判断工单是否存在 若存在则不处理，若不存在则保存一份 处理失败情况要记录到表中
 	result, orderExecuteRecord := model.FetchOrder(o.SpNo)
@@ -59,7 +59,7 @@ func (service *Order) HandleOrders(o *Order) (err error) {
 
 	// 工单分流 将原始工单结构体转换为对应要求工单数据
 	switch orderData["spName"] {
-	case "统一账号注册":
+	case "账号注册":
 		{
 			weworkOrder := order.RawToAccountsRegister(orderData)
 			err = handleOrderAccountsRegister(weworkOrder)
@@ -69,15 +69,15 @@ func (service *Order) HandleOrders(o *Order) (err error) {
 			weworkOrder := order.RawToUuapPwdRetrieve(orderData)
 			err = handleOrderUuapPwdRetrieve(weworkOrder)
 		}
-	case "UUAP账号注销":
+	case "账号注销":
 		{
 			weworkOrder := order.RawToUuapPwdDisable(orderData)
 			err = handleOrderUuapDisable(weworkOrder)
 		}
-	case "统一账号续期":
+	case "账号续期":
 		{
-			weworkOrder := order.RawToUuapRenewal(orderData)
-			err = handleOrderUuapRenewal(weworkOrder)
+			weworkOrder := order.RawToAccountsRenewal(orderData)
+			err = handleOrderAccountsRenewal(weworkOrder)
 		}
 	case "猪齿鱼项目权限":
 		{
@@ -107,7 +107,7 @@ func (service *Order) HandleOrders(o *Order) (err error) {
 	return
 }
 
-// handleOrderAccountsRegister 统一账号注册 工单
+// handleOrderAccountsRegister 账号注册 工单
 func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (err error) {
 	// 支持处理多个申请者
 	for _, applicant := range o.Users {
@@ -180,7 +180,7 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 		if _, ok := platforms["企业微信"]; ok {
 			weworkUser, err := FetchUser(userInfos.Num)
 			if err == nil && weworkUser.Userid != "" && weworkUser.Name == userInfos.DisplayName {
-				HandleWeworkDuplicateRegister(o, userInfos)
+				handleWeworkDuplicateRegister(o, userInfos)
 			} else {
 				// 执行生成 企业微信账号 操作
 				err = CreateUser(userInfos)
@@ -227,8 +227,8 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 	return
 }
 
-// HandleWeworkDuplicateRegister 处理企业微信用户重复注册
-func HandleWeworkDuplicateRegister(o order.WeworkOrderDetailsAccountsRegister, user *ldap.LdapAttributes) (err error) {
+// handleWeworkDuplicateRegister 处理企业微信用户重复注册
+func handleWeworkDuplicateRegister(o order.WeworkOrderDetailsAccountsRegister, user *ldap.LdapAttributes) (err error) {
 	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
 	duplicateRegisterWeworkUserWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_wework_user_duplicate_register")
 	if err != nil {
@@ -260,7 +260,7 @@ func HandleWeworkDuplicateRegister(o order.WeworkOrderDetailsAccountsRegister, u
 	return
 }
 
-// UUAP密码找回 工单
+// handleOrderUuapPwdRetrieve UUAP密码找回 工单
 func handleOrderUuapPwdRetrieve(o order.WeworkOrderDetailsUuapPwdRetrieve) (err error) {
 	user := &ldap.LdapAttributes{
 		Num:         o.Eid,
@@ -293,7 +293,7 @@ func handleOrderUuapPwdRetrieve(o order.WeworkOrderDetailsUuapPwdRetrieve) (err 
 	return
 }
 
-// UUAP账号注销 工单
+// handleOrderUuapDisable 账号注销 工单
 func handleOrderUuapDisable(o order.WeworkOrderDetailsUuapDisable) (err error) {
 	user := &ldap.LdapAttributes{
 		Num:         o.Eid,
@@ -327,8 +327,8 @@ func handleOrderUuapDisable(o order.WeworkOrderDetailsUuapDisable) (err error) {
 	return
 }
 
-// UUAP账号续期 工单
-func handleOrderUuapRenewal(o order.WeworkOrderDetailsUuapRenewal) (err error) {
+// handleOrderAccountsRenewal 账号续期 工单
+func handleOrderAccountsRenewal(o order.WeworkOrderDetailsAccountsRenewal) (err error) {
 	// 支持处理多个申请者
 	for _, applicant := range o.Users {
 		fmt.Println(applicant)
@@ -356,8 +356,8 @@ func handleOrderUuapRenewal(o order.WeworkOrderDetailsUuapRenewal) (err error) {
 	return
 }
 
-// RenewalUuap uuap续期
-func RenewalUuap(o order.WeworkOrderDetailsUuapRenewal, applicant order.RenewalApplicant) (err error) {
+// RenewalUuap 续期
+func RenewalUuap(o order.WeworkOrderDetailsAccountsRenewal, applicant order.RenewalApplicant) (err error) {
 	days, _ := strconv.ParseInt(applicant.Days, 10, 64)
 	user := &ldap.LdapAttributes{
 		Num:         applicant.Eid,

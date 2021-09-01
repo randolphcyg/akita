@@ -368,7 +368,7 @@ type WeworkOrderDetailsAccountsRegisterSingle struct {
 	InitPlatforms []string `mapstructure:"所需平台"`
 }
 
-// 原始工单转换为统一账号注册工单结构体
+// 原始工单转换为账号注册工单结构体
 func RawToAccountsRegister(weworkOrder map[string]interface{}) (orderDetails WeworkOrderDetailsAccountsRegister) {
 	if _, ok := weworkOrder["姓名"]; ok {
 		var temp WeworkOrderDetailsAccountsRegisterSingle
@@ -412,7 +412,7 @@ func RawToUuapPwdRetrieve(weworkOrder map[string]interface{}) (orderDetails Wewo
 	return
 }
 
-// UUAP账号注销 工单详情
+// 账号注销 工单详情
 type WeworkOrderDetailsUuapDisable struct {
 	SpName      string `mapstructure:"spName"`
 	Userid      string `mapstructure:"userid"`
@@ -420,7 +420,7 @@ type WeworkOrderDetailsUuapDisable struct {
 	Eid         string `mapstructure:"工号"`
 }
 
-// 原始工单转换为UUAP账号注销结构体
+// 原始工单转换为账号注销结构体
 func RawToUuapPwdDisable(weworkOrder map[string]interface{}) (orderDetails WeworkOrderDetailsUuapDisable) {
 	if err := mapstructure.Decode(weworkOrder, &orderDetails); err != nil {
 		log.Log.Error("Fail to convert raw oder, err: ", err)
@@ -436,15 +436,15 @@ type RenewalApplicant struct {
 	Days        string   `mapstructure:"续期天数"`
 }
 
-// UUAP账号续期 工单详情
-type WeworkOrderDetailsUuapRenewal struct {
+// 账号续期 工单详情
+type WeworkOrderDetailsAccountsRenewal struct {
 	SpName string             `mapstructure:"spName"`
 	Userid string             `mapstructure:"userid"`
 	Users  []RenewalApplicant `mapstructure:"待申请人员"`
 }
 
-// 原始工单转换为UUAP账号续期结构体
-func RawToUuapRenewal(weworkOrder map[string]interface{}) (orderDetails WeworkOrderDetailsUuapRenewal) {
+// 原始工单转换为账号续期结构体
+func RawToAccountsRenewal(weworkOrder map[string]interface{}) (orderDetails WeworkOrderDetailsAccountsRenewal) {
 	if err := mapstructure.Decode(weworkOrder, &orderDetails); err != nil {
 		log.Log.Error("Fail to convert raw oder, err: ", err)
 	}
