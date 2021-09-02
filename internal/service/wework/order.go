@@ -444,7 +444,7 @@ func handleOrderC7nAuthority(order order.WeworkOrderDetailsC7nAuthority) (err er
 		project, err := c7n.FetchC7nProject(p.Project)
 		if err != nil {
 			handleC7nOrderFindProjectErr(order, p.Project)
-			break
+			continue // 若遇到用户填写错误 继续执行下一条
 		}
 
 		// 角色的处理流程
