@@ -364,8 +364,8 @@ func ScanExpiredWeworkUsers() {
 			json.Unmarshal([]byte(u), &hrUser) // 反序列化
 			if hrUser.Stat == "离职" {
 				weworkUser, _ := FetchUser(strings.TrimSpace(hrUser.Eid))
-				if weworkUser.Userid != "" && weworkUser.Status == 1 { // 若发现HR数据中离职的用户 企业微信状态还是1则禁用
-					DisableUser(weworkUser) // 禁用
+				if weworkUser.Userid != "" { // 若发现HR数据中离职的用户 企业微信账号则干掉
+					DeleteUser(weworkUser) // 删除操作
 				}
 			}
 		}
@@ -475,6 +475,34 @@ func DisableUser(u UserDetails) (err error) {
 	}
 
 	log.Log.Info("Success to disable wework user!")
+	return
+}
+
+// DeleteUser 删除企业微信用户
+func DeleteUser(u UserDetails) (err error) {
+	corpAPIUserManager := api.NewCorpAPI(model.WeworkUserManageCfg.CorpId, model.WeworkUserManageCfg.AppSecret)
+	weworkUserInfos := map[string]interface{}{
+		"userid": u.Userid,
+	}
+	// 更新用户
+	var msg WeworkMsg
+	res, err := corpAPIUserManager.UserDelete(weworkUserInfos)
+	if err != nil {
+		return
+	}
+
+	b, err := json.Marshal(res)
+	json.Unmarshal(b, &msg)
+	if err != nil {
+		log.Log.Error(err)
+		return
+	}
+	// 此处将删除企业微信用户的记录保存下
+	if len(u.Extattr.Attrs) >= 1 && u.Extattr.Attrs[0].Name == "工号" {
+		model.CreateWeworkUserSyncRecord(u.Userid, u.Name, u.Extattr.Attrs[0].Value, "删除")
+	}
+
+	log.Log.Info("Success to delete wework user: " + u.Name + " " + u.Userid)
 	return
 }
 
