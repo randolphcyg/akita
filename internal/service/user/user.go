@@ -137,7 +137,7 @@ func SyncLdapUsers() {
 
 	// TODO 待优化 目前速度提升没有
 	log.Log.Info("开始更新ldap用户...")
-	done := make(chan int, 30) // 带 20 个缓存
+	done := make(chan int, 30)
 	for cn, u := range ldapUsers {
 		go func(cn string, u string) {
 			var userStat, dn string
@@ -187,14 +187,21 @@ func SyncLdapUsers() {
 	log.Log.Info("更新ldap用户成功!")
 
 	// 更新完成后，将数据库更改记录统一公布
-	todayLdapUserDepartRecords, _ := model.FetchTodayLdapUserDepartRecord()
 	now := time.Now()
+	// 若是周一 则将周末的处理结果一并发出
+	var ldapUserDepartRecords []model.LdapUserDepartRecord
+	if util.IsMonday(now) {
+		ldapUserDepartRecords, _ = model.FetchLdapUserDepartRecord(-2, 1)
+	} else {
+		ldapUserDepartRecords, _ = model.FetchLdapUserDepartRecord(0, 1)
+	}
+
 	today := now.Format("2006年01月02日")
 	tempTitle := `<font color="warning"> ` + today + ` </font>LDAP用户架构变化：`
 	temp := `>%s. <font color="warning"> %s </font>岗位变动:<font color="comment"> %s </font>到<font color="info"> %s </font>级别<font color="warning"> %s </font>`
 	var msgs string
-	for i, r := range todayLdapUserDepartRecords {
-		if i != len(todayLdapUserDepartRecords) {
+	for i, r := range ldapUserDepartRecords {
+		if i != len(ldapUserDepartRecords) {
 			msgs += "\n\n"
 		}
 		msgs += fmt.Sprintf(temp, strconv.Itoa(i+1), r.Name, r.OldDepart, r.NewDepart, r.Level)
@@ -209,7 +216,7 @@ func SyncLdapUsers() {
 		}
 	} else {
 		// 工作日正常发送通知
-		if len(todayLdapUserDepartRecords) == 0 {
+		if len(ldapUserDepartRecords) == 0 {
 			util.SendRobotMsg(`<font color="warning"> ` + today + ` </font>LDAP用户架构无变化`)
 		} else {
 			// 消息过长的作剪裁处理
@@ -226,7 +233,7 @@ func SyncLdapUsers() {
 // FormatData 校验邮箱和手机号格式
 func FormatData(mail string, mobile string) (err error) {
 	if strings.Contains(mail, " ") || strings.Contains(mobile, " ") || len(mobile) != 11 {
-		err = errors.New("手机号或邮箱不符合规范! 1. 手机号11位且中间不允许有空格 2. 邮箱中间不允许有空格!")
+		err = errors.New("手机号或邮箱不符合规范! 1. 手机号11位且中间不允许有空格 2. 邮箱中间不允许有空格")
 	}
 	return
 }

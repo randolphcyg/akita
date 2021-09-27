@@ -46,10 +46,7 @@ func IsWeekend(t time.Time) (isWeekend bool) {
 
 // IsMonday 判断是否为周一
 func IsMonday(t time.Time) (isMonday bool) {
-	if int(t.Weekday()) == 1 {
-		return true
-	}
-	return false
+	return int(t.Weekday()) == 1
 }
 
 // IsHolidaySilentMode 假期静默模式

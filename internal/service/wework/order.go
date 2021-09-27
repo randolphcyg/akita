@@ -29,7 +29,7 @@ func (service *Order) HandleOrders(o *Order) (err error) {
 	// 判断工单是否存在 若存在则不处理，若不存在则保存一份 处理失败情况要记录到表中
 	result, orderExecuteRecord := model.FetchOrder(o.SpNo)
 	if result.RowsAffected == 1 && orderExecuteRecord.ExecuteStatus {
-		err = errors.New("thanks,tabby! [" + o.SpNo + "]该工单已经处理过，忽略此次操作~")
+		err = errors.New("thanks,tabby! [" + o.SpNo + "]该工单已经处理过，忽略此次操作")
 		log.Log.Warning(err)
 		return
 	}

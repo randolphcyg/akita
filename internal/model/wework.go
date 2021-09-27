@@ -92,12 +92,10 @@ func UpdateWeworkUserSyncRecord(userId, name, eid, syncKind, newSyncKind string)
 	DB.Model(&WeworkUserSyncRecord{}).Where("user_id = ? AND name = ? AND eid = ? and sync_kind = ?", userId, name, eid, syncKind).Update("sync_kind", newSyncKind)
 }
 
-// FetchTodayWeworkUserSyncRecord 查询今日企业微信用户变化记录
-func FetchTodayWeworkUserSyncRecord() (weworkUserSyncRecord []WeworkUserSyncRecord, err error) {
-	todayBegin, _ := time.Parse("2006-01-02", time.Now().Format("2006-01-02")) // 当日零点
-	todayEnd, _ := time.Parse("2006-01-02", time.Now().AddDate(0, 0, 1).Format("2006-01-02"))
-	delta, _ := time.ParseDuration("-1s")
-	todayEnd = todayEnd.Add(delta) // 当日最后一秒
-	_ = DB.Where("created_at BETWEEN ? AND ?", todayBegin, todayEnd).Find(&weworkUserSyncRecord)
+// FetchWeworkUserSyncRecord 查询一段时间的企业微信用户变化记录
+func FetchWeworkUserSyncRecord(offsetBefore, offsetAfter int) (weworkUserSyncRecord []WeworkUserSyncRecord, err error) {
+	begin, _ := time.Parse("2006-01-02", time.Now().AddDate(0, 0, offsetBefore).Format("2006-01-02")) // 开始日期的零点
+	end, _ := time.Parse("2006-01-02", time.Now().AddDate(0, 0, offsetAfter).Format("2006-01-02"))    // 结束日期的最后一秒
+	_ = DB.Where("created_at BETWEEN ? AND ?", begin, end).Find(&weworkUserSyncRecord)
 	return
 }

@@ -41,6 +41,7 @@ type LdapAttributes struct {
 	Title          string `json:"title" gorm:"type:varchar(100)"`                          // 职务
 	WeworkExpire   string `json:"wework_expire" gorm:"-"`                                  // 企业微信过期日期
 	WeworkDepartId int    `json:"wework_depart_id" gorm:"-"`                               // 企业微信部门id
+	ProbationFlag  int    `json:"probation_flag" gorm:"-"`                                 // 打试用期标签 1 打标签 0 不打标签
 }
 
 var attrs = []string{
@@ -633,10 +634,6 @@ func (user *LdapAttributes) Disable() (err error) {
 		log.Log.Error("Fail to disable user, err: ", err)
 		return
 	}
-
-	// 对用户DN进行更新
-	CheckOuTree(model.LdapFields.BaseDnDisabled)
-	err = user.MoveDn(model.LdapFields.BaseDnDisabled)
 	return
 }
 

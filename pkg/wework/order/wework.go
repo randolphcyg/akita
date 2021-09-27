@@ -328,7 +328,7 @@ func ParseRawOrder(rawInfo interface{}) (orderData map[string]interface{}, err e
 			}
 			orderData[con.Title[0].Text] = temps
 		default:
-			err = errors.New("包含未处理工单项类型【" + con.Control + "】请及时补充后端逻辑!")
+			err = errors.New("包含未处理工单项类型【" + con.Control + "】请及时补充后端逻辑")
 			return
 		}
 	}

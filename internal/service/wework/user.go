@@ -200,9 +200,10 @@ func CreateUser(user *ldap.LdapAttributes) (err error) {
 		"userid":            user.Sam,
 		"name":              user.DisplayName,
 		"mobile":            user.Phone,
-		"department":        user.WeworkDepartId,
+		"department":        []int{user.WeworkDepartId},
+		"main_department":   user.WeworkDepartId,
 		"email":             user.Email,
-		"is_leader_in_dept": 0,
+		"is_leader_in_dept": []int{0},
 		"enable":            1,
 		// 自定义属性
 		"extattr": map[string]interface{}{
@@ -233,6 +234,23 @@ func CreateUser(user *ldap.LdapAttributes) (err error) {
 	if msg.Errcode != 0 {
 		err = errors.New(msg.Errmsg)
 	}
+
+	// 打标签
+	if user.ProbationFlag == 1 {
+		weworkUserTagInfos := map[string]interface{}{
+			"tagid":    36,
+			"userlist": []string{user.Sam},
+		}
+		var WeworkMsgTag WeworkMsg
+		tagRes, _ := corpAPIUserManager.TagAddUser(weworkUserTagInfos)
+
+		bTagRes, _ := json.Marshal(tagRes)
+		json.Unmarshal(bTagRes, &WeworkMsgTag)
+		if WeworkMsgTag.Errcode == 0 && WeworkMsgTag.Errmsg == "ok" {
+			log.Log.Info("已为[", user.DisplayName, "]打上[试用期员工]标签!")
+		}
+	}
+
 	return
 }
 
@@ -396,15 +414,22 @@ func ScanExpiredWeworkUsers() {
 	log.Log.Info("扫描内外部公司过期企业微信用户完成!")
 
 	// 汇总通知
-	todayWeworkUserSyncRecords, _ := model.FetchTodayWeworkUserSyncRecord()
-	// 发消息
 	now := time.Now()
+	// 若是周一 则将周末的处理结果一并发出
+	var weworkUserSyncRecords []model.WeworkUserSyncRecord
+	if util.IsMonday(now) {
+		weworkUserSyncRecords, _ = model.FetchWeworkUserSyncRecord(-2, 1)
+	} else {
+		weworkUserSyncRecords, _ = model.FetchWeworkUserSyncRecord(0, 1)
+	}
+
+	// 发消息
 	today := now.Format("2006年01月02日")
 	tempTitle := `<font color="warning"> ` + today + ` </font>企业微信用户变化：`
 	temp := `>%s. <font color="warning"> %s </font>账号<font color="comment"> %s </font>变化类别<font color="info"> %s </font>`
 	var msgs string
-	for i, u := range todayWeworkUserSyncRecords {
-		if i != len(todayWeworkUserSyncRecords) {
+	for i, u := range weworkUserSyncRecords {
+		if i != len(weworkUserSyncRecords) {
 			msgs += "\n\n"
 		}
 		msgs += fmt.Sprintf(temp, strconv.Itoa(i+1), u.Name, u.UserId, u.SyncKind)
@@ -415,7 +440,7 @@ func ScanExpiredWeworkUsers() {
 		// 消息静默
 	} else {
 		// 工作日正常发送通知
-		if len(todayWeworkUserSyncRecords) == 0 {
+		if len(weworkUserSyncRecords) == 0 {
 			util.SendRobotMsg(`<font color="warning"> ` + today + ` </font>企业微信用户无变化`)
 		} else {
 			// 消息过长的作剪裁处理

@@ -17,6 +17,6 @@ func Ping(ctx *gin.Context) {
 		}
 
 	} else {
-		ctx.JSON(200, "tomorrow is not festival or weekend!")
+		ctx.JSON(200, "tomorrow is not festival or weekend")
 	}
 }
