@@ -228,7 +228,11 @@ func CreateUser(user *ldap.LdapAttributes) (err error) {
 	}
 
 	var msg WeworkMsg
-	res, _ := corpAPIUserManager.UserCreate(weworkUserInfos)
+	res, err := corpAPIUserManager.UserCreate(weworkUserInfos)
+	if err != nil {
+		return
+	}
+
 	b, err := json.Marshal(res)
 	json.Unmarshal(b, &msg)
 	if msg.Errcode != 0 {
@@ -281,7 +285,11 @@ func RenewalUser(weworkUserId string, applicant order.RenewalApplicant, expireDa
 	}
 	// 更新用户
 	var msg WeworkMsg
-	res, _ := corpAPIUserManager.UserUpdate(weworkUserInfos)
+	res, err := corpAPIUserManager.UserUpdate(weworkUserInfos)
+	if err != nil {
+		return
+	}
+
 	b, err := json.Marshal(res)
 	json.Unmarshal(b, &msg)
 	if err != nil {
@@ -295,68 +303,86 @@ func RenewalUser(weworkUserId string, applicant order.RenewalApplicant, expireDa
 // ScanNewHrUsersManual 手动触发扫描HR数据并为新员工创建企业微信账号
 func ScanNewHrUsersManual() serializer.Response {
 	go func() {
+		CacheWeworkUsers() // 更新企业微信缓存
 		ScanNewHrUsers()
+		CacheWeworkUsers() // 更新企业微信缓存
 	}()
 	return serializer.Response{Data: 0, Msg: "Success to scan new hr users to wework!"}
 }
 
 // ScanNewHrUsers 扫描HR数据并为新员工创建企业微信账号
 func ScanNewHrUsers() {
-	go func() {
-		hrUsers, err := cache.HGetAll("hr_users") // 从缓存取HR元数据
-		if err != nil {
-			log.Log.Error("Fail to fetch ldap users cache,:", err)
-		}
-		for _, u := range hrUsers {
-			var hrUser hr.HrUser
-			json.Unmarshal([]byte(u), &hrUser) // 反序列化
-			// 判断如果企业微信没这个本公司用户，则进行创建，并记录到数据库这个操作
-			if hrUser.Stat != "离职" && hrUser.CompanyCode == "2600" {
-				u, _ := FetchUser(hrUser.Eid)
-				if u.Name == "" {
-					dp, _ := FetchDepart(strings.Split(hrUser.Department, ".")[len(strings.Split(hrUser.Department, "."))-1])
-					var userInfos *ldap.LdapAttributes
-					if dp.Name != "" {
-						// 组装LDAP用户数据
-						userInfos = &ldap.LdapAttributes{
-							Sam:            hrUser.Eid,
-							Num:            hrUser.Eid,
-							DisplayName:    hrUser.Name,
-							Email:          strings.ToLower(hrUser.Mail),
-							Phone:          hrUser.Mobile,
-							WeworkExpire:   "",
-							WeworkDepartId: dp.Id,
-						}
-						err = CreateUser(userInfos)
-						if err != nil {
-							log.Log.Error("Fail to create wework automatically, ", err)
-							model.CreateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "自动创建失败, "+err.Error())
-						}
-						model.CreateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "新用户 分配至企微["+dp.Name+"]")
-					} else {
-						// 组装LDAP用户数据
-						userInfos = &ldap.LdapAttributes{
-							Sam:            hrUser.Eid,
-							Num:            hrUser.Eid,
-							DisplayName:    hrUser.Name,
-							Email:          strings.ToLower(hrUser.Mail),
-							Phone:          hrUser.Mobile,
-							WeworkExpire:   "",
-							WeworkDepartId: 69,
-						}
-						log.Log.Warning("未找到与该新用户[" + userInfos.DisplayName + "]的HR数据部门对应的同名企业微信部门！将用户暂存在待分配~")
-						model.CreateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "HR数据部门["+hrUser.Department+"]自动分配至企业微信部门[69新加入待分配]")
-						err = CreateUser(userInfos)
-						if err != nil {
-							log.Log.Error("Fail to create wework automatically, ", err)
-							model.UpdateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "HR数据部门["+hrUser.Department+"]自动分配至企微部门[69新加入待分配]", "自动创建失败, "+err.Error())
-						}
-						model.UpdateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "HR数据部门["+hrUser.Department+"]自动分配至企微部门[69新加入待分配]", "新用户 HR数据部门["+hrUser.Department+"]自动分配至企微部门[69新加入待分配]")
+	hrUsers, err := cache.HGetAll("hr_users") // 从缓存取HR元数据
+	if err != nil {
+		log.Log.Error("Fail to fetch ldap users cache,:", err)
+	}
+	for _, hu := range hrUsers {
+		var hrUser hr.HrUser
+		json.Unmarshal([]byte(hu), &hrUser) // 反序列化
+		// 判断如果企业微信没这个本公司用户，则进行创建，并记录到数据库这个操作
+		if hrUser.CompanyCode == "2600" && hrUser.Stat != "离职" {
+			u, _ := FetchUser(strings.TrimSpace(hrUser.Eid)) // HR数据中有少数工号错误地加了空格 这里进行去除
+			if u.Name == "" {                                // 本公司新人
+				dp, _ := FetchDepart(strings.Split(hrUser.Department, ".")[len(strings.Split(hrUser.Department, "."))-1])
+				var userInfos *ldap.LdapAttributes
+				if dp.Name != "" {
+					// 组装LDAP用户数据
+					userInfos = &ldap.LdapAttributes{
+						Sam:            hrUser.Eid,
+						Num:            hrUser.Eid,
+						DisplayName:    hrUser.Name,
+						Email:          strings.ToLower(hrUser.Mail),
+						Phone:          hrUser.Mobile,
+						WeworkExpire:   "",
+						WeworkDepartId: dp.Id,
+						ProbationFlag:  1,
 					}
+					err = CreateUser(userInfos)
+					if err != nil {
+						log.Log.Error("Fail to create wework automatically, ", err)
+						model.CreateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "自动创建失败, "+err.Error())
+						break
+					}
+					recordMsg := "新用户 分配至企微[" + dp.Name + "]"
+					model.CreateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, recordMsg)
+				} else {
+					// 组装LDAP用户数据
+					userInfos = &ldap.LdapAttributes{
+						Sam:            hrUser.Eid,
+						Num:            hrUser.Eid,
+						DisplayName:    hrUser.Name,
+						Email:          strings.ToLower(hrUser.Mail),
+						Phone:          hrUser.Mobile,
+						WeworkExpire:   "",
+						WeworkDepartId: 69,
+						ProbationFlag:  1,
+					}
+					log.Log.Warning("未找到与该新用户[" + userInfos.DisplayName + "]的HR数据部门对应的同名企业微信部门！将用户暂存在待分配~")
+					recordMsg := "HR数据部门[" + hrUser.Department + "]分配至企业微信部门[69新加入待分配]"
+					model.CreateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, recordMsg)
+					err = CreateUser(userInfos)
+					if err != nil {
+						log.Log.Error("Fail to create wework automatically, ", err)
+						model.UpdateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "HR数据部门["+hrUser.Department+"]分配至企微部门[69新加入待分配]", "自动创建失败, "+err.Error())
+						break
+					}
+					// 消息自定义
+					if userInfos.ProbationFlag == 1 {
+						model.UpdateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, recordMsg, "新用户 "+recordMsg+" Tag:[试用期员工]")
+						log.Log.Info("新用户 " + recordMsg + " Tag:[试用期员工]")
+					} else {
+						model.UpdateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, recordMsg, "新用户 "+recordMsg)
+						log.Log.Info("新用户 " + recordMsg)
+					}
+
+				}
+			} else { // 已经存在的公司老人
+				if len(u.Extattr.Attrs) >= 2 && u.Extattr.Attrs[1].Name == "过期日期" && u.Extattr.Attrs[1].Value != "" { // 外部员工转为本公司员工，去除过期字段
+					ClearUserExpiredFlag(u)
 				}
 			}
 		}
-	}()
+	}
 }
 
 // ScanExpiredWeworkUsersManual 手动触发扫描企业微信过期用户
@@ -487,7 +513,11 @@ func DisableUser(u UserDetails) (err error) {
 	}
 	// 更新用户
 	var msg WeworkMsg
-	res, _ := corpAPIUserManager.UserUpdate(weworkUserInfos)
+	res, err := corpAPIUserManager.UserUpdate(weworkUserInfos)
+	if err != nil {
+		return
+	}
+
 	b, err := json.Marshal(res)
 	json.Unmarshal(b, &msg)
 	if err != nil {
@@ -499,7 +529,7 @@ func DisableUser(u UserDetails) (err error) {
 		model.CreateWeworkUserSyncRecord(u.Userid, u.Name, u.Extattr.Attrs[0].Value, "禁用")
 	}
 
-	log.Log.Info("Success to disable wework user!")
+	log.Log.Info("Success to disable wework user: " + u.Name + " " + u.Userid)
 	return
 }
 
@@ -531,6 +561,47 @@ func DeleteUser(u UserDetails) (err error) {
 	return
 }
 
+// ClearUserExpiredFlag 清空用户过期字段
+func ClearUserExpiredFlag(u UserDetails) (err error) {
+	corpAPIUserManager := api.NewCorpAPI(model.WeworkUserManageCfg.CorpId, model.WeworkUserManageCfg.AppSecret)
+	weworkUserInfos := map[string]interface{}{
+		// 自定义属性
+		"userid": u.Userid,
+		"extattr": map[string]interface{}{
+			"attrs": []interface{}{
+				map[string]interface{}{
+					"type": 0,
+					"name": "过期日期",
+					"text": map[string]string{
+						"value": "",
+					},
+				},
+			},
+		},
+	}
+
+	// 更新用户
+	var msg WeworkMsg
+	res, err := corpAPIUserManager.UserUpdate(weworkUserInfos)
+	if err != nil {
+		return
+	}
+
+	b, err := json.Marshal(res)
+	json.Unmarshal(b, &msg)
+	if err != nil {
+		log.Log.Error(err)
+		return
+	}
+	// 此处将修改企业微信用户的记录保存下
+	if len(u.Extattr.Attrs) >= 1 && u.Extattr.Attrs[0].Name == "工号" {
+		model.CreateWeworkUserSyncRecord(u.Userid, u.Name, u.Extattr.Attrs[0].Value, "外部员工转为本公司员工，去除过期字段")
+	}
+
+	log.Log.Info("Success to clear wework user's expired flag!")
+	return
+}
+
 // FormatHistoryUser 企业微信历史用户规整
 func FormatHistoryUser(user UserDetails, formatEid string, formatMail string) (err error) {
 	corpAPIUserManager := api.NewCorpAPI(model.WeworkUserManageCfg.CorpId, model.WeworkUserManageCfg.AppSecret)
@@ -552,7 +623,11 @@ func FormatHistoryUser(user UserDetails, formatEid string, formatMail string) (e
 	}
 	// 更新用户
 	var msg WeworkMsg
-	res, _ := corpAPIUserManager.UserUpdate(weworkUserInfos)
+	res, err := corpAPIUserManager.UserUpdate(weworkUserInfos)
+	if err != nil {
+		return
+	}
+
 	b, err := json.Marshal(res)
 	json.Unmarshal(b, &msg)
 	if err != nil {

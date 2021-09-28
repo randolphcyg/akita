@@ -9,6 +9,7 @@ import (
 	"gitee.com/RandolphCYG/akita/internal/conf"
 	"gitee.com/RandolphCYG/akita/internal/handler"
 	"gitee.com/RandolphCYG/akita/internal/model"
+	"gitee.com/RandolphCYG/akita/internal/service/ldap"
 	"gitee.com/RandolphCYG/akita/internal/service/task"
 	"gitee.com/RandolphCYG/akita/pkg/cache"
 	"gitee.com/RandolphCYG/akita/pkg/email"
@@ -54,8 +55,9 @@ func Init(cfg string) {
 	// 初始化 email
 	email.Init(&Cfg.Email)
 
-	// 初始化ldap连接
+	// 初始化ldap连接池
 	model.LdapCfgs, _ = model.GetAllLdapConn() // 直接查询
+	ldap.Init(&model.LdapCfgs)
 	// 初始化ldap字段配置
 	model.LdapFields, _ = model.GetLdapFieldByConnUrl(model.LdapCfgs.ConnUrl)
 

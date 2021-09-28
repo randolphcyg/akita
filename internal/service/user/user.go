@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"gitee.com/RandolphCYG/akita/internal/model"
@@ -59,7 +60,6 @@ func ScanExpiredLdapUsersManual() serializer.Response {
 
 // ScanExpiredLdapUsers 扫描过期ldap用户
 func ScanExpiredLdapUsers() {
-	// 初始化连接
 	LdapUsers := ldap.FetchLdapUsers(&ldap.LdapAttributes{})
 	currentTime := time.Now()
 	// expireLdapUsers := make([]*ldap.LdapAttributes, 0, 10)  // TODO 预留防止更改传参
@@ -137,9 +137,13 @@ func SyncLdapUsers() {
 
 	// TODO 待优化 目前速度提升没有
 	log.Log.Info("开始更新ldap用户...")
-	done := make(chan int, 30)
+	var wg sync.WaitGroup
+	ch := make(chan struct{}, 20)
 	for cn, u := range ldapUsers {
+		ch <- struct{}{}
+		wg.Add(1)
 		go func(cn string, u string) {
+			defer wg.Done()
 			var userStat, dn string
 			var expire int64
 			var user hr.HrUser
@@ -175,15 +179,16 @@ func SyncLdapUsers() {
 				Depart:      depart,
 				Title:       user.Title,
 			}
+			fmt.Println(ldapUser.DisplayName)
 			// 更新用户操作
 			err := ldapUser.Update()
 			if err != nil {
 				log.Log.Error("Fail to update user form cache to ldap server,: ", err)
 			}
-			done <- 30
+			<-ch
 		}(cn, u)
-		<-done
 	}
+	wg.Wait() // 等待
 	log.Log.Info("更新ldap用户成功!")
 
 	// 更新完成后，将数据库更改记录统一公布
@@ -339,12 +344,13 @@ func HandleUuapDuplicateRegister(user *ldap.LdapAttributes, order order.WeworkOr
 		log.Log.Error("读取企业微信消息模板错误: ", err)
 	}
 
-	// 初始化连接
-	err = ldap.Init(&model.LdapCfgs)
+	// 获取连接
+	LdapConn, err := ldap.LdapPool.Get()
 	if err != nil {
 		log.Log.Error("Fail to get ldap connection, err: ", err)
 		return
 	}
+	defer LdapConn.Close()
 
 	entry, _ := ldap.FetchUser(user)
 	sam := entry.GetAttributeValue("sAMAccountName")

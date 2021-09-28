@@ -160,6 +160,7 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 			Company:        applicant.Company,
 			WeworkExpire:   weworkExpireStr,
 			WeworkDepartId: weworkDepartId,
+			ProbationFlag:  1,
 		}
 
 		// 将平台切片转为map 用于判断是否存在某平台
@@ -188,7 +189,13 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 					log.Log.Error("Fail to create user by wework order, ", err)
 					model.CreateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "自动创建失败, "+err.Error())
 				}
-				model.CreateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "新用户 工单填写公司["+userInfos.Company+"]自动分配至企微部门["+strconv.Itoa(userInfos.WeworkDepartId)+"]")
+
+				recordMsg := "新用户 工单公司[" + userInfos.Company + "]分配至企微部门[" + strconv.Itoa(userInfos.WeworkDepartId) + "]"
+				if userInfos.ProbationFlag == 1 {
+					recordMsg += " Tag:[试用期员工]"
+				}
+				model.CreateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, recordMsg)
+				log.Log.Info(recordMsg)
 			}
 
 		}
@@ -235,12 +242,13 @@ func handleWeworkDuplicateRegister(o order.WeworkOrderDetailsAccountsRegister, u
 		log.Log.Error("读取企业微信消息模板错误: ", err)
 	}
 
-	// 初始化连接
-	err = ldap.Init(&model.LdapCfgs)
+	// 获取连接
+	LdapConn, err := ldap.LdapPool.Get()
 	if err != nil {
 		log.Log.Error("Fail to get ldap connection, err: ", err)
 		return
 	}
+	defer LdapConn.Close()
 
 	entry, _ := ldap.FetchUser(user)
 	sam := entry.GetAttributeValue("sAMAccountName")
