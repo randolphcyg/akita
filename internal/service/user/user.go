@@ -179,7 +179,6 @@ func SyncLdapUsers() {
 				Depart:      depart,
 				Title:       user.Title,
 			}
-			fmt.Println(ldapUser.DisplayName)
 			// 更新用户操作
 			err := ldapUser.Update()
 			if err != nil {

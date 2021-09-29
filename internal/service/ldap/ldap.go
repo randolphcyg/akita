@@ -303,12 +303,10 @@ func FetchUser(user *LdapAttributes) (result *ldap.Entry, err error) {
 
 	ldapFilterCn := "(cn=" + user.DisplayName + user.Num + ")"
 	searchFilter := "(objectClass=organizationalPerson)"
-
 	if user.DisplayName != "" && user.Num != "" {
 		searchFilter += ldapFilterCn
 	}
 	searchFilter = "(&" + searchFilter + ")"
-
 	searchRequest := ldap.NewSearchRequest(
 		model.LdapCfgs.BaseDn,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
@@ -317,7 +315,7 @@ func FetchUser(user *LdapAttributes) (result *ldap.Entry, err error) {
 		nil,
 	)
 
-	// 这里LdapConn 为nil
+	// search user
 	sr, err := LdapConn.Search(searchRequest)
 	if err != nil {
 		log.Log.Error("Fail to fetch user, err: ", err)
