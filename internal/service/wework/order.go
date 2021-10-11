@@ -250,7 +250,10 @@ func handleWeworkDuplicateRegister(o order.WeworkOrderDetailsAccountsRegister, u
 	}
 	defer LdapConn.Close()
 
-	entry, _ := ldap.FetchUser(user)
+	entry, err := ldap.FetchUser(user)
+	if err != nil {
+		return
+	}
 	sam := entry.GetAttributeValue("sAMAccountName")
 
 	_, err = corpAPIMsg.MessageSend(map[string]interface{}{

@@ -3,6 +3,7 @@ package ldap
 import (
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -242,7 +243,10 @@ func (user *LdapAttributes) RetrievePwd() (sam string, newPwd string, err error)
 	}
 	defer LdapConn.Close()
 
-	entry, _ := FetchUser(user)
+	entry, err := FetchUser(user)
+	if err != nil {
+		return
+	}
 	sam = entry.GetAttributeValue("sAMAccountName")
 	// 初始化复杂密码
 	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
@@ -271,7 +275,10 @@ func (user *LdapAttributes) ModifyPwd(newUserPwd string) (err error) {
 	}
 	defer LdapConn.Close()
 
-	entry, _ := FetchUser(user)
+	entry, err := FetchUser(user)
+	if err != nil {
+		return
+	}
 	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
 	pwdEncoded, err := utf16.NewEncoder().String(fmt.Sprintf("%q", newUserPwd))
 	if err != nil {
@@ -318,11 +325,13 @@ func FetchUser(user *LdapAttributes) (result *ldap.Entry, err error) {
 	// search user
 	sr, err := LdapConn.Search(searchRequest)
 	if err != nil {
-		log.Log.Error("Fail to fetch user, err: ", err)
-		return
+		return nil, err
 	}
+	// 查询结果判断
 	if len(sr.Entries) > 0 && len(sr.Entries[0].Attributes) > 0 {
 		result = sr.Entries[0]
+	} else {
+		return nil, errors.New("fail to fetch ldap user")
 	}
 	return
 }
@@ -337,7 +346,10 @@ func (user *LdapAttributes) ModifyDn(cn string) {
 	}
 	defer LdapConn.Close()
 
-	entry, _ := FetchUser(user)
+	entry, err := FetchUser(user)
+	if err != nil {
+		return
+	}
 	cn = "CN=" + cn
 	modReq := ldap.NewModifyDNRequest(entry.DN, cn, true, "")
 	if err := LdapConn.Conn.ModifyDN(modReq); err != nil {
@@ -355,7 +367,10 @@ func (user *LdapAttributes) MoveDn(newOu string) (err error) {
 	}
 	defer LdapConn.Close()
 
-	entry, _ := FetchUser(user)
+	entry, err := FetchUser(user)
+	if err != nil {
+		return
+	}
 	cn := strings.Split(entry.DN, ",")[0]
 	movReq := ldap.NewModifyDNRequest(entry.DN, cn, true, newOu)
 	if err = LdapConn.Conn.ModifyDN(movReq); err != nil {
@@ -408,7 +423,6 @@ func (user *LdapAttributes) Update() (err error) {
 
 	entry, err := FetchUser(user)
 	if err != nil {
-		log.Log.Error("Fail to fetch user, err: ", err)
 		return
 	}
 
@@ -478,9 +492,7 @@ func (user *LdapAttributes) ModifyInfo() (err error) {
 	defer LdapConn.Close()
 
 	entry, err := FetchUser(user)
-
 	if err != nil {
-		log.Log.Error("Fail to fetch user, err: ", err)
 		return
 	}
 	modReq := ldap.NewModifyRequest(entry.DN, []ldap.Control{})
@@ -647,7 +659,6 @@ func (user *LdapAttributes) Disable() (err error) {
 
 	entry, err := FetchUser(user)
 	if err != nil {
-		log.Log.Error("Fail to fetch user, err: ", err)
 		return
 	}
 
@@ -673,7 +684,6 @@ func (user *LdapAttributes) Renewal() (err error) {
 
 	entry, err := FetchUser(user)
 	if err != nil {
-		log.Log.Error("Fail to fetch user, err: ", err)
 		return
 	}
 
