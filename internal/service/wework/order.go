@@ -378,7 +378,7 @@ func RenewalUuap(o order.WeworkOrderDetailsAccountsRenewal, applicant order.Rene
 
 	err = user.Renewal()
 	if err != nil {
-		log.Log.Error(err)
+		handleWeworkOrderFindUserErr(o, applicant.DisplayName, applicant.Eid)
 		return
 	}
 
@@ -401,6 +401,25 @@ func RenewalUuap(o order.WeworkOrderDetailsAccountsRenewal, applicant order.Rene
 	}
 	log.Log.Info("企业微信回执消息:工单[" + o.SpName + "]用户[" + o.Userid + "]姓名[" + applicant.DisplayName + "]工号[" + applicant.Eid + "]状态[续期" + applicant.Days + "天]")
 	return
+}
+
+// handleWeworkOrderFindUserErr 处理未找到企微用户错误
+func handleWeworkOrderFindUserErr(o order.WeworkOrderDetailsAccountsRenewal, name, eid string) {
+	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
+	c7nFindProjectErrMsgTemplate, _ := cache.HGet("wework_templates", "wework_template_wework_find_user_err")
+	msg := map[string]interface{}{
+		"touser":  "Z025576", // o.Userid
+		"msgtype": "markdown",
+		"agentid": model.WeworkUuapCfg.AppId,
+		"markdown": map[string]interface{}{
+			"content": fmt.Sprintf(c7nFindProjectErrMsgTemplate, o.SpName, name, name, eid),
+		},
+	}
+	_, err := corpAPIMsg.MessageSend(msg)
+	if err != nil {
+		log.Log.Error("Fail to send wework msg, err: ", err)
+	}
+	log.Log.Info("企业微信回执消息:工单[" + o.SpName + "]用户[" + o.Userid + "]姓名[" + name + "]工号[" + eid + "]状态[c7n项目权限|未找到企微用户,姓名: " + name + " 工号: " + eid + "]")
 }
 
 // handleC7nOrderFindUserErr 处理未找到c7n用户错误
