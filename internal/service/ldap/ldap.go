@@ -8,13 +8,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf16"
 
+	ldappool "github.com/RandolphCYG/ldapPool"
 	"github.com/go-ldap/ldap/v3"
 	"golang.org/x/text/encoding/unicode"
 
 	"gitee.com/RandolphCYG/akita/internal/model"
-	ldappool "gitee.com/RandolphCYG/akita/pkg/ldapPool"
 	"gitee.com/RandolphCYG/akita/pkg/log"
 	"gitee.com/RandolphCYG/akita/pkg/util"
 )
@@ -84,8 +83,7 @@ func Init(c *model.LdapCfg) (err error) {
 		AdminAccount:  c.AdminAccount,
 		Password:      c.Password,
 	}
-	// 初始化ldap连接池 TODO 待确认参数
-	n := utf16.Encode([]rune("233"))
+	// 初始化ldap连接池
 	LdapPool, err = ldappool.NewChannelPool(50, 1000, "test",
 		func(s string) (ldap.Client, error) {
 			conn, err := ldap.DialURL(LdapCfg.ConnUrl)
@@ -103,7 +101,7 @@ func Init(c *model.LdapCfg) (err error) {
 				log.Log.Error("admin user auth failed, err: ", err)
 			}
 			return conn, nil
-		}, n)
+		}, []uint16{ldap.LDAPResultTimeLimitExceeded, ldap.ErrorNetwork})
 	if err != nil {
 		log.Log.Error(err)
 	}
