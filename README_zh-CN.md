@@ -19,7 +19,6 @@ go mod tidy
 go run main.go
 ```
 
-本项目暂无前端，企业微信的工单由产研管理部的具有公网IP并配置了域名的tabby服务发送，如果发现接收不了工单，请溯源至tabby服务；
 main.go为程序主入口，其init函数作用是初始化系统配置`bootstrap.Init(*cfgFile)` ，此步骤将主配置文件读取后启动`mysql`、`redis`，并将`ldap`和`企业微信`、`邮件服务器`配置初始化到环境变量中；
 main函数起了个主线程，`engine := router.InitRouter()`作用是初始化路由，根据系统模式决定是否启动全部定时任务；
 
