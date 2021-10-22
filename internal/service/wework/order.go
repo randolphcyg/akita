@@ -18,6 +18,15 @@ import (
 	"gitee.com/RandolphCYG/akita/pkg/wework/order"
 )
 
+var (
+	ErrCompanyNotExists = errors.New("无此公司,请到LDAP服务器增加对应公司！")
+	ErrDeserialize      = errors.New("反序列化错误！")
+	ErrFetchDB          = errors.New("查询数据库错误！")
+)
+
+// 全局使用的公司前缀映射
+var companyTypes map[string]model.CompanyType
+
 // Order 企业微信工单查询条件
 type Order struct {
 	// 用户对象类
@@ -107,6 +116,22 @@ func (service *Order) HandleOrders(o *Order) (err error) {
 	return
 }
 
+// fetchLatestCompanyType 公司前缀映射查询
+func fetchLatestCompanyType() (err error) {
+	model.LdapFields, err = model.GetLdapFieldByConnUrl(model.LdapCfgs.ConnUrl)
+	if err != nil {
+		log.Log.Error(ErrFetchDB)
+		return
+	}
+
+	companyTypes, err = conn.Str2CompanyTypes(model.LdapFields.CompanyType)
+	if err != nil {
+		log.Log.Error(ErrDeserialize)
+		return
+	}
+	return
+}
+
 // handleOrderAccountsRegister 账号注册 工单
 func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (err error) {
 	// 支持处理多个申请者
@@ -115,20 +140,30 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 		var isOutsideComp bool
 		var sam, dn, weworkExpireStr string
 		var weworkDepartId int
-		var companyTypes map[string]model.CompanyType
 		displayName := []rune(applicant.DisplayName)
 		cn := string(displayName) + applicant.Eid
+
+		// 取内外部公司前缀映射
 		companyTypes, err = conn.Str2CompanyTypes(model.LdapFields.CompanyType)
 		if err != nil {
-			log.Log.Error("Fail to deserialize str, err: ", err)
-			return
+			log.Log.Error(ErrDeserialize)
+			return err
 		}
-		// 取内外部公司前缀映射
 		if v, ok := companyTypes[applicant.Company]; ok {
 			isOutsideComp = v.IsOuter
-		} else { // 若没有这个公司返回报错
-			log.Log.Error(errors.New("无此公司,请到LDAP服务器增加对应公司！"))
-			return
+		} else { // 若环境变量没找到当前用户公司则刷新环境变量重试
+			err = fetchLatestCompanyType()
+			if err != nil {
+				log.Log.Error(ErrCompanyNotExists)
+				return err
+			}
+
+			if v, ok := companyTypes[applicant.Company]; ok {
+				isOutsideComp = v.IsOuter
+			} else {
+				log.Log.Error(ErrCompanyNotExists)
+				return ErrCompanyNotExists
+			}
 		}
 
 		// 不同公司个性化用户名与OU
