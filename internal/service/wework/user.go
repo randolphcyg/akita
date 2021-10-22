@@ -149,8 +149,16 @@ func FetchUser(eid string) (userDetails UserDetails, err error) {
 	return
 }
 
-// FetchDeparts 通过部门名称获取唯一部门ID
-func FetchDepart(departName string) (depart Depart, err error) {
+// FetchDepart 通过HR部门名称及父部门名称获取唯一部门
+func FetchDepart(hrDepartName string) (depart Depart, err error) {
+	var departName, parentDepartName string
+	if len(strings.Split(hrDepartName, ".")) >= 1 {
+		departName = strings.Split(hrDepartName, ".")[len(strings.Split(hrDepartName, "."))-1]
+	}
+	if len(strings.Split(hrDepartName, ".")) >= 2 {
+		parentDepartName = strings.Split(hrDepartName, ".")[len(strings.Split(hrDepartName, "."))-2]
+	}
+
 	corpAPIUserManager := api.NewCorpAPI(model.WeworkUserManageCfg.CorpId, model.WeworkUserManageCfg.AppSecret)
 	res, err := corpAPIUserManager.DepartmentList(map[string]interface{}{})
 	if err != nil {
@@ -165,10 +173,42 @@ func FetchDepart(departName string) (depart Depart, err error) {
 		log.Log.Error("Fail to fetch wework user list, err:", departsMsg.Errmsg)
 		return
 	}
+
 	for _, d := range departsMsg.Department {
-		if departName == d.Name { // 只返回查到的第一个
-			return d, nil
+		if departName == d.Name { // 如果发现有多个同名部门，则查询其父部门进行综合判断
+			parentDepart, err := FetchDepartById(d.Parentid)
+			if err != nil {
+				log.Log.Error(err)
+			}
+			if parentDepart.Name == parentDepartName {
+				return d, nil
+			}
 		}
+	}
+
+	return
+}
+
+// FetchDepartById 根据ID获取部门
+func FetchDepartById(id int) (department Depart, err error) {
+	corpAPIUserManager := api.NewCorpAPI(model.WeworkUserManageCfg.CorpId, model.WeworkUserManageCfg.AppSecret)
+	res, err := corpAPIUserManager.DepartmentList(map[string]interface{}{})
+	if err != nil {
+		log.Log.Error(err)
+		return
+	}
+	var departsMsg DepartsMsg
+	b, err := json.Marshal(res)
+	json.Unmarshal(b, &departsMsg)
+	for _, depart := range departsMsg.Department {
+		if depart.Id == id {
+			return depart, nil
+		}
+	}
+
+	if departsMsg.Errcode != 0 {
+		log.Log.Error("Fail to fetch wework user list, err:", departsMsg.Errmsg)
+		return
 	}
 
 	return
@@ -323,7 +363,7 @@ func ScanNewHrUsers() {
 		if hrUser.CompanyCode == "2600" && hrUser.Stat != "离职" {
 			u, _ := FetchUser(strings.TrimSpace(hrUser.Eid)) // HR数据中有少数工号错误地加了空格 这里进行去除
 			if u.Name == "" {                                // 本公司新人
-				dp, _ := FetchDepart(strings.Split(hrUser.Department, ".")[len(strings.Split(hrUser.Department, "."))-1])
+				dp, _ := FetchDepart(hrUser.Department)
 				var userInfos *ldap.LdapAttributes
 				if dp.Name != "" {
 					// 组装LDAP用户数据
