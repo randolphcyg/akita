@@ -139,7 +139,7 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 		var expire int64
 		var isOutsideComp bool
 		var sam, dn, weworkExpireStr string
-		var weworkDepartId int
+		var weworkDepartId, probationFlag int
 		displayName := []rune(applicant.DisplayName)
 		cn := string(displayName) + applicant.Eid
 
@@ -173,11 +173,13 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 			expire = ldap.ExpireTime(int64(90)) // 90天过期
 			weworkExpireStr = util.ExpireStr(90)
 			weworkDepartId = 79 // 外部公司企业微信部门为合作伙伴
+			probationFlag = 0
 		} else { // 公司内部人员默认放到待分配区 后面每天程序自动将用户架构刷新
 			sam = applicant.Eid
 			dn = "CN=" + cn + "," + model.LdapFields.BaseDnToBeAssigned
 			expire = ldap.ExpireTime(int64(-1)) // 永不过期
 			weworkDepartId = 69                 // 本公司企业微信部门为待分配
+			probationFlag = 1
 		}
 		// 组装LDAP用户数据
 		userInfos := &ldap.LdapAttributes{
@@ -195,7 +197,7 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 			Company:        applicant.Company,
 			WeworkExpire:   weworkExpireStr,
 			WeworkDepartId: weworkDepartId,
-			ProbationFlag:  1,
+			ProbationFlag:  probationFlag,
 		}
 
 		// 将平台切片转为map 用于判断是否存在某平台
@@ -232,7 +234,6 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 				model.CreateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, recordMsg)
 				log.Log.Info(recordMsg)
 			}
-
 		}
 
 		if _, ok := platforms["猪齿鱼"]; ok {
