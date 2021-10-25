@@ -97,7 +97,7 @@ type C7nFetchLdapRes struct {
 // FetchToken 获取token
 func FetchToken() (header map[string]string, err error) {
 	// 从缓存取url
-	c7nFetchToken, err := cache.HGet("third_party_sys_cfg", "c7n_fetch_token")
+	c7nFetchToken, err := cache.HGet("third_party_cfgs", "c7n_fetch_token")
 	if err != nil {
 		log.Log.Error("读取三方系统-c7n配置错误: ", err)
 		return
@@ -149,7 +149,7 @@ func FtechC7nUser(realName, loginName string) (c7nUser C7nUserFields, err error)
 	}
 
 	// 从缓存取url
-	c7nFetchUser, err := cache.HGet("third_party_sys_cfg", "c7n_fetch_user")
+	c7nFetchUser, err := cache.HGet("third_party_cfgs", "c7n_fetch_user")
 	if err != nil {
 		log.Log.Error("读取三方系统-c7n配置错误: ", err)
 		return
@@ -191,7 +191,7 @@ func FetchC7nRoles(roleName string) (c7nRole C7nRoleFields, err error) {
 	}
 
 	// 从缓存取url
-	c7nFetchRoles, err := cache.HGet("third_party_sys_cfg", "c7n_fetch_roles")
+	c7nFetchRoles, err := cache.HGet("third_party_cfgs", "c7n_fetch_roles")
 	if err != nil {
 		log.Log.Error("读取三方系统-c7n配置错误: ", err)
 		return
@@ -236,7 +236,7 @@ func AssignC7nUserProjectRole(c7nProjectId string, c7nUserId string, c7nRoleIds 
 	}
 
 	// 从缓存取url
-	c7nAssignUserProjectRole, err := cache.HGet("third_party_sys_cfg", "c7n_assign_user_project_role")
+	c7nAssignUserProjectRole, err := cache.HGet("third_party_cfgs", "c7n_assign_user_project_role")
 	if err != nil {
 		log.Log.Error("读取三方系统-c7n配置错误: ", err)
 		return
@@ -266,7 +266,7 @@ func UpdateC7nUsers() {
 	}
 
 	// 从缓存取url
-	c7nFetchLdapConn, err := cache.HGet("third_party_sys_cfg", "c7n_fetch_ldap_conn")
+	c7nFetchLdapConn, err := cache.HGet("third_party_cfgs", "c7n_fetch_ldap_conn")
 	if err != nil {
 		log.Log.Error("读取三方系统-c7n配置错误: ", err)
 	}
@@ -292,7 +292,7 @@ func UpdateC7nUsers() {
 
 	// 同步用户
 	// 从缓存取url
-	c7nSyncLdapUsers, err := cache.HGet("third_party_sys_cfg", "c7n_sync_ldap_users")
+	c7nSyncLdapUsers, err := cache.HGet("third_party_cfgs", "c7n_sync_ldap_users")
 	if err != nil {
 		log.Log.Error("读取三方系统-c7n配置错误: ", err)
 	}
@@ -316,7 +316,7 @@ func CacheC7nProjectsManual() serializer.Response {
 func CacheC7nProjects() {
 	log.Log.Info("开始更新c7n项目缓存...")
 	// 从缓存取url
-	c7nFetchAllProjects, err := cache.HGet("third_party_sys_cfg", "c7n_fetch_all_projects")
+	c7nFetchAllProjects, err := cache.HGet("third_party_cfgs", "c7n_fetch_all_projects")
 	if err != nil {
 		log.Log.Error("读取三方系统-c7n配置错误: ", err)
 		return

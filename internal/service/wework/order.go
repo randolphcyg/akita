@@ -273,7 +273,7 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 // handleWeworkDuplicateRegister 处理企业微信用户重复注册
 func handleWeworkDuplicateRegister(o order.WeworkOrderDetailsAccountsRegister, user *ldap.LdapAttributes) (err error) {
 	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
-	duplicateRegisterWeworkUserWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_wework_user_duplicate_register")
+	duplicateRegisterWeworkUserWeworkMsgTemplate, err := cache.HGet("wework_msg_templates", "wework_template_wework_user_duplicate_register")
 	if err != nil {
 		log.Log.Error("读取企业微信消息模板错误: ", err)
 	}
@@ -321,7 +321,7 @@ func handleOrderUuapPwdRetrieve(o order.WeworkOrderDetailsUuapPwdRetrieve) (err 
 
 	// 创建成功发送企业微信消息
 	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
-	retrieveUuapPwdWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_pwd_retrieve")
+	retrieveUuapPwdWeworkMsgTemplate, err := cache.HGet("wework_msg_templates", "wework_template_pwd_retrieve")
 	if err != nil {
 		log.Log.Error("读取企业微信消息模板错误: ", err)
 	}
@@ -355,7 +355,7 @@ func handleOrderUuapDisable(o order.WeworkOrderDetailsUuapDisable) (err error) {
 
 	// 续期成功发送企业微信消息
 	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
-	renewalUuapWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_uuap_disable")
+	renewalUuapWeworkMsgTemplate, err := cache.HGet("wework_msg_templates", "wework_template_uuap_disable")
 	if err != nil {
 		log.Log.Error("读取企业微信消息模板错误: ", err)
 	}
@@ -420,7 +420,7 @@ func RenewalUuap(o order.WeworkOrderDetailsAccountsRenewal, applicant order.Rene
 
 	// 续期成功发送企业微信消息
 	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
-	renewalUuapWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_uuap_renewal")
+	renewalUuapWeworkMsgTemplate, err := cache.HGet("wework_msg_templates", "wework_template_uuap_renewal")
 	if err != nil {
 		log.Log.Error("读取企业微信消息模板错误: ", err)
 	}
@@ -442,7 +442,7 @@ func RenewalUuap(o order.WeworkOrderDetailsAccountsRenewal, applicant order.Rene
 // handleWeworkOrderFindUserErr 处理未找到企微用户错误
 func handleWeworkOrderFindUserErr(o order.WeworkOrderDetailsAccountsRenewal, name, eid string) {
 	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
-	c7nFindProjectErrMsgTemplate, _ := cache.HGet("wework_templates", "wework_template_wework_find_user_err")
+	c7nFindProjectErrMsgTemplate, _ := cache.HGet("wework_msg_templates", "wework_template_wework_find_user_err")
 	msg := map[string]interface{}{
 		"touser":  "Z025576", // o.Userid
 		"msgtype": "markdown",
@@ -461,7 +461,7 @@ func handleWeworkOrderFindUserErr(o order.WeworkOrderDetailsAccountsRenewal, nam
 // handleC7nOrderFindUserErr 处理未找到c7n用户错误
 func handleC7nOrderFindUserErr(o order.WeworkOrderDetailsC7nAuthority, name, eid string) {
 	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
-	c7nFindProjectErrMsgTemplate, _ := cache.HGet("wework_templates", "wework_template_c7n_find_user_err")
+	c7nFindProjectErrMsgTemplate, _ := cache.HGet("wework_msg_templates", "wework_template_c7n_find_user_err")
 	msg := map[string]interface{}{
 		"touser":  o.Userid,
 		"msgtype": "markdown",
@@ -480,7 +480,7 @@ func handleC7nOrderFindUserErr(o order.WeworkOrderDetailsC7nAuthority, name, eid
 // handleC7nOrderFindProjectErr 处理未找到c7n项目错误
 func handleC7nOrderFindProjectErr(o order.WeworkOrderDetailsC7nAuthority, p string) {
 	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
-	c7nFindProjectErrMsgTemplate, _ := cache.HGet("wework_templates", "wework_template_c7n_find_project_err")
+	c7nFindProjectErrMsgTemplate, _ := cache.HGet("wework_msg_templates", "wework_template_c7n_find_project_err")
 	msg := map[string]interface{}{
 		"touser":  o.Userid,
 		"msgtype": "markdown",

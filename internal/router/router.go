@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"gitee.com/RandolphCYG/akita/bootstrap"
 	"gitee.com/RandolphCYG/akita/internal/conf"
@@ -39,30 +40,40 @@ func Init(cfg string) {
 	// 根据路由模式执行操作
 	initRouterMode()
 
-	// 初始化 db
-	model.Init(&Cfg.Database)
+	model.Init(&Cfg.Database) // 初始化数据库
 	// 执行数据迁移
 	log.Log.Info("Data migration begin ...")
-	model.DB.AutoMigrate(&model.LdapCfg{}, &model.LdapField{}, &hr.HrDataConn{}, &model.WeworkCfg{}, &model.WeworkOrder{}, &model.LdapUserDepartRecord{}, &model.WeworkUserSyncRecord{})
+	model.DB.AutoMigrate(&model.LdapCfg{}, &model.LdapField{}, &hr.HrDataConn{}, &model.WeworkCfg{}, &model.WeworkOrder{},
+		&model.LdapUserDepartRecord{}, &model.WeworkUserSyncRecord{}, &model.WeworkMsgTemplate{}, &model.ThirdPartyCfg{}, &model.EmailTemplate{})
 	if result := model.DB.Limit(1).Find(&model.LdapCfg{}); result.RowsAffected == 0 {
 		model.DB.Create(&Cfg.LdapCfg)
 	}
 	log.Log.Info("Data migration successful ...")
 
-	// 初始化 redis
-	cache.Init(&Cfg.Redis)
+	cache.Init(&Cfg.Redis) // 初始化缓存
+	cacheRecover()         // 缓存恢复
 
-	// 初始化 email
-	email.Init(&Cfg.Email)
+	email.Init(&Cfg.Email) // 初始化 email
+	initLdap()             // 初始化LDAP
+	initWework()           // 初始化企微配置信息
+}
 
+func initLdap() {
 	// 初始化ldap连接池
 	model.LdapCfgs, _ = model.GetAllLdapConn() // 直接查询
+	log.Log.Info("Begin to init LDAP connection pool")
+	ck := make(chan bool)
+	clock(ck) // 计时器
 	ldap.Init(&model.LdapCfgs)
+	ck <- true // 计时器关闭
+	log.Log.Info("Success to init LDAP connection pool")
 	// 初始化ldap字段配置
 	model.LdapFields, _ = model.GetLdapFieldByConnUrl(model.LdapCfgs.ConnUrl)
+}
 
-	// 初始化企业微信配置信息
-	err = model.GetWeworkOrderCfg()
+// initWework 初始化企微配置信息
+func initWework() {
+	err := model.GetWeworkOrderCfg()
 	if err != nil {
 		log.Log.Error("初始化企业微信审批配置信息错误, err: ", err)
 	}
@@ -75,6 +86,93 @@ func Init(cfg string) {
 		log.Log.Error("初始化企业微信通讯录管理配置信息错误, err: ", err)
 	}
 	log.Log.Info("UUAP server init successful ...")
+}
+
+// cacheRecover 缓存恢复
+func cacheRecover() {
+	// 判断邮件模板哈希表是否存在
+	emailTemplatesExist, _ := cache.Exists("email_templates")
+	// 若不存在则从数据库恢复缓存
+	if !emailTemplatesExist {
+		go func() {
+			emailTemplates, _ := model.FetchEmailTemplates()
+			for _, temp := range emailTemplates {
+				_, err := cache.HSet("email_templates", temp.Key, temp.Value)
+				if err != nil {
+					log.Log.Error("Fail to recover email_templates to cache,:", err)
+				}
+			}
+			log.Log.Info("Success to recover email_templates cache from DB")
+		}()
+	}
+
+	// 判断 第三方配置信息 是否存在
+	thirdPartyCfgsExist, _ := cache.Exists("third_party_cfgs")
+	// 若不存在则从数据库恢复缓存
+	if !thirdPartyCfgsExist {
+		go func() {
+			thirdPartyCfgs, _ := model.FetchThirdPartyCfgs()
+			for _, temp := range thirdPartyCfgs {
+				_, err := cache.HSet("third_party_cfgs", temp.Key, temp.Value)
+				if err != nil {
+					log.Log.Error("Fail to recover third_party_cfgs to cache,:", err)
+				}
+			}
+			log.Log.Info("Success to recover third_party_cfgs cache from DB")
+		}()
+	}
+
+	// 判断 企微信息模板 是否存在
+	weworkMsgTemplatesExist, _ := cache.Exists("wework_msg_templates")
+	// 若不存在则从数据库恢复缓存
+	if !weworkMsgTemplatesExist {
+		go func() {
+			weworkMsgTemplates, _ := model.FetchWeworkMsgTemplates()
+			for _, temp := range weworkMsgTemplates {
+				_, err := cache.HSet("wework_msg_templates", temp.Key, temp.Value)
+				if err != nil {
+					log.Log.Error("Fail to recover wework_msg_templates to cache,:", err)
+				}
+			}
+			log.Log.Info("Success to recover wework_msg_templates cache from DB")
+		}()
+	}
+}
+
+// clock 计时器
+func clock(clock chan bool) {
+	start := time.Now()
+	// 超时时间
+	go func() {
+		for i := 0; i < 10; i++ {
+			time.Sleep(time.Second * 1)
+			clock <- false
+		}
+		time.Sleep(time.Second * 1)
+		clock <- true
+	}()
+
+	go func() {
+		timer := time.NewTimer(time.Second * 5)
+		for {
+			if !timer.Stop() {
+				<-timer.C
+			}
+			timer.Reset(time.Second * 5)
+			select {
+			case b := <-clock:
+				if !b {
+					log.Log.Info("已耗时: ", time.Since(start).Milliseconds(), "ms")
+					continue
+				}
+				log.Log.Info("总耗时: ", time.Since(start).Milliseconds(), "ms")
+				return
+			case <-timer.C:
+				log.Log.Info("超时: ", time.Since(start).Milliseconds(), "ms")
+				continue
+			}
+		}
+	}()
 }
 
 // initRouterMode 根据路由模式执行操作

@@ -523,7 +523,7 @@ func ScanExpiredWeworkUsers() {
 // SendWeworkOuterUserExpiredMsg 给企业微信即将过期用户发送续期通知
 func SendWeworkOuterUserExpiredMsg(user UserDetails, remainingDays int) {
 	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
-	renewalNotifyWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_wework_renewal_notify")
+	renewalNotifyWeworkMsgTemplate, err := cache.HGet("wework_msg_templates", "wework_template_wework_renewal_notify")
 	if err != nil {
 		log.Log.Error("读取企业微信消息模板错误: ", err)
 	}

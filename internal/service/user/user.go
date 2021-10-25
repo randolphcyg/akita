@@ -249,7 +249,7 @@ func CreateLdapUser(o order.WeworkOrderDetailsAccountsRegister, user *ldap.LdapA
 	if err != nil {
 		// 创建成功发送企业微信消息
 		corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
-		createAccountsWeworkMsgTemplate, _ := cache.HGet("wework_templates", "wework_template_uuap_register_err")
+		createAccountsWeworkMsgTemplate, _ := cache.HGet("wework_msg_templates", "wework_template_uuap_register_err")
 		msg := map[string]interface{}{
 			"touser":  o.Userid,
 			"msgtype": "markdown",
@@ -277,7 +277,7 @@ func CreateLdapUser(o order.WeworkOrderDetailsAccountsRegister, user *ldap.LdapA
 
 	// 创建成功发送企业微信消息
 	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
-	createUuapWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_uuap_register")
+	createUuapWeworkMsgTemplate, err := cache.HGet("wework_msg_templates", "wework_template_uuap_register")
 	if err != nil {
 		log.Log.Error("读取企业微信消息模板错误: ", err)
 	}
@@ -338,7 +338,7 @@ func HandleExpiredLdapUsers(user *ldap.LdapAttributes, expireDays int) (err erro
 // HandleUuapDuplicateRegister 处理重复注册
 func HandleUuapDuplicateRegister(user *ldap.LdapAttributes, order order.WeworkOrderDetailsAccountsRegister) (err error) {
 	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
-	duplicateRegisterUuapUserWeworkMsgTemplate, err := cache.HGet("wework_templates", "wework_template_uuap_user_duplicate_register")
+	duplicateRegisterUuapUserWeworkMsgTemplate, err := cache.HGet("wework_msg_templates", "wework_template_uuap_user_duplicate_register")
 	if err != nil {
 		log.Log.Error("读取企业微信消息模板错误: ", err)
 	}

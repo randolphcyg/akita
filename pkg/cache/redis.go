@@ -3,15 +3,13 @@ package cache
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/go-redis/redis/v8"
 
 	"gitee.com/RandolphCYG/akita/pkg/log"
 )
-
-// 最新版本的redis需要传上下文参数
-var ctx = context.Background()
 
 // Config redis 配置
 type Config struct {
@@ -28,9 +26,10 @@ type Config struct {
 
 var (
 	RedisClient *redis.Client
+	ctx         = context.Background() // 最新版本的redis需要传上下文参数
 )
 
-// 初始化连接
+// 初始化redis连接池
 func Init(c *Config) (err error) {
 	RedisClient = redis.NewClient(&redis.Options{
 		Addr:         c.Addr,
@@ -137,11 +136,13 @@ func HGetAll(key string) (data map[string]string, err error) {
 	return
 }
 
-// HExists 判断元素是否存在
+// HExists 判断哈希表key是否存在
 func HExists(key string, field string) (res bool, err error) {
 	res, err = RedisClient.HExists(ctx, key, field).Result()
 	if err != nil {
-		log.Log.Error("Fail to determine whether the element exists, err: ", err)
+		err = errors.New("Fail to determine whether the element exists in hash table, err: " + err.Error())
+		log.Log.Error(err)
+		return
 	}
 	return
 }
@@ -150,7 +151,24 @@ func HExists(key string, field string) (res bool, err error) {
 func HLen(key string) (res int64, err error) {
 	res, err = RedisClient.HLen(ctx, key).Result()
 	if err != nil {
-		log.Log.Error("Fail to determine whether the element exists, err: ", err)
+		err = errors.New("Fail to get length of hash table, err: " + err.Error())
+		log.Log.Error(err)
+		return
 	}
 	return
+}
+
+// Exists 判断缓存项是否存在
+func Exists(key string) (res bool, err error) {
+	result, err := RedisClient.Exists(ctx, key).Result()
+	if err != nil {
+		err = errors.New("Fail to determine whether the element exists, err: " + err.Error())
+		log.Log.Error(err)
+		return
+	}
+	if result > 0 {
+		return true, nil
+	} else {
+		return false, nil
+	}
 }

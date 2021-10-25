@@ -249,7 +249,7 @@ func IsExpire(expireDateStr string) bool {
 // SendRobotMsg 发送机器人信息
 func SendRobotMsg(msg string) {
 	// 从缓存取url
-	weworkRobotStaffChangesNotifier, err := cache.HGet("third_party_sys_cfg", "wework_robot_staff_changes_notifier")
+	weworkRobotStaffChangesNotifier, err := cache.HGet("third_party_cfgs", "wework_robot_staff_changes_notifier")
 	if err != nil {
 		log.Log.Error("读取三方系统-c7n配置错误: ", err)
 		return

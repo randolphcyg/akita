@@ -67,7 +67,7 @@ type LdapField struct {
 	// 公司类型
 	BaseDnOuter        string                 `json:"base_dn_outer" gorm:"type:varchar(255);comment:外部用户DN"`
 	BaseDnToBeAssigned string                 `json:"base_dn_to_be_assigned" gorm:"type:varchar(255);comment:公司内部待分配DN"`
-	CompanyType        string                 `json:"company_type" gorm:"type:varchar(255);comment:公司类型"`
+	CompanyType        string                 `json:"company_type" gorm:"type:varchar(3000);comment:公司类型"`
 	CompanyTypes       map[string]CompanyType `json:"company_types" gorm:"-"` // 非数据库字段 用来处理复杂数据结构
 
 	// 用户组字段
@@ -119,7 +119,12 @@ func GetLdapFieldByConnUrl(url string) (LdapField, error) {
 	return field, result.Error
 }
 
-// 用户部门变更历史
+/*
+* LDAP用户部门变更历史
+*
+ */
+
+//
 type LdapUserDepartRecord struct {
 	gorm.Model
 	Name      string `json:"name" gorm:"type:varchar(255);not null;comment:真实姓名"`
