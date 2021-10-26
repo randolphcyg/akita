@@ -15,110 +15,6 @@ import (
 	"gitee.com/RandolphCYG/akita/pkg/log"
 )
 
-// Find 判断切片是否有某元素
-func Find(slice []string, val string) (int, bool) {
-	for i, item := range slice {
-		if item == val {
-			return i, true
-		}
-	}
-	return -1, false
-}
-
-// IsFestival 判断是否为节日
-func IsFestival(t time.Time) (isFestival bool, result []string) {
-	isFestival = false
-	festival := festival.NewFestival("./festival.json")
-	result = festival.GetFestivals(t.Format("2006-01-02"))
-	if len(result) >= 1 {
-		isFestival = true
-	}
-	return
-}
-
-// IsWeekend 判断是否为周末
-func IsWeekend(t time.Time) (isWeekend bool) {
-	if int(t.Weekday()) == 6 || int(t.Weekday()) == 0 {
-		return true
-	}
-	return false
-}
-
-// IsMonday 判断是否为周一
-func IsMonday(t time.Time) (isMonday bool) {
-	return int(t.Weekday()) == 1
-}
-
-// IsHolidaySilentMode 假期静默模式
-func IsHolidaySilentMode(t time.Time) (isHolidaySilentMode bool, festival string) {
-	isFestival, festivals := IsFestival(t)
-	targetFestivals := []string{"除夕", "春节", "国庆节", "中秋节"}
-	for _, tf := range targetFestivals {
-		_, find := Find(festivals, tf)
-		if isFestival && find {
-			return true, tf
-		}
-	}
-	// 周末判断
-	if IsWeekend(t) {
-		return true, ""
-	} else {
-		return false, ""
-	}
-}
-
-// Unix 时间转换为 Window NT 时间
-func UnixToNt(expireTime time.Time) (ntTimestamp int64) {
-	ntTimestamp = expireTime.Unix()*int64(1e+7) + int64(1.1644473600125e+17)
-	return
-}
-
-// Window NT 时间转换为 Unix 时间
-func NtToUnix(ntTime int64) (unixTime time.Time) {
-	ntTime = (ntTime - 1.1644473600125e+17) / 1e+7
-	return time.Unix(int64(ntTime), 0)
-}
-
-// 计算日期相差多少天
-// 返回值day>0, t1晚于t2; day<0, t1早于t2
-func SubDays(t1, t2 time.Time) (day int) {
-	swap := false
-	if t1.Unix() < t2.Unix() {
-		t_ := t1
-		t1 = t2
-		t2 = t_
-		swap = true
-	}
-
-	day = int(t1.Sub(t2).Hours() / 24)
-
-	// 计算在被24整除外的时间是否存在跨自然日
-	if int(t1.Sub(t2).Milliseconds())%86400000 > int(86400000-t2.Unix()%86400000) {
-		day += 1
-	}
-
-	if swap {
-		day = -day
-	}
-
-	return
-}
-
-// 将原始过期日期规范化为正常设计范围内的过期时间，若未永久不过期，则返回 106752 天
-func FormatLdapExpireDays(rawDays int) (validDays int) {
-	if rawDays > -100 && rawDays < 200 {
-		return rawDays
-	} else {
-		return 106752
-	}
-}
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
-
-var src = rand.NewSource(time.Now().UnixNano())
-
 const (
 	characterBytes = "!@#$%^&*?"
 	digitBytes     = "1234567890"
@@ -127,6 +23,14 @@ const (
 	letterIdxMask  = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
 	letterIdxMax   = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
 )
+
+var (
+	src = rand.NewSource(time.Now().UnixNano())
+)
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 // 复杂密码生成器 TODO 复杂密码的排序过于固定
 func PwdGenerator(n int) string {
@@ -294,4 +198,139 @@ func TruncateMsg(originalMsg, sep string) (resMsgSegments []string) {
 		resMsgSegments = append(resMsgSegments, segment) // 将最后一段消息加上
 	}
 	return
+}
+
+// DnToDepart 将DN地址转换为部门架构
+func DnToDepart(dn string) (depart string) {
+	rawDn := strings.Split(dn, ",")
+	rawDn = Reverse(rawDn[:len(rawDn)-2]) // 去掉DC 逆序
+	// 元素拼接，用.替换所有的OU=，去掉开始的.
+	depart = strings.Replace(strings.Join(rawDn, ""), "OU=", ".", -1)[1:]
+	return
+}
+
+// DnToDeparts 将DN地址转换为多级部门切片
+func DnToDeparts(dn string) (departs string) {
+	rawDn := strings.Split(dn, ",")
+	rawDn = Reverse(rawDn[:len(rawDn)-2]) // 去掉DC 逆序
+	for i, d := range rawDn {
+		rawDn[i] = strings.Trim(strings.ToUpper(d), "OU=")
+	}
+	departs = strings.Join(rawDn, ".")
+	return
+}
+
+// 切片逆序
+func Reverse(s []string) []string {
+	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
+		s[i], s[j] = s[j], s[i]
+	}
+	return s
+}
+
+// ExpireTime 用户过期期限处理 天数为-1 则过期时间为永久;否则 当前时间往后推迟 expireDays 天
+func ExpireTime(expireDays int64) (expireTimestamp int64) {
+	expireTimestamp = 9223372036854775807
+	if expireDays != -1 {
+		expireTimestamp = UnixToNt(time.Now().AddDate(0, 0, int(expireDays)))
+	}
+	return
+}
+
+// Find 判断切片是否有某元素
+func Find(slice []string, val string) (int, bool) {
+	for i, item := range slice {
+		if item == val {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
+// IsFestival 判断是否为节日
+func IsFestival(t time.Time) (isFestival bool, result []string) {
+	isFestival = false
+	festival := festival.NewFestival("./festival.json")
+	result = festival.GetFestivals(t.Format("2006-01-02"))
+	if len(result) >= 1 {
+		isFestival = true
+	}
+	return
+}
+
+// IsWeekend 判断是否为周末
+func IsWeekend(t time.Time) (isWeekend bool) {
+	if int(t.Weekday()) == 6 || int(t.Weekday()) == 0 {
+		return true
+	}
+	return false
+}
+
+// IsMonday 判断是否为周一
+func IsMonday(t time.Time) (isMonday bool) {
+	return int(t.Weekday()) == 1
+}
+
+// IsHolidaySilentMode 假期静默模式
+func IsHolidaySilentMode(t time.Time) (isHolidaySilentMode bool, festival string) {
+	isFestival, festivals := IsFestival(t)
+	targetFestivals := []string{"除夕", "春节", "国庆节", "中秋节"}
+	for _, tf := range targetFestivals {
+		_, find := Find(festivals, tf)
+		if isFestival && find {
+			return true, tf
+		}
+	}
+	// 周末判断
+	if IsWeekend(t) {
+		return true, ""
+	} else {
+		return false, ""
+	}
+}
+
+// Unix 时间转换为 Window NT 时间
+func UnixToNt(expireTime time.Time) (ntTimestamp int64) {
+	ntTimestamp = expireTime.Unix()*int64(1e+7) + int64(1.1644473600125e+17)
+	return
+}
+
+// Window NT 时间转换为 Unix 时间
+func NtToUnix(ntTime int64) (unixTime time.Time) {
+	ntTime = (ntTime - 1.1644473600125e+17) / 1e+7
+	return time.Unix(int64(ntTime), 0)
+}
+
+// 计算日期相差多少天
+// 返回值day>0, t1晚于t2; day<0, t1早于t2
+func SubDays(t1, t2 time.Time) (day int) {
+	swap := false
+	if t1.Unix() < t2.Unix() {
+		t_ := t1
+		t1 = t2
+		t2 = t_
+		swap = true
+	}
+
+	day = int(t1.Sub(t2).Hours() / 24)
+
+	// 计算在被24整除外的时间是否存在跨自然日
+	if int(t1.Sub(t2).Milliseconds())%86400000 > int(86400000-t2.Unix()%86400000) {
+		day += 1
+	}
+
+	if swap {
+		day = -day
+	}
+
+	return
+}
+
+// 将原始过期日期规范化为正常设计范围内的过期时间，若未永久不过期，则返回 106752 天
+func FormatLdapExpireDays(rawDays int) (validDays int) {
+	if rawDays > -100 && rawDays < 200 {
+		return rawDays
+	} else {
+		return 106752
+	}
 }

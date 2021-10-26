@@ -356,6 +356,7 @@ func ScanNewHrUsers() {
 	if err != nil {
 		log.Log.Error("Fail to fetch ldap users cache,:", err)
 	}
+
 	for _, hu := range hrUsers {
 		var hrUser hr.HrUser
 		json.Unmarshal([]byte(hu), &hrUser) // 反序列化
@@ -422,6 +423,7 @@ func ScanNewHrUsers() {
 				}
 			}
 		}
+
 	}
 }
 

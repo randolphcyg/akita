@@ -135,7 +135,6 @@ func SyncLdapUsers() {
 		log.Log.Error("Fail to fetch ldap users cache,:", err)
 	}
 
-	// TODO 待优化 目前速度提升没有
 	log.Log.Info("开始更新ldap用户...")
 	var wg sync.WaitGroup
 	ch := make(chan struct{}, 20)
@@ -156,7 +155,7 @@ func SyncLdapUsers() {
 			} else { // 在职员工
 				userStat = "544"                      // 账号有效
 				dn = ldap.DepartToDn(user.Department) // 将部门转换为DN
-				expire = ldap.ExpireTime(-1)          // 账号永久有效
+				expire = util.ExpireTime(-1)          // 账号永久有效
 			}
 			depart := strings.Split(user.Department, ".")[len(strings.Split(user.Department, "."))-1]
 			name := []rune(user.Name)
@@ -182,7 +181,11 @@ func SyncLdapUsers() {
 			// 更新用户操作
 			err := ldapUser.Update()
 			if err != nil {
-				log.Log.Error("Fail to update user form cache to ldap server,: ", err)
+				if err == ldap.ErrLdapUserNotFound {
+					// Do nothing
+				} else {
+					log.Log.Error("Fail to update user form cache to ldap server,: ", err)
+				}
 			}
 			<-ch
 		}(cn, u)

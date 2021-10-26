@@ -22,10 +22,9 @@ var (
 	ErrCompanyNotExists = errors.New("无此公司,请到LDAP服务器增加对应公司！")
 	ErrDeserialize      = errors.New("反序列化错误！")
 	ErrFetchDB          = errors.New("查询数据库错误！")
+	// 全局使用的公司前缀映射
+	companyTypes map[string]model.CompanyType
 )
-
-// 全局使用的公司前缀映射
-var companyTypes map[string]model.CompanyType
 
 // Order 企业微信工单查询条件
 type Order struct {
@@ -170,14 +169,14 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 		if isOutsideComp {
 			sam = companyTypes[applicant.Company].Prefix + applicant.Eid // 用户名带前缀
 			dn = "CN=" + cn + ",OU=" + applicant.Company + "," + model.LdapFields.BaseDnOuter
-			expire = ldap.ExpireTime(int64(90)) // 90天过期
+			expire = util.ExpireTime(int64(90)) // 90天过期
 			weworkExpireStr = util.ExpireStr(90)
 			weworkDepartId = 79 // 外部公司企业微信部门为合作伙伴
 			probationFlag = 0
 		} else { // 公司内部人员默认放到待分配区 后面每天程序自动将用户架构刷新
 			sam = applicant.Eid
 			dn = "CN=" + cn + "," + model.LdapFields.BaseDnToBeAssigned
-			expire = ldap.ExpireTime(int64(-1)) // 永不过期
+			expire = util.ExpireTime(int64(-1)) // 永不过期
 			weworkDepartId = 69                 // 本公司企业微信部门为待分配
 			probationFlag = 1
 		}
@@ -316,7 +315,7 @@ func handleOrderUuapPwdRetrieve(o order.WeworkOrderDetailsUuapPwdRetrieve) (err 
 
 	sam, newPwd, err := user.RetrievePwd()
 	if err != nil {
-		log.Log.Error("Fail to retrieve pwd, err: ", err)
+		return
 	}
 
 	// 创建成功发送企业微信消息
@@ -409,7 +408,7 @@ func RenewalUuap(o order.WeworkOrderDetailsAccountsRenewal, applicant order.Rene
 	user := &ldap.LdapAttributes{
 		Num:         applicant.Eid,
 		DisplayName: applicant.DisplayName,
-		Expire:      ldap.ExpireTime(days),
+		Expire:      util.ExpireTime(days),
 	}
 
 	err = user.Renewal()
@@ -444,7 +443,7 @@ func handleWeworkOrderFindUserErr(o order.WeworkOrderDetailsAccountsRenewal, nam
 	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
 	c7nFindProjectErrMsgTemplate, _ := cache.HGet("wework_msg_templates", "wework_template_wework_find_user_err")
 	msg := map[string]interface{}{
-		"touser":  "Z025576", // o.Userid
+		"touser":  o.Userid,
 		"msgtype": "markdown",
 		"agentid": model.WeworkUuapCfg.AppId,
 		"markdown": map[string]interface{}{

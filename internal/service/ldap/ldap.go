@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	ldappool "github.com/RandolphCYG/ldapPool"
 	"github.com/go-ldap/ldap/v3"
@@ -18,9 +17,38 @@ import (
 	"gitee.com/RandolphCYG/akita/pkg/util"
 )
 
-// 禁用/启用用户的 UserAccountControl 状态码
-var DisabledLdapUserCodes = [5]int32{514, 546, 66050, 66080, 66082}
-var EnabledLdapUserCodes = [4]int32{512, 544, 66048, 262656}
+var (
+	LdapCfg   *model.LdapCfg
+	LdapField *model.LdapField
+	LdapPool  ldappool.Pool
+
+	// 禁用/启用用户的 UserAccountControl 状态码
+	DisabledLdapUserCodes = [5]int32{514, 546, 66050, 66080, 66082}
+	EnabledLdapUserCodes  = [4]int32{512, 544, 66048, 262656}
+	// 未找到 LDAP 用户错误
+	ErrLdapUserNotFound = errors.New("fail to fetch ldap user")
+	// LDAP 用户属性
+	attrs = []string{
+		"employeeNumber",     // 工号
+		"sAMAccountName",     // SAM账号
+		"distinguishedName",  // dn
+		"UserAccountControl", // 用户账户控制
+		"accountExpires",     // 账户过期时间
+		"pwdLastSet",         // 用户下次登录必须修改密码
+		"whenCreated",        // 创建时间
+		"whenChanged",        // 修改时间
+		"displayName",        // 显示名
+		"sn",                 // 姓
+		"name",
+		"givenName",  // 名
+		"mail",       // 邮箱
+		"mobile",     // 手机号
+		"company",    // 公司
+		"department", // 部门
+		"title",      // 职务
+		"cn",         // common name
+	}
+)
 
 type LdapAttributes struct {
 	// ldap字段
@@ -46,33 +74,6 @@ type LdapAttributes struct {
 	ProbationFlag  int    `json:"probation_flag" gorm:"-"`                                 // 打试用期标签 1 打标签 0 不打标签
 }
 
-var attrs = []string{
-	"employeeNumber",     // 工号
-	"sAMAccountName",     // SAM账号
-	"distinguishedName",  // dn
-	"UserAccountControl", // 用户账户控制
-	"accountExpires",     // 账户过期时间
-	"pwdLastSet",         // 用户下次登录必须修改密码
-	"whenCreated",        // 创建时间
-	"whenChanged",        // 修改时间
-	"displayName",        // 显示名
-	"sn",                 // 姓
-	"name",
-	"givenName",  // 名
-	"mail",       // 邮箱
-	"mobile",     // 手机号
-	"company",    // 公司
-	"department", // 部门
-	"title",      // 职务
-	"cn",         // common name
-}
-
-var (
-	LdapCfg   *model.LdapCfg
-	LdapField *model.LdapField
-	LdapPool  ldappool.Pool
-)
-
 // Init 初始化连接池
 func Init(c *model.LdapCfg) (err error) {
 	LdapCfg = &model.LdapCfg{
@@ -84,7 +85,7 @@ func Init(c *model.LdapCfg) (err error) {
 		Password:      c.Password,
 	}
 	// 初始化ldap连接池
-	LdapPool, err = ldappool.NewChannelPool(50, 1000, "test",
+	LdapPool, err = ldappool.NewChannelPool(50, 1000, "originalLdapPool",
 		func(s string) (ldap.Client, error) {
 			conn, err := ldap.DialURL(LdapCfg.ConnUrl)
 			if err != nil {
@@ -171,15 +172,6 @@ func FetchLdapUsers(user *LdapAttributes) (result []*ldap.Entry) {
 	return
 }
 
-// ExpireTime 用户过期期限处理 天数为-1 则过期时间为永久;否则 当前时间往后推迟 expireDays 天
-func ExpireTime(expireDays int64) (expireTimestamp int64) {
-	expireTimestamp = 9223372036854775807
-	if expireDays != -1 {
-		expireTimestamp = util.UnixToNt(time.Now().AddDate(0, 0, int(expireDays)))
-	}
-	return
-}
-
 // AddUser 新增用户
 func AddUser(user *LdapAttributes) (pwd string, err error) {
 	// 获取连接
@@ -245,6 +237,7 @@ func (user *LdapAttributes) RetrievePwd() (sam string, newPwd string, err error)
 	if err != nil {
 		return
 	}
+
 	sam = entry.GetAttributeValue("sAMAccountName")
 	// 初始化复杂密码
 	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
@@ -329,12 +322,12 @@ func FetchUser(user *LdapAttributes) (result *ldap.Entry, err error) {
 	if len(sr.Entries) > 0 && len(sr.Entries[0].Attributes) > 0 {
 		result = sr.Entries[0]
 	} else {
-		return nil, errors.New("fail to fetch ldap user")
+		return nil, ErrLdapUserNotFound
 	}
 	return
 }
 
-// ModifyDn 修改dn
+// ModifyDn
 func (user *LdapAttributes) ModifyDn(cn string) {
 	// 获取连接
 	LdapConn, err := LdapPool.Get()
@@ -453,9 +446,9 @@ func (user *LdapAttributes) Update() (err error) {
 		// 若用户部门或状态发生变化 由部门1>>部门2 由部门1>>离职
 		if user.Dn != "" {
 			if !strings.EqualFold(strings.SplitN(entry.DN, ",", 2)[1], user.Dn) {
-				oldDepart := DnToDeparts(strings.Join(strings.Split(entry.DN, ",")[1:], ","))
+				oldDepart := util.DnToDeparts(strings.Join(strings.Split(entry.DN, ",")[1:], ","))
 				oldDeparts := strings.Split(oldDepart, ".")
-				newDepart := DnToDeparts(user.Dn)
+				newDepart := util.DnToDeparts(user.Dn)
 				newDeparts := strings.Split(newDepart, ".")
 				var level string
 				// 若新或旧部门 有一个是外部公司 另一个是内部公司
@@ -602,7 +595,7 @@ func DepartToDn(depart string) (dn string) {
 	json.Unmarshal([]byte(model.LdapFields.CompanyType), &companies)
 	// 如果是外部公司用户
 	if companies[strings.Split(depart, ".")[0]].IsOuter {
-		depart = DnToDepart(model.LdapFields.BasicPullNode) + ".合作伙伴." + depart
+		depart = util.DnToDepart(model.LdapFields.BasicPullNode) + ".合作伙伴." + depart
 	}
 
 	ous := strings.Split(depart, ".")
@@ -614,35 +607,6 @@ func DepartToDn(depart string) (dn string) {
 	dn = strings.Join(reversedOus, ",OU=")
 	dn = "OU=" + dn + "," + model.LdapCfgs.BaseDn
 	return
-}
-
-// DnToDepart 将DN地址转换为部门架构
-func DnToDepart(dn string) (depart string) {
-	rawDn := strings.Split(dn, ",")
-	rawDn = Reverse(rawDn[:len(rawDn)-2]) // 去掉DC 逆序
-	// 元素拼接，用.替换所有的OU=，去掉开始的.
-	depart = strings.Replace(strings.Join(rawDn, ""), "OU=", ".", -1)[1:]
-	return
-}
-
-// DnToDeparts 将DN地址转换为多级部门切片
-func DnToDeparts(dn string) (departs string) {
-	// var temp []string
-	rawDn := strings.Split(dn, ",")
-	rawDn = Reverse(rawDn[:len(rawDn)-2]) // 去掉DC 逆序
-	for i, d := range rawDn {
-		rawDn[i] = strings.Trim(strings.ToUpper(d), "OU=")
-	}
-	departs = strings.Join(rawDn, ".")
-	return
-}
-
-// 切片逆序
-func Reverse(s []string) []string {
-	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
-		s[i], s[j] = s[j], s[i]
-	}
-	return s
 }
 
 // ldap用户方法——禁用用户 禁用用户不修改用户的OU
