@@ -1,6 +1,10 @@
 package model
 
 import (
+	"crypto/tls"
+	"github.com/go-ldap/ldap/v3"
+	ldappool "gitee.com/RandolphCYG/akita/pkg/ldapPool"
+	"gitee.com/RandolphCYG/akita/pkg/log"
 	"time"
 
 	"gorm.io/gorm"
@@ -9,9 +13,10 @@ import (
 var (
 	LdapCfgs   LdapCfg
 	LdapFields LdapField
+	LdapPool   ldappool.Pool
 )
 
-// LdapConnCfg LDAP服务器连接配置
+// LdapCfg LDAP服务器连接配置
 type LdapCfg struct {
 	gorm.Model
 	// 连接地址
@@ -28,7 +33,7 @@ type LdapCfg struct {
 	Password string `json:"password" gorm:"type:varchar(255);not null;comment:密码"`
 }
 
-// 公司类型
+// CompanyType 公司类型
 type CompanyType struct {
 	IsOuter bool   `json:"is_outer"` // 是否外部公司
 	Prefix  string `json:"prefix"`   // 用户名前缀 外部公司才有
@@ -81,6 +86,42 @@ type LdapField struct {
 	UserGroupDescription string `json:"user_group_description" gorm:"type:varchar(255);not null;comment:用户组描述"`
 }
 
+// Init 初始化连接池
+func Init(c *LdapCfg) (err error) {
+	LdapCfgs = LdapCfg{
+		ConnUrl:       c.ConnUrl,
+		SslEncryption: c.SslEncryption,
+		Timeout:       c.Timeout,
+		BaseDn:        c.BaseDn,
+		AdminAccount:  c.AdminAccount,
+		Password:      c.Password,
+	}
+	// 初始化ldap连接池
+	LdapPool, err = ldappool.NewChannelPool(50, 1000, "originalLdapPool",
+		func(s string) (ldap.Client, error) {
+			conn, err := ldap.DialURL(LdapCfgs.ConnUrl)
+			if err != nil {
+				log.Log.Error("Fail to dial ldapconn url, err: ", err)
+			}
+
+			// 重新连接TLS
+			if err = conn.StartTLS(&tls.Config{InsecureSkipVerify: true}); err != nil {
+				log.Log.Error("Fail to start tls, err: ", err)
+			}
+
+			// 与只读用户绑定
+			if err = conn.Bind(LdapCfgs.AdminAccount, LdapCfgs.Password); err != nil {
+				log.Log.Error("admin ldapuser auth failed, err: ", err)
+			}
+			return conn, nil
+		}, []uint16{ldap.LDAPResultTimeLimitExceeded, ldap.ErrorNetwork})
+	if err != nil {
+		log.Log.Error(err)
+		return
+	}
+	return
+}
+
 // GetAllLdapConn 查询所有ldap连接
 func GetAllLdapConn() (LdapCfg, error) {
 	var conn LdapCfg
@@ -112,7 +153,7 @@ func NewLdapField() LdapField {
 	return LdapField{}
 }
 
-// GetLdapFieldByConn 根据连接的URL查询ldap连接的字段明细
+// GetLdapFieldByConnUrl 根据连接的URL查询ldap连接的字段明细
 func GetLdapFieldByConnUrl(url string) (LdapField, error) {
 	var field LdapField
 	result := DB.Where("conn_url = ?", url).First(&field)
@@ -124,7 +165,7 @@ func GetLdapFieldByConnUrl(url string) (LdapField, error) {
 *
  */
 
-//
+// LdapUserDepartRecord LDAP用户部门变动记录
 type LdapUserDepartRecord struct {
 	gorm.Model
 	Name      string `json:"name" gorm:"type:varchar(255);not null;comment:真实姓名"`
@@ -136,7 +177,7 @@ type LdapUserDepartRecord struct {
 
 // CreateLdapUserDepartRecord 用户架构变化记录
 func CreateLdapUserDepartRecord(name string, eid string, oldDepart string, newDepart string, level string) {
-	DB.Model(&LdapUserDepartRecord{}).Create((&LdapUserDepartRecord{Name: name, Eid: eid, OldDepart: oldDepart, NewDepart: newDepart, Level: level}))
+	DB.Model(&LdapUserDepartRecord{}).Create(&LdapUserDepartRecord{Name: name, Eid: eid, OldDepart: oldDepart, NewDepart: newDepart, Level: level})
 }
 
 // FetchLdapUserDepartRecord 查询一段时间用户架构变化记录

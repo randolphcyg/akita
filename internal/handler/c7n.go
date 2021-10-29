@@ -1,24 +1,38 @@
 package handler
 
 import (
-	"gitee.com/RandolphCYG/akita/pkg/c7n"
 	"github.com/gin-gonic/gin"
+	"gitee.com/RandolphCYG/akita/pkg/c7n"
 )
 
-// CacheC7nProjectsManual 手动触发缓存C7N项目
-func CacheC7nProjectsManual(ctx *gin.Context) {
+type C7nHandler interface {
+	CacheProjectsManual(ctx *gin.Context)
+	UpdateUsersManual(ctx *gin.Context)
+}
+
+// c7nField 无用结构体 用于interface
+type c7nField struct {
+	Name string
+}
+
+func NewC7nHandler() C7nHandler {
+	return &c7nField{}
+}
+
+// CacheProjectsManual 手动触发缓存C7N项目
+func (c c7nField) CacheProjectsManual(ctx *gin.Context) {
 	if err := ctx.ShouldBind(0); err == nil {
-		res := c7n.CacheC7nProjectsManual()
+		res := c7n.CacheProjectsManual()
 		ctx.JSON(200, res)
 	} else {
 		ctx.JSON(200, err)
 	}
 }
 
-// UpdateC7nUsersManual 手动触发LDAP用户同步到C7N
-func UpdateC7nUsersManual(ctx *gin.Context) {
+// UpdateUsersManual 手动触发LDAP用户的同步
+func (c c7nField) UpdateUsersManual(ctx *gin.Context) {
 	if err := ctx.ShouldBind(0); err == nil {
-		res := c7n.UpdateC7nUsersManual()
+		res := c7n.UpdateUsersManual()
 		ctx.JSON(200, res)
 	} else {
 		ctx.JSON(200, err)

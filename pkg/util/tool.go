@@ -32,7 +32,7 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-// 复杂密码生成器 TODO 复杂密码的排序过于固定
+// PwdGenerator 复杂密码生成器 TODO 复杂密码的排序过于固定
 func PwdGenerator(n int) string {
 	b := make([]byte, n)
 	// A src.Int63() generates 63 random bits, enough for letterIdxMax characters!
@@ -75,7 +75,7 @@ func PwdGenerator(n int) string {
 	return *(*string)(unsafe.Pointer(&b))
 }
 
-// 最普通的复杂密码生成 不使用版本
+// SamplePwdGenerator 最普通的复杂密码生成 不使用版本
 func SamplePwdGenerator(n int) (pwd string) {
 	characters := []rune("!@#$%^&*?")
 	digits := []rune("1234567890")
@@ -93,7 +93,7 @@ func SamplePwdGenerator(n int) (pwd string) {
 	return string(b)
 }
 
-// 密码复杂度判断
+// Judge 密码复杂度判断
 func Judge(pwd string) (isValid bool) {
 	characters := "!@#$%^&*?"
 	if len(pwd) < 8 {
@@ -112,15 +112,15 @@ func Judge(pwd string) (isValid bool) {
 			flag[i] = 4
 		}
 	}
-	complex := len(RemoveRepeatedElement(flag[:]))
-	if complex >= 3 {
+	complexity := len(RemoveRepeatedElement(flag[:]))
+	if complexity >= 3 {
 		return true
 	} else {
 		return false
 	}
 }
 
-// 数组去重 通过map键的唯一性去重
+// RemoveRepeatedElement 数组去重 通过map键的唯一性去重
 func RemoveRepeatedElement(s []int) []int {
 	result := make([]int, 0)
 	m := make(map[int]bool) //map的值不重要
@@ -135,7 +135,7 @@ func RemoveRepeatedElement(s []int) []int {
 
 // ExpireStr 根据过期天数计算过期日期的字符串
 func ExpireStr(expireDay int) string {
-	return time.Now().AddDate(0, 0, int(expireDay)).Format("2006/01/02")
+	return time.Now().AddDate(0, 0, expireDay).Format("2006/01/02")
 }
 
 // ExpireStrToTime 根据过期日期的字符串转换为日期
@@ -220,7 +220,7 @@ func DnToDeparts(dn string) (departs string) {
 	return
 }
 
-// 切片逆序
+// Reverse 切片逆序
 func Reverse(s []string) []string {
 	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
 		s[i], s[j] = s[j], s[i]
@@ -250,8 +250,8 @@ func Find(slice []string, val string) (int, bool) {
 // IsFestival 判断是否为节日
 func IsFestival(t time.Time) (isFestival bool, result []string) {
 	isFestival = false
-	festival := festival.NewFestival("./festival.json")
-	result = festival.GetFestivals(t.Format("2006-01-02"))
+	fest := festival.NewFestival("./festival.json")
+	result = fest.GetFestivals(t.Format("2006-01-02"))
 	if len(result) >= 1 {
 		isFestival = true
 	}
@@ -289,20 +289,19 @@ func IsHolidaySilentMode(t time.Time) (isHolidaySilentMode bool, festival string
 	}
 }
 
-// Unix 时间转换为 Window NT 时间
+// UnixToNt Unix 时间转换为 Window NT 时间
 func UnixToNt(expireTime time.Time) (ntTimestamp int64) {
 	ntTimestamp = expireTime.Unix()*int64(1e+7) + int64(1.1644473600125e+17)
 	return
 }
 
-// Window NT 时间转换为 Unix 时间
+// NtToUnix Window NT 时间转换为 Unix 时间
 func NtToUnix(ntTime int64) (unixTime time.Time) {
 	ntTime = (ntTime - 1.1644473600125e+17) / 1e+7
-	return time.Unix(int64(ntTime), 0)
+	return time.Unix(ntTime, 0)
 }
 
-// 计算日期相差多少天
-// 返回值day>0, t1晚于t2; day<0, t1早于t2
+// SubDays 计算日期相差多少天 返回值day>0, t1晚于t2; day<0, t1早于t2
 func SubDays(t1, t2 time.Time) (day int) {
 	swap := false
 	if t1.Unix() < t2.Unix() {
@@ -326,7 +325,7 @@ func SubDays(t1, t2 time.Time) (day int) {
 	return
 }
 
-// 将原始过期日期规范化为正常设计范围内的过期时间，若未永久不过期，则返回 106752 天
+// FormatLdapExpireDays 将原始过期日期规范化为正常设计范围内的过期时间，若未永久不过期，则返回 106752 天
 func FormatLdapExpireDays(rawDays int) (validDays int) {
 	if rawDays > -100 && rawDays < 200 {
 		return rawDays

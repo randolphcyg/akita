@@ -1,6 +1,7 @@
 package model
 
 import (
+	"gitee.com/RandolphCYG/akita/pkg/wework/api"
 	"time"
 
 	"gorm.io/gorm"
@@ -25,7 +26,16 @@ var (
 	WeworkOrderCfg      WeworkCfg // 企微审批工单配置
 	WeworkUuapCfg       WeworkCfg // UUAP公告应用
 	WeworkUserManageCfg WeworkCfg // 企微通讯录管理
+	CorpAPIUserManager  *api.CorpAPI
+	CorpAPIMsg          *api.CorpAPI
+	CorpAPIOrder        *api.CorpAPI
 )
+
+func InitWework() {
+	CorpAPIUserManager = api.NewCorpAPI(WeworkUserManageCfg.CorpId, WeworkUserManageCfg.AppSecret)
+	CorpAPIMsg = api.NewCorpAPI(WeworkUuapCfg.CorpId, WeworkUuapCfg.AppSecret)
+	CorpAPIOrder = api.NewCorpAPI(WeworkOrderCfg.CorpId, WeworkOrderCfg.AppSecret)
+}
 
 // GetWeworkOrderCfg 查询企业微信审批应用配置
 func GetWeworkOrderCfg() error {
@@ -58,17 +68,17 @@ type WeworkOrder struct {
 	ExecuteMsg    string `json:"execute_msg"  gorm:"type:varchar(500);unique_index;comment:执行信息"`                   // 执行信息
 }
 
-// 新增记录
+// CreateOrder 新增记录
 func CreateOrder(spNo string, status bool, err string) {
 	DB.Create(&WeworkOrder{SpNo: spNo, ExecuteStatus: status, ExecuteMsg: err})
 }
 
-// 修改记录
+// UpdateOrder 修改记录
 func UpdateOrder(spNo string, status bool, err string) {
 	DB.Model(&WeworkOrder{}).Where("sp_no = ?", spNo).Updates(WeworkOrder{ExecuteStatus: status, ExecuteMsg: err})
 }
 
-// 查询记录
+// FetchOrder 查询记录
 func FetchOrder(spNo string) (result *gorm.DB, order WeworkOrder) {
 	result = DB.Where("sp_no = ?", spNo).Find(&order)
 	return
@@ -79,7 +89,7 @@ func FetchOrder(spNo string) (result *gorm.DB, order WeworkOrder) {
 *
  */
 
-// 企微用户变化记录
+// WeworkUserSyncRecord 企微用户变化记录
 type WeworkUserSyncRecord struct {
 	gorm.Model
 	UserId   string `json:"user_id" gorm:"type:varchar(255);not null;comment:用户ID"`
@@ -90,7 +100,7 @@ type WeworkUserSyncRecord struct {
 
 // CreateWeworkUserSyncRecord 企微用户变化记录
 func CreateWeworkUserSyncRecord(userId, name, eid, syncKind string) {
-	DB.Model(&WeworkUserSyncRecord{}).Create((&WeworkUserSyncRecord{UserId: userId, Name: name, Eid: eid, SyncKind: syncKind}))
+	DB.Model(&WeworkUserSyncRecord{}).Create(&WeworkUserSyncRecord{UserId: userId, Name: name, Eid: eid, SyncKind: syncKind})
 }
 
 // UpdateWeworkUserSyncRecord 更新 企微用户变化记录
@@ -111,7 +121,7 @@ func FetchWeworkUserSyncRecord(offsetBefore, offsetAfter int) (weworkUserSyncRec
 *
  */
 
-// 企微信息模板
+// WeworkMsgTemplate 企微信息模板
 type WeworkMsgTemplate struct {
 	Key   string `json:"key" gorm:"type:varchar(255);not null;comment:模板键值"`
 	Value string `json:"value" gorm:"type:varchar(4000);not null;comment:模板内容"`
@@ -119,7 +129,7 @@ type WeworkMsgTemplate struct {
 
 // CreateWeworkMsgTemplate 增 企微信息模板
 func CreateWeworkMsgTemplate(key, value string) {
-	DB.Model(&WeworkMsgTemplate{}).Create((&WeworkMsgTemplate{Key: key, Value: value}))
+	DB.Model(&WeworkMsgTemplate{}).Create(&WeworkMsgTemplate{Key: key, Value: value})
 }
 
 // DeleteWeworkMsgTemplate 删 企微信息模板
@@ -129,7 +139,7 @@ func DeleteWeworkMsgTemplate(key string) {
 
 // UpdateWeworkMsgTemplate 改 企微信息模板
 func UpdateWeworkMsgTemplate(key, value string) {
-	DB.Model(&WeworkMsgTemplate{}).Create((&WeworkMsgTemplate{Key: key, Value: value}))
+	DB.Model(&WeworkMsgTemplate{}).Create(&WeworkMsgTemplate{Key: key, Value: value})
 }
 
 // FetchWeworkMsgTemplate 查 企微信息模板

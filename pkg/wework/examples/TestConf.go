@@ -8,6 +8,6 @@ var TestConf = map[string]string{
 	"CONTACT_SYNC_SECRET": "",
 
 	//某个自建应用的id及secret, 在管理端 -> 企业应用 -> 自建应用, 点进相应应用可以看到
-	"APP_ID": "",
+	"APP_ID":     "",
 	"APP_SECRET": "",
 }

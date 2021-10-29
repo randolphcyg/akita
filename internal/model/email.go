@@ -5,7 +5,7 @@ package model
 *
  */
 
-// 邮件模板
+// EmailTemplate 邮件模板
 type EmailTemplate struct {
 	Key   string `json:"key" gorm:"type:varchar(255);not null;comment:模板键值"`
 	Value string `json:"value" gorm:"type:varchar(4000);not null;comment:模板内容"`
@@ -13,7 +13,7 @@ type EmailTemplate struct {
 
 // CreateEmailTemplate 增 邮件模板
 func CreateEmailTemplate(key, value string) {
-	DB.Model(&WeworkMsgTemplate{}).Create((&EmailTemplate{Key: key, Value: value}))
+	DB.Model(&WeworkMsgTemplate{}).Create(&EmailTemplate{Key: key, Value: value})
 }
 
 // DeleteEmailTemplate 删 邮件模板
@@ -23,7 +23,7 @@ func DeleteEmailTemplate(key string) {
 
 // UpdateEmailTemplate 改 邮件模板
 func UpdateEmailTemplate(key, value string) {
-	DB.Model(&WeworkMsgTemplate{}).Create((&EmailTemplate{Key: key, Value: value}))
+	DB.Model(&WeworkMsgTemplate{}).Create(&EmailTemplate{Key: key, Value: value})
 }
 
 // FetchEmailTemplate 查 邮件模板

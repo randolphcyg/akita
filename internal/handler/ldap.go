@@ -1,13 +1,30 @@
 package handler
 
 import (
-	"gitee.com/RandolphCYG/akita/internal/service/conn"
 	"github.com/gin-gonic/gin"
+	"gitee.com/RandolphCYG/akita/internal/service/ldapconn"
 )
 
-// FetchLdapConn 查询所有ldap连接
-func FetchLdapConn(ctx *gin.Context) {
-	var service conn.LdapConnService
+type LdapConnHandler interface {
+	Fetch(ctx *gin.Context)
+	Create(ctx *gin.Context)
+	Update(ctx *gin.Context)
+	Delete(ctx *gin.Context)
+	Test(ctx *gin.Context)
+}
+
+// ldapConnField 定时任务字段
+type ldapConnField struct {
+	Name string
+}
+
+func NewLdapConnHandler() LdapConnHandler {
+	return &ldapConnField{}
+}
+
+// Fetch 查询所有ldap连接
+func (lcf ldapConnField) Fetch(ctx *gin.Context) {
+	var service ldapconn.LdapConnService
 	if err := ctx.ShouldBindUri(&service); err == nil {
 		res := service.Fetch()
 		ctx.JSON(200, res)
@@ -16,9 +33,9 @@ func FetchLdapConn(ctx *gin.Context) {
 	}
 }
 
-// CreateLdapConn 增加ldap连接
-func CreateLdapConn(ctx *gin.Context) {
-	var service conn.LdapConnService
+// Create 增加ldap连接
+func (lcf ldapConnField) Create(ctx *gin.Context) {
+	var service ldapconn.LdapConnService
 	if err := ctx.ShouldBindJSON(&service); err == nil {
 		res := service.Add(&service)
 		ctx.JSON(200, res)
@@ -27,9 +44,9 @@ func CreateLdapConn(ctx *gin.Context) {
 	}
 }
 
-// UpdateLdapConn 更新ldap连接
-func UpdateLdapConn(ctx *gin.Context) {
-	var service conn.LdapConnService
+// Update 更新ldap连接
+func (lcf ldapConnField) Update(ctx *gin.Context) {
+	var service ldapconn.LdapConnService
 	if err := ctx.ShouldBindJSON(&service); err == nil {
 		res := service.Update(&service)
 		ctx.JSON(200, res)
@@ -38,9 +55,9 @@ func UpdateLdapConn(ctx *gin.Context) {
 	}
 }
 
-// DeleteLdapConn 删除ldap连接
-func DeleteLdapConn(ctx *gin.Context) {
-	var service conn.LdapConnService
+// Delete 删除ldap连接
+func (lcf ldapConnField) Delete(ctx *gin.Context) {
+	var service ldapconn.LdapConnService
 	if err := ctx.ShouldBindJSON(&service); err == nil {
 		res := service.Delete(&service)
 		ctx.JSON(200, res)
@@ -49,14 +66,14 @@ func DeleteLdapConn(ctx *gin.Context) {
 	}
 }
 
-// TestLdapConn 测试ldap连接
-func TestLdapConn(ctx *gin.Context) {
-	var service conn.LdapConnService
+// Test 测试ldap连接
+func (lcf ldapConnField) Test(ctx *gin.Context) {
+	var service ldapconn.LdapConnService
 	if err := ctx.ShouldBindUri(&service); err == nil {
 		// 用 map[string]uint 接收json字符串
 		json := make(map[string]uint)
 		ctx.BindJSON(&json)
-		var id uint = json["id"]
+		var id = json["id"]
 		res := service.Test(id)
 		ctx.JSON(200, res)
 	} else {
@@ -64,10 +81,27 @@ func TestLdapConn(ctx *gin.Context) {
 	}
 }
 
-// FetchLdapField 查询对应ldap连接的ldap字段明细
-func FetchLdapField(ctx *gin.Context) {
+type LdapFieldHandler interface {
+	Fetch(ctx *gin.Context)
+	Create(ctx *gin.Context)
+	Update(ctx *gin.Context)
+	Delete(ctx *gin.Context)
+	Test(ctx *gin.Context)
+}
+
+// ldapField 定时任务字段
+type ldapField struct {
+	Name string
+}
+
+func NewLdapFieldHandler() LdapFieldHandler {
+	return &ldapField{}
+}
+
+// Fetch 查询对应ldap连接的ldap字段明细
+func (lf ldapField) Fetch(ctx *gin.Context) {
 	url := ctx.Query("conn_url")
-	var service conn.LdapFieldService
+	var service ldapconn.LdapFieldService
 	if err := ctx.ShouldBindUri(&service); err == nil {
 		res := service.FetchField(url)
 		ctx.JSON(200, res)
@@ -76,9 +110,9 @@ func FetchLdapField(ctx *gin.Context) {
 	}
 }
 
-// CreateLdapField 增加ldap字段记录
-func CreateLdapField(ctx *gin.Context) {
-	var service conn.LdapFieldService
+// Create 增加ldap字段记录
+func (lf ldapField) Create(ctx *gin.Context) {
+	var service ldapconn.LdapFieldService
 	if err := ctx.ShouldBindJSON(&service); err == nil {
 		res := service.AddField(&service)
 		ctx.JSON(200, res)
@@ -87,9 +121,9 @@ func CreateLdapField(ctx *gin.Context) {
 	}
 }
 
-// UpdateLdapField 更新ldap字段记录
-func UpdateLdapField(ctx *gin.Context) {
-	var service conn.LdapFieldService
+// Update 更新ldap字段记录
+func (lf ldapField) Update(ctx *gin.Context) {
+	var service ldapconn.LdapFieldService
 	if err := ctx.ShouldBindJSON(&service); err == nil {
 		res := service.UpdateField(&service)
 		ctx.JSON(200, res)
@@ -98,10 +132,10 @@ func UpdateLdapField(ctx *gin.Context) {
 	}
 }
 
-// DeleteLdapField 删除ldap字段记录
-func DeleteLdapField(ctx *gin.Context) {
+// Delete 删除ldap字段记录
+func (lf ldapField) Delete(ctx *gin.Context) {
 	url := ctx.Query("conn_url")
-	var service conn.LdapFieldService
+	var service ldapconn.LdapFieldService
 	if err := ctx.ShouldBindJSON(&service); err == nil {
 		res := service.DeleteField(url)
 		ctx.JSON(200, res)
@@ -110,18 +144,19 @@ func DeleteLdapField(ctx *gin.Context) {
 	}
 }
 
-// TestLdapField 测试ldap字段记录
-func TestLdapField(ctx *gin.Context) {
-	// var service conn.LdapConnService
-	// if err := ctx.ShouldBindUri(&service); err == nil {
-	// 	// 用 map[string]uint 接收json字符串
-	// 	json := make(map[string]uint)
-	// 	ctx.BindJSON(&json)
-	// 	var id uint = json["id"]
-	// 	res := service.Test(id)
-	// 	ctx.JSON(200, res)
-	// } else {
-	// 	ctx.JSON(200, err)
-	// }
-	// TODO
+// Test 测试ldap字段记录
+func (lf ldapField) Test(ctx *gin.Context) {
+	var service ldapconn.LdapConnService
+	if err := ctx.ShouldBindUri(&service); err == nil {
+		// 用 map[string]uint 接收json字符串
+		json := make(map[string]uint)
+		err := ctx.BindJSON(&json)
+		if err != nil {
+			return
+		}
+		res := service.Test(json["id"])
+		ctx.JSON(200, res)
+	} else {
+		ctx.JSON(200, err)
+	}
 }

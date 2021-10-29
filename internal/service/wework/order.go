@@ -7,14 +7,12 @@ import (
 	"strconv"
 
 	"gitee.com/RandolphCYG/akita/internal/model"
-	"gitee.com/RandolphCYG/akita/internal/service/conn"
-	"gitee.com/RandolphCYG/akita/internal/service/ldap"
-	"gitee.com/RandolphCYG/akita/internal/service/user"
+	"gitee.com/RandolphCYG/akita/internal/service/ldapconn"
+	"gitee.com/RandolphCYG/akita/internal/service/ldapuser"
 	"gitee.com/RandolphCYG/akita/pkg/c7n"
 	"gitee.com/RandolphCYG/akita/pkg/cache"
 	"gitee.com/RandolphCYG/akita/pkg/log"
 	"gitee.com/RandolphCYG/akita/pkg/util"
-	"gitee.com/RandolphCYG/akita/pkg/wework/api"
 	"gitee.com/RandolphCYG/akita/pkg/wework/order"
 )
 
@@ -42,10 +40,8 @@ func (service *Order) HandleOrders(o *Order) (err error) {
 		return
 	}
 
-	// 实例化 API 类 企业微信配置保存到数据库，系统初始化时加载到环境变量中
-	corpAPI := api.NewCorpAPI(model.WeworkOrderCfg.CorpId, model.WeworkOrderCfg.AppSecret)
 	// 获取审批工单详情
-	response, err := corpAPI.GetApprovalDetail(map[string]interface{}{
+	response, err := model.CorpAPIOrder.GetApprovalDetail(map[string]interface{}{
 		"sp_no": o.SpNo,
 	})
 	if err != nil {
@@ -93,10 +89,10 @@ func (service *Order) HandleOrders(o *Order) (err error) {
 			err = handleOrderC7nAuthority(weworkOrder)
 		}
 	default:
-		log.Log.Warning("UUAP server has no handdler with this kind of order, please handle it manually!")
+		log.Log.Warning("UUAP server has no handler with this kind of order, please handle it manually!")
 		return
 	}
-	// 统一处理工单的处理情况
+	// 统一处理工单处理情况
 	if result.RowsAffected == 1 && !orderExecuteRecord.ExecuteStatus { // 非首次执行 重试
 		if err != nil { // 工单执行出现错误
 			log.Log.Error("Fail to handle previous wework order, err: ", err)
@@ -123,7 +119,7 @@ func fetchLatestCompanyType() (err error) {
 		return
 	}
 
-	companyTypes, err = conn.Str2CompanyTypes(model.LdapFields.CompanyType)
+	companyTypes, err = ldapconn.Str2CompanyTypes(model.LdapFields.CompanyType)
 	if err != nil {
 		log.Log.Error(ErrDeserialize)
 		return
@@ -143,7 +139,7 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 		cn := string(displayName) + applicant.Eid
 
 		// 取内外部公司前缀映射
-		companyTypes, err = conn.Str2CompanyTypes(model.LdapFields.CompanyType)
+		companyTypes, err = ldapconn.Str2CompanyTypes(model.LdapFields.CompanyType)
 		if err != nil {
 			log.Log.Error(ErrDeserialize)
 			return err
@@ -181,7 +177,7 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 			probationFlag = 1
 		}
 		// 组装LDAP用户数据
-		userInfos := &ldap.LdapAttributes{
+		userInfos := &ldapuser.LdapAttributes{
 			Dn:             dn,
 			Num:            sam,
 			Sam:            sam,
@@ -208,7 +204,7 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 		// 待进行操作判断逻辑
 		if _, ok := platforms["UUAP"]; ok {
 			// UUAP操作
-			err = user.CreateLdapUser(o, userInfos)
+			err = ldapuser.CreateLdapUser(o, userInfos)
 			if err != nil {
 				log.Log.Error(err)
 			}
@@ -222,7 +218,7 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 				// 执行生成 企业微信账号 操作
 				err = CreateUser(userInfos)
 				if err != nil {
-					log.Log.Error("Fail to create user by wework order, ", err)
+					log.Log.Error("Fail to create ldapuser by wework order, ", err)
 					model.CreateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "自动创建失败, "+err.Error())
 				}
 
@@ -238,26 +234,26 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 		if _, ok := platforms["猪齿鱼"]; ok {
 			if _, ok := platforms["UUAP"]; !ok {
 				// 确保需要猪齿鱼的有UUAP 若无则创建
-				err = user.CreateLdapUser(o, userInfos)
+				err = ldapuser.CreateLdapUser(o, userInfos)
 				if err != nil {
 					log.Log.Error(err)
 				}
 			}
 
 			// 执行初始化 猪齿鱼 操作
-			c7n.UpdateC7nUsers()                                                   // 更新ldap用户
-			c7nUser, _ := c7n.FtechC7nUser(applicant.DisplayName, applicant.Eid)   // 将新ldap用户添加到默认空项目
-			role, _ := c7n.FetchC7nRoles("项目成员")                                   // 获取项目成员角色的ID
-			err = c7n.AssignC7nUserProjectRole("4", c7nUser.Id, []string{role.Id}) // 分配角色
+			c7n.SyncUsers()                                                     // 更新ldap用户
+			c7nUser, _ := c7n.FetchUser(applicant.DisplayName, applicant.Eid)   // 将新ldap用户添加到默认空项目
+			role, _ := c7n.FetchRole("项目成员")                                    // 获取项目成员角色的ID
+			err = c7n.AssignUserProjectRole("4", c7nUser.Id, []string{role.Id}) // 分配角色
 			if err != nil {
-				log.Log.Error("Fail to assign new user c7n default project!", err)
+				log.Log.Error("Fail to assign new ldapuser c7n default project!", err)
 			}
 		}
 
 		if _, ok := platforms["UVPN"]; ok {
 			if _, ok := platforms["UUAP"]; !ok {
 				// 确保需要UVPN的有UUAP 若无则创建
-				err = user.CreateLdapUser(o, userInfos)
+				err = ldapuser.CreateLdapUser(o, userInfos)
 				if err != nil {
 					log.Log.Error(err)
 				}
@@ -270,28 +266,27 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 }
 
 // handleWeworkDuplicateRegister 处理企业微信用户重复注册
-func handleWeworkDuplicateRegister(o order.WeworkOrderDetailsAccountsRegister, user *ldap.LdapAttributes) (err error) {
-	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
+func handleWeworkDuplicateRegister(o order.WeworkOrderDetailsAccountsRegister, user *ldapuser.LdapAttributes) (err error) {
 	duplicateRegisterWeworkUserWeworkMsgTemplate, err := cache.HGet("wework_msg_templates", "wework_template_wework_user_duplicate_register")
 	if err != nil {
 		log.Log.Error("读取企业微信消息模板错误: ", err)
 	}
 
 	// 获取连接
-	LdapConn, err := ldap.LdapPool.Get()
+	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldap connection, err: ", err)
+		log.Log.Error("Fail to get ldapconn connection, err: ", err)
 		return
 	}
 	defer LdapConn.Close()
 
-	entry, err := ldap.FetchUser(user)
+	entry, err := ldapuser.FetchUser(user)
 	if err != nil {
 		return
 	}
 	sam := entry.GetAttributeValue("sAMAccountName")
 
-	_, err = corpAPIMsg.MessageSend(map[string]interface{}{
+	_, err = model.CorpAPIMsg.MessageSend(map[string]interface{}{
 		"touser":  o.Userid,
 		"msgtype": "markdown",
 		"agentid": model.WeworkUuapCfg.AppId,
@@ -308,7 +303,7 @@ func handleWeworkDuplicateRegister(o order.WeworkOrderDetailsAccountsRegister, u
 
 // handleOrderUuapPwdRetrieve UUAP密码找回 工单
 func handleOrderUuapPwdRetrieve(o order.WeworkOrderDetailsUuapPwdRetrieve) (err error) {
-	user := &ldap.LdapAttributes{
+	user := &ldapuser.LdapAttributes{
 		Num:         o.Eid,
 		DisplayName: o.DisplayName,
 	}
@@ -319,12 +314,11 @@ func handleOrderUuapPwdRetrieve(o order.WeworkOrderDetailsUuapPwdRetrieve) (err 
 	}
 
 	// 创建成功发送企业微信消息
-	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
 	retrieveUuapPwdWeworkMsgTemplate, err := cache.HGet("wework_msg_templates", "wework_template_pwd_retrieve")
 	if err != nil {
 		log.Log.Error("读取企业微信消息模板错误: ", err)
 	}
-	_, err = corpAPIMsg.MessageSend(map[string]interface{}{
+	_, err = model.CorpAPIMsg.MessageSend(map[string]interface{}{
 		"touser":  o.Userid,
 		"msgtype": "markdown",
 		"agentid": model.WeworkUuapCfg.AppId,
@@ -341,7 +335,7 @@ func handleOrderUuapPwdRetrieve(o order.WeworkOrderDetailsUuapPwdRetrieve) (err 
 
 // handleOrderUuapDisable 账号注销 工单
 func handleOrderUuapDisable(o order.WeworkOrderDetailsUuapDisable) (err error) {
-	user := &ldap.LdapAttributes{
+	user := &ldapuser.LdapAttributes{
 		Num:         o.Eid,
 		DisplayName: o.DisplayName,
 	}
@@ -353,12 +347,11 @@ func handleOrderUuapDisable(o order.WeworkOrderDetailsUuapDisable) (err error) {
 	}
 
 	// 续期成功发送企业微信消息
-	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
 	renewalUuapWeworkMsgTemplate, err := cache.HGet("wework_msg_templates", "wework_template_uuap_disable")
 	if err != nil {
 		log.Log.Error("读取企业微信消息模板错误: ", err)
 	}
-	_, err = corpAPIMsg.MessageSend(map[string]interface{}{
+	_, err = model.CorpAPIMsg.MessageSend(map[string]interface{}{
 		"touser":  o.Userid,
 		"msgtype": "markdown",
 		"agentid": model.WeworkUuapCfg.AppId,
@@ -388,14 +381,20 @@ func handleOrderAccountsRenewal(o order.WeworkOrderDetailsAccountsRenewal) (err 
 		// 待进行操作判断逻辑
 		if _, ok := platforms["UUAP"]; ok {
 			// UUAP续期操作
-			RenewalUuap(o, applicant)
+			err := RenewalUuap(o, applicant)
+			if err != nil {
+				return err
+			}
 		}
 
 		if _, ok := platforms["企业微信"]; ok {
-			// 企业微信续期操作 TODO 批量的话 根据工号锁定用户
+			// 企业微信续期操作
 			weworkUser, _ := FetchUser(applicant.Eid)
 			expireDays, _ := strconv.Atoi(applicant.Days)
-			RenewalUser(weworkUser.Userid, applicant, expireDays)
+			err := RenewalUser(weworkUser.Userid, applicant, expireDays)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -405,7 +404,7 @@ func handleOrderAccountsRenewal(o order.WeworkOrderDetailsAccountsRenewal) (err 
 // RenewalUuap 续期
 func RenewalUuap(o order.WeworkOrderDetailsAccountsRenewal, applicant order.RenewalApplicant) (err error) {
 	days, _ := strconv.ParseInt(applicant.Days, 10, 64)
-	user := &ldap.LdapAttributes{
+	user := &ldapuser.LdapAttributes{
 		Num:         applicant.Eid,
 		DisplayName: applicant.DisplayName,
 		Expire:      util.ExpireTime(days),
@@ -418,12 +417,11 @@ func RenewalUuap(o order.WeworkOrderDetailsAccountsRenewal, applicant order.Rene
 	}
 
 	// 续期成功发送企业微信消息
-	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
 	renewalUuapWeworkMsgTemplate, err := cache.HGet("wework_msg_templates", "wework_template_uuap_renewal")
 	if err != nil {
 		log.Log.Error("读取企业微信消息模板错误: ", err)
 	}
-	_, err = corpAPIMsg.MessageSend(map[string]interface{}{
+	_, err = model.CorpAPIMsg.MessageSend(map[string]interface{}{
 		"touser":  o.Userid,
 		"msgtype": "markdown",
 		"agentid": model.WeworkUuapCfg.AppId,
@@ -440,7 +438,6 @@ func RenewalUuap(o order.WeworkOrderDetailsAccountsRenewal, applicant order.Rene
 
 // handleWeworkOrderFindUserErr 处理未找到企微用户错误
 func handleWeworkOrderFindUserErr(o order.WeworkOrderDetailsAccountsRenewal, name, eid string) {
-	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
 	c7nFindProjectErrMsgTemplate, _ := cache.HGet("wework_msg_templates", "wework_template_wework_find_user_err")
 	msg := map[string]interface{}{
 		"touser":  o.Userid,
@@ -450,7 +447,7 @@ func handleWeworkOrderFindUserErr(o order.WeworkOrderDetailsAccountsRenewal, nam
 			"content": fmt.Sprintf(c7nFindProjectErrMsgTemplate, o.SpName, name, name, eid),
 		},
 	}
-	_, err := corpAPIMsg.MessageSend(msg)
+	_, err := model.CorpAPIMsg.MessageSend(msg)
 	if err != nil {
 		log.Log.Error("Fail to send wework msg, err: ", err)
 	}
@@ -459,7 +456,6 @@ func handleWeworkOrderFindUserErr(o order.WeworkOrderDetailsAccountsRenewal, nam
 
 // handleC7nOrderFindUserErr 处理未找到c7n用户错误
 func handleC7nOrderFindUserErr(o order.WeworkOrderDetailsC7nAuthority, name, eid string) {
-	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
 	c7nFindProjectErrMsgTemplate, _ := cache.HGet("wework_msg_templates", "wework_template_c7n_find_user_err")
 	msg := map[string]interface{}{
 		"touser":  o.Userid,
@@ -469,7 +465,7 @@ func handleC7nOrderFindUserErr(o order.WeworkOrderDetailsC7nAuthority, name, eid
 			"content": fmt.Sprintf(c7nFindProjectErrMsgTemplate, o.SpName, o.DisplayName, name, eid),
 		},
 	}
-	_, err := corpAPIMsg.MessageSend(msg)
+	_, err := model.CorpAPIMsg.MessageSend(msg)
 	if err != nil {
 		log.Log.Error("Fail to send wework msg, err: ", err)
 	}
@@ -478,7 +474,6 @@ func handleC7nOrderFindUserErr(o order.WeworkOrderDetailsC7nAuthority, name, eid
 
 // handleC7nOrderFindProjectErr 处理未找到c7n项目错误
 func handleC7nOrderFindProjectErr(o order.WeworkOrderDetailsC7nAuthority, p string) {
-	corpAPIMsg := api.NewCorpAPI(model.WeworkUuapCfg.CorpId, model.WeworkUuapCfg.AppSecret)
 	c7nFindProjectErrMsgTemplate, _ := cache.HGet("wework_msg_templates", "wework_template_c7n_find_project_err")
 	msg := map[string]interface{}{
 		"touser":  o.Userid,
@@ -488,7 +483,7 @@ func handleC7nOrderFindProjectErr(o order.WeworkOrderDetailsC7nAuthority, p stri
 			"content": fmt.Sprintf(c7nFindProjectErrMsgTemplate, o.SpName, o.DisplayName, p),
 		},
 	}
-	_, err := corpAPIMsg.MessageSend(msg)
+	_, err := model.CorpAPIMsg.MessageSend(msg)
 	if err != nil {
 		log.Log.Error("Fail to send wework msg, err: ", err)
 	}
@@ -498,7 +493,7 @@ func handleC7nOrderFindProjectErr(o order.WeworkOrderDetailsC7nAuthority, p stri
 // handleOrderC7nAuthority c7n权限处理
 func handleOrderC7nAuthority(order order.WeworkOrderDetailsC7nAuthority) (err error) {
 	// c7n 用户处理流程
-	c7nUser, err := c7n.FtechC7nUser(order.DisplayName, order.Eid)
+	c7nUser, err := c7n.FetchUser(order.DisplayName, order.Eid)
 	if err != nil || c7nUser.Id == "" { // 有报错或者未查询到用户则回执执行错误消息
 		handleC7nOrderFindUserErr(order, order.DisplayName, order.Eid)
 		return
@@ -506,7 +501,7 @@ func handleOrderC7nAuthority(order order.WeworkOrderDetailsC7nAuthority) (err er
 
 	// c7n项目及角色处理流程
 	for _, p := range order.C7nProjects {
-		project, err := c7n.FetchC7nProject(p.Project)
+		project, err := c7n.FetchProject(p.Project)
 		if err != nil {
 			handleC7nOrderFindProjectErr(order, p.Project)
 			continue // 若遇到用户填写错误 继续执行下一条
@@ -515,12 +510,12 @@ func handleOrderC7nAuthority(order order.WeworkOrderDetailsC7nAuthority) (err er
 		// 角色的处理流程
 		var c7nRoleIds []string
 		for _, r := range p.Roles {
-			role, _ := c7n.FetchC7nRoles(r)
+			role, _ := c7n.FetchRole(r)
 			c7nRoleIds = append(c7nRoleIds, role.Id)
 		}
 
 		// 将用户添加到对应项目对应角色
-		err = c7n.AssignC7nUserProjectRole(strconv.Itoa(project.Id), c7nUser.Id, c7nRoleIds)
+		err = c7n.AssignUserProjectRole(strconv.Itoa(project.Id), c7nUser.Id, c7nRoleIds)
 		s, _ := json.Marshal(p.Roles)
 		if err != nil {
 			log.Log.Info("为用户[" + c7nUser.RealName + "]分配项目[" + project.Name + "]的[" + string(s) + "]失败, " + err.Error())

@@ -17,7 +17,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-var cfgFile = pflag.StringP("config", "c", "", "指定akita配置文件地址")
+var cfgFile = pflag.StringP("config", "c", "", "指定配置文件地址")
 
 func main() {
 	router.Init(*cfgFile)         // 初始化系统配置

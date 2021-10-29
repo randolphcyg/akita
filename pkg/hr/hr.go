@@ -2,12 +2,11 @@ package hr
 
 import (
 	"github.com/kirinlabs/HttpRequest"
-
 	"gitee.com/RandolphCYG/akita/pkg/log"
 )
 
-// HrToken 获取token接口返回数据结构体
-type HrToken struct {
+// TokenResp 获取token接口返回数据结构体
+type TokenResp struct {
 	// 正确时候
 	AccessToken string `json:"access_token"`
 	ExpiresIn   int    `json:"expires_in"`
@@ -21,21 +20,21 @@ type HrToken struct {
 	Success          bool   `json:"success"`
 }
 
-// HrData HR数据接口返回数据结构体
-type HrData struct {
-	Content          []HrUser `json:"content"`
-	Empty            bool     `json:"empty"`
-	Number           int      `json:"number"`
-	NumberOfElements int      `json:"numberOfElements"`
-	Size             int      `json:"size"`
-	TotalElements    int      `json:"totalElements"`
-	TotalPages       int      `json:"totalPages"`
+// DataResp HR数据接口返回数据结构体
+type DataResp struct {
+	Content          []User `json:"content"`
+	Empty            bool   `json:"empty"`
+	Number           int    `json:"number"`
+	NumberOfElements int    `json:"numberOfElements"`
+	Size             int    `json:"size"`
+	TotalElements    int    `json:"totalElements"`
+	TotalPages       int    `json:"totalPages"`
 	// 出错时候
 	Result string `json:"result"`
 }
 
-// HrUser 数据接口查询的用户信息结构体
-type HrUser struct {
+// User 数据接口查询的用户信息结构体
+type User struct {
 	CompanyCode string `json:"company_code"`
 	CompanyName string `json:"company_name"`
 	Name        string `json:"ename"`
@@ -56,7 +55,7 @@ type HrDataConn struct {
 }
 
 // FetchToken 获取token
-func FetchToken(h *HrDataConn) (token HrToken, err error) {
+func FetchToken(h *HrDataConn) (tokenResp TokenResp, err error) {
 	req := HttpRequest.NewRequest()
 	respFetchToken, err := req.Post(h.UrlGetToken)
 	if err != nil {
@@ -65,22 +64,22 @@ func FetchToken(h *HrDataConn) (token HrToken, err error) {
 		return
 	}
 	// 反序列化
-	err = respFetchToken.Json(&token)
+	err = respFetchToken.Json(&tokenResp)
 	if err != nil {
 		// 抛错
 		log.Log.Error("Fail to convert response to json, err: ", err)
 		return
 	}
-	if !token.Success && token.ErrorDescription != "" {
+	if !tokenResp.Success && tokenResp.ErrorDescription != "" {
 		// 抛错
-		log.Log.Error(token.ErrorDescription)
+		log.Log.Error(tokenResp.ErrorDescription)
 		return
 	}
 	return
 }
 
-// FetchHrData 带着token去获取HR数据
-func FetchHrData(h *HrDataConn) (hrUsers []HrUser, err error) {
+// FetchData 带着token去获取HR数据
+func FetchData(h *HrDataConn) (users []User, err error) {
 	req := HttpRequest.NewRequest()
 	hrToken, err := FetchToken(h)
 	if err != nil {
@@ -97,13 +96,17 @@ func FetchHrData(h *HrDataConn) (hrUsers []HrUser, err error) {
 		log.Log.Error("Fail to fetch hr data, err: ", err)
 		return
 	}
-	var hrdata HrData
-	respFetchData.Json(&hrdata)
+
+	var dataResp DataResp
+	err = respFetchData.Json(&dataResp)
+	if err != nil {
+		return nil, err
+	}
 	// 返回数据是否有报错字段
-	if hrdata.Result != "" {
-		log.Log.Error("Fail to fetch hr data, err: ", hrdata.Result)
+	if dataResp.Result != "" {
+		log.Log.Error("Fail to fetch hr data, err: ", dataResp.Result)
 		return
 	}
-	hrUsers = hrdata.Content
+	users = dataResp.Content
 	return
 }

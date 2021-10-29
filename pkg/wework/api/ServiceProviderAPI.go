@@ -9,6 +9,6 @@ var SERVICE_PROVIDER_API_TYPE = map[string][]string{
 	"SET_CONTACT_SYNC_SUCCESS": {"/cgi-bin/sync/contact_sync_success", "GET"},
 }
 
-// TODO
+// ServiceProviderApi TODO
 type ServiceProviderApi struct {
 }

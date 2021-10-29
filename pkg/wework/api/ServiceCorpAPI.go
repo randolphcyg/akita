@@ -12,6 +12,6 @@ var SERVICE_CORP_API_TYPE = map[string][]string{
 	"GET_USER_DETAIL_BY_3RD": {"/cgi-bin/service/getuserdetail3rd?suite_access_token=SUITE_ACCESS_TOKEN", "POST"},
 }
 
-// TODO
+// ServiceCorpAPI TODO
 type ServiceCorpAPI struct {
 }

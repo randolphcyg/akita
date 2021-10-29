@@ -30,3 +30,4 @@ config/config.yaml
 # 忽略debug文件
 __debug_bin
 .vscode
+.idea

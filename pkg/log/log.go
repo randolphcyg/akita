@@ -15,7 +15,7 @@ import (
 
 var (
 	logFilePath = "./"
-	logFileName = "akita.log"
+	logFileName = "uuap.log"
 	Log         *logrus.Logger
 )
 

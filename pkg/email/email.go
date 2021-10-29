@@ -23,7 +23,7 @@ var (
 	EmailCfg *Config
 )
 
-// 初始化连接
+// Init 初始化邮件配置
 func Init(c *Config) (err error) {
 	EmailCfg = &Config{
 		Host:      c.Host,

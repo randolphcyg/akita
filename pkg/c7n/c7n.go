@@ -13,8 +13,8 @@ import (
 	"gitee.com/RandolphCYG/akita/pkg/serializer"
 )
 
-// C7nFetchTokenRes 获取 c7n token 接口返回数据结构体
-type C7nFetchTokenRes struct {
+// TokenResp 获取token接口返回数据结构体
+type TokenResp struct {
 	// 正确时候
 	AccessToken string `json:"access_token"`
 	TokenType   string `json:"token_type"`
@@ -24,8 +24,8 @@ type C7nFetchTokenRes struct {
 	ErrorDescription string `json:"error_description"`
 }
 
-// C7nProjectFields 项目字段
-type C7nProjectFields struct {
+// ProjectFields 项目字段
+type ProjectFields struct {
 	Name           string `json:"name"`
 	Code           string `json:"code"`
 	Id             int    `json:"id"`
@@ -36,19 +36,19 @@ type C7nProjectFields struct {
 	LastUpdatedBy  int    `json:"lastUpdatedBy"`
 }
 
-// C7nFetchUserRes 查询用户接口返回结构体
-type C7nFetchUserRes struct {
-	TotalPages       int             `json:"totalPages"`
-	TotalElements    int             `json:"totalElements"`
-	NumberOfElements int             `json:"numberOfElements"`
-	Size             int             `json:"size"`
-	Number           int             `json:"number"`
-	Content          []C7nUserFields `json:"content"`
-	Empty            bool            `json:"empty"`
+// UserResp 查询用户接口返回结构体
+type UserResp struct {
+	TotalPages       int          `json:"totalPages"`
+	TotalElements    int          `json:"totalElements"`
+	NumberOfElements int          `json:"numberOfElements"`
+	Size             int          `json:"size"`
+	Number           int          `json:"number"`
+	Content          []UserFields `json:"content"`
+	Empty            bool         `json:"empty"`
 }
 
-// C7nUserFields 用户字段
-type C7nUserFields struct {
+// UserFields 用户字段
+type UserFields struct {
 	Id             string `json:"id"`
 	LoginName      string `json:"loginName"`
 	RealName       string `json:"realName"`
@@ -60,25 +60,25 @@ type C7nUserFields struct {
 	EnabledFlag    bool   `json:"enabledFlag"`
 	Locked         bool   `json:"locked"`
 	LockedFlag     bool   `json:"lockedFlag"`
-	Ldap           bool   `json:"ldap"`
+	Ldap           bool   `json:"ldapconn"`
 	LdapFlag       bool   `json:"ldapFlag"`
 	Admin          bool   `json:"admin"`
 	AdminFlag      bool   `json:"adminFlag"`
 }
 
-// C7nFetchRoleRes 查询用户接口返回结构体
-type C7nFetchRoleRes struct {
-	TotalPages       int             `json:"totalPages"`
-	TotalElements    int             `json:"totalElements"`
-	NumberOfElements int             `json:"numberOfElements"`
-	Size             int             `json:"size"`
-	Number           int             `json:"number"`
-	Content          []C7nRoleFields `json:"content"`
-	Empty            bool            `json:"empty"`
+// RoleResp 查询用户接口返回结构体
+type RoleResp struct {
+	TotalPages       int          `json:"totalPages"`
+	TotalElements    int          `json:"totalElements"`
+	NumberOfElements int          `json:"numberOfElements"`
+	Size             int          `json:"size"`
+	Number           int          `json:"number"`
+	Content          []RoleFields `json:"content"`
+	Empty            bool         `json:"empty"`
 }
 
-// C7nRoleFields 角色字段
-type C7nRoleFields struct {
+// RoleFields 角色字段
+type RoleFields struct {
 	Id          string `json:"id"`
 	Code        string `json:"code"`
 	Assignable  bool   `json:"assignable"`
@@ -88,14 +88,14 @@ type C7nRoleFields struct {
 	RoleLevel   string `json:"roleLevel"`
 }
 
-// C7nFetchLdapRes 查询ldap连接接口返回结构体
-type C7nFetchLdapRes struct {
+// FetchLdapRes 查询ldap连接接口返回结构体
+type FetchLdapRes struct {
 	Id     string `json:"id"`
 	BaseDn string `json:"baseDn"`
 }
 
-// FetchToken 获取token
-func FetchToken() (header map[string]string, err error) {
+// GetToken 获取token
+func GetToken() (header map[string]string, err error) {
 	// 从缓存取url
 	c7nFetchToken, err := cache.HGet("third_party_cfgs", "c7n_fetch_token")
 	if err != nil {
@@ -103,7 +103,7 @@ func FetchToken() (header map[string]string, err error) {
 		return
 	}
 
-	var c7nFetchTokenRes C7nFetchTokenRes
+	var tokenResp TokenResp
 	req := HttpRequest.NewRequest()
 	respC7nFetchToken, err := req.Post(c7nFetchToken)
 	if err != nil {
@@ -113,36 +113,36 @@ func FetchToken() (header map[string]string, err error) {
 	defer respC7nFetchToken.Close() // 关闭
 
 	// 反序列化
-	err = respC7nFetchToken.Json(&c7nFetchTokenRes)
+	err = respC7nFetchToken.Json(&tokenResp)
 	if err != nil {
 		log.Log.Error("Fail to convert response to json, err: ", err)
 		return
 	}
-	if c7nFetchTokenRes.Error != "" {
-		log.Log.Error(c7nFetchTokenRes.ErrorDescription)
+	if tokenResp.Error != "" {
+		log.Log.Error(tokenResp.ErrorDescription)
 		return
 	}
 	header = map[string]string{
-		"Authorization": c7nFetchTokenRes.TokenType + " " + c7nFetchTokenRes.AccessToken,
+		"Authorization": tokenResp.TokenType + " " + tokenResp.AccessToken,
 		"Content-Type":  "application/json;charset=UTF-8",
 	}
 	return header, nil
 }
 
-// FetchC7nProject 查询 c7n 项目 返回唯一值，忽略其他结果
-func FetchC7nProject(projectName string) (c7nProject C7nProjectFields, err error) {
+// FetchProject 查询 c7n 项目 返回唯一值，忽略其他结果
+func FetchProject(projectName string) (projectFields ProjectFields, err error) {
 	project, err := cache.HGet("c7n_projects", strings.ToUpper(projectName))
-	err = json.Unmarshal([]byte(project), &c7nProject)
+	err = json.Unmarshal([]byte(project), &projectFields)
 	if err != nil {
 		return
 	}
 	return
 }
 
-// FtechC7nUser 根据登录名查询用户
-func FtechC7nUser(realName, loginName string) (c7nUser C7nUserFields, err error) {
+// FetchUser 根据真实姓名、登录名查询用户
+func FetchUser(realName, loginName string) (user UserFields, err error) {
 	// 取token
-	header, err := FetchToken()
+	header, err := GetToken()
 	if err != nil {
 		log.Log.Error("Fail to fetch token, err: ", err)
 		return
@@ -158,33 +158,33 @@ func FtechC7nUser(realName, loginName string) (c7nUser C7nUserFields, err error)
 	// 发送请求
 	req := HttpRequest.NewRequest()
 	req.SetHeaders(header)
-	respC7nFetchUser, err := req.Get(fmt.Sprintf(c7nFetchUser, url.QueryEscape(realName), url.QueryEscape(loginName)))
+	respFetchUser, err := req.Get(fmt.Sprintf(c7nFetchUser, url.QueryEscape(realName), url.QueryEscape(loginName)))
 	if err != nil {
-		log.Log.Error("Fail to fetch c7n user, err: ", err)
+		log.Log.Error("Fail to fetch c7n ldapuser, err: ", err)
 		return
 	}
-	defer respC7nFetchUser.Close() // 关闭
+	defer respFetchUser.Close() // 关闭
 
 	// 反序列化
-	var c7nFetchUserRes C7nFetchUserRes
-	err = respC7nFetchUser.Json(&c7nFetchUserRes)
+	var userResp UserResp
+	err = respFetchUser.Json(&user)
 	if err != nil {
 		log.Log.Error("Fail to convert response to json, err: ", err)
 		return
 	}
 
 	// 数据筛选
-	if len(c7nFetchUserRes.Content) >= 1 {
-		c7nUser = c7nFetchUserRes.Content[0]
+	if len(userResp.Content) >= 1 {
+		user = userResp.Content[0]
 	}
 
 	return
 }
 
-// FetchC7nRoles 查询 c7n 角色列表
-func FetchC7nRoles(roleName string) (c7nRole C7nRoleFields, err error) {
+// FetchRole 查询角色
+func FetchRole(roleName string) (role RoleFields, err error) {
 	// 取token
-	header, err := FetchToken()
+	header, err := GetToken()
 	if err != nil {
 		log.Log.Error("Fail to fetch token, err: ", err)
 		return
@@ -202,34 +202,34 @@ func FetchC7nRoles(roleName string) (c7nRole C7nRoleFields, err error) {
 	req.SetHeaders(header)
 	respC7nFetchRoles, err := req.Get(c7nFetchRoles)
 	if err != nil {
-		log.Log.Error("Fail to fetch c7n user, err: ", err)
+		log.Log.Error("Fail to fetch c7n ldapuser, err: ", err)
 		return
 	}
 	defer respC7nFetchRoles.Close() // 关闭
 
 	// 反序列化
-	var c7nFetchRoleRes C7nFetchRoleRes
-	err = respC7nFetchRoles.Json(&c7nFetchRoleRes)
+	var roleResp RoleResp
+	err = respC7nFetchRoles.Json(&roleResp)
 	if err != nil {
 		log.Log.Error("Fail to convert response to json, err: ", err)
 		return
 	}
 
 	// 数据筛选
-	for _, role := range c7nFetchRoleRes.Content {
-		if role.Enabled {
+	for _, r := range roleResp.Content {
+		if r.Enabled {
 			if strings.Contains(role.Name, roleName) {
-				c7nRole = role
+				role = r
 			}
 		}
 	}
 	return
 }
 
-// AssignC7nUserProjectRole 为c7n用户分配某项目的某角色
-func AssignC7nUserProjectRole(c7nProjectId string, c7nUserId string, c7nRoleIds []string) (err error) {
+// AssignUserProjectRole 为c7n用户分配某项目的某角色
+func AssignUserProjectRole(c7nProjectId string, c7nUserId string, c7nRoleIds []string) (err error) {
 	// 取token
-	header, err := FetchToken()
+	header, err := GetToken()
 	if err != nil {
 		log.Log.Error("Fail to fetch token, err: ", err)
 		return
@@ -249,24 +249,24 @@ func AssignC7nUserProjectRole(c7nProjectId string, c7nUserId string, c7nRoleIds 
 	return
 }
 
-// UpdateC7nUsersManual 手动触发LDAP用户同步到C7N
-func UpdateC7nUsersManual() serializer.Response {
+// UpdateUsersManual 手动触发LDAP用户同步到C7N
+func UpdateUsersManual() serializer.Response {
 	go func() {
-		UpdateC7nUsers()
+		SyncUsers()
 	}()
 	return serializer.Response{Data: 0, Msg: "手动触发LDAP用户同步到C7N成功!"}
 }
 
-// UpdateC7nUsers 同步c7n ldap用户
-func UpdateC7nUsers() {
+// SyncUsers 同步用户
+func SyncUsers() {
 	// 取token
-	header, err := FetchToken()
+	header, err := GetToken()
 	if err != nil {
 		log.Log.Error("Fail to fetch token, err: ", err)
 	}
 
 	// 从缓存取url
-	c7nFetchLdapConn, err := cache.HGet("third_party_cfgs", "c7n_fetch_ldap_conn")
+	getLdapConn, err := cache.HGet("third_party_cfgs", "c7n_fetch_ldap_conn")
 	if err != nil {
 		log.Log.Error("读取三方系统-c7n配置错误: ", err)
 	}
@@ -274,56 +274,56 @@ func UpdateC7nUsers() {
 	// 发送请求
 	req := HttpRequest.NewRequest()
 	req.SetHeaders(header)
-	respC7nFetchLdapConn, err := req.Get(c7nFetchLdapConn)
+	respGetLdapConn, err := req.Get(getLdapConn)
 	if err != nil {
-		log.Log.Error("Fail to fetch c7n user, err: ", err)
+		log.Log.Error("Fail to fetch c7n ldapuser, err: ", err)
 	}
-	defer respC7nFetchLdapConn.Close() // 关闭
+	defer respGetLdapConn.Close() // 关闭
 
 	// 反序列化
-	var c7nFetchLdapRes C7nFetchLdapRes
-	err = respC7nFetchLdapConn.Json(&c7nFetchLdapRes)
+	var fetchLdapRes FetchLdapRes
+	err = respGetLdapConn.Json(&fetchLdapRes)
 	if err != nil {
 		log.Log.Error("Fail to convert response to json, err: ", err)
 	}
 
 	// 数据筛选
-	LdapId := c7nFetchLdapRes.Id
+	LdapId := fetchLdapRes.Id
 
 	// 同步用户
 	// 从缓存取url
-	c7nSyncLdapUsers, err := cache.HGet("third_party_cfgs", "c7n_sync_ldap_users")
+	syncLdapUsers, err := cache.HGet("third_party_cfgs", "c7n_sync_ldap_users")
 	if err != nil {
 		log.Log.Error("读取三方系统-c7n配置错误: ", err)
 	}
-	respC7nSyncLdapUsers, err := req.Post(fmt.Sprintf(c7nSyncLdapUsers, LdapId))
+	respSyncLdapUsers, err := req.Post(fmt.Sprintf(syncLdapUsers, LdapId))
 	if err != nil {
 		log.Log.Error("Fail to fetch token, err: ", err)
 	}
-	defer respC7nSyncLdapUsers.Close() // 关闭
+	defer respSyncLdapUsers.Close() // 关闭
 	return
 }
 
-// CacheC7nProjectsManual 手动触发缓存所有c7n项目
-func CacheC7nProjectsManual() serializer.Response {
+// CacheProjectsManual 手动触发缓存所有c7n项目
+func CacheProjectsManual() serializer.Response {
 	go func() {
-		CacheC7nProjects()
+		CacheProjects()
 	}()
 	return serializer.Response{Data: 0, Msg: "手动触发缓存c7n项目成功!"}
 }
 
-// CacheC7nProjects 缓存所有c7n项目
-func CacheC7nProjects() {
+// CacheProjects 缓存所有c7n项目
+func CacheProjects() {
 	log.Log.Info("开始更新c7n项目缓存...")
 	// 从缓存取url
-	c7nFetchAllProjects, err := cache.HGet("third_party_cfgs", "c7n_fetch_all_projects")
+	c7nGetAllProjects, err := cache.HGet("third_party_cfgs", "c7n_fetch_all_projects")
 	if err != nil {
 		log.Log.Error("读取三方系统-c7n配置错误: ", err)
 		return
 	}
 
 	// 取token
-	header, err := FetchToken()
+	header, err := GetToken()
 	if err != nil {
 		log.Log.Error("Fail to fetch token, err: ", err)
 		return
@@ -332,15 +332,15 @@ func CacheC7nProjects() {
 	// 发送请求
 	req := HttpRequest.NewRequest()
 	req.SetHeaders(header)
-	respC7nFetchAllProjects, err := req.Get(c7nFetchAllProjects)
+	respC7nGetAllProjects, err := req.Get(c7nGetAllProjects)
 	if err != nil {
 		return
 	}
 
-	defer respC7nFetchAllProjects.Close() // 关闭
+	defer respC7nGetAllProjects.Close() // 关闭
 
-	var c7nPros []C7nProjectFields
-	err = respC7nFetchAllProjects.Json(&c7nPros)
+	var c7nProjects []ProjectFields
+	err = respC7nGetAllProjects.Json(&c7nProjects)
 	if err != nil {
 		return
 	}
@@ -348,7 +348,7 @@ func CacheC7nProjects() {
 	// 清空缓存
 	_, err = cache.HDel("c7n_projects")
 
-	for _, project := range c7nPros {
+	for _, project := range c7nProjects {
 		if project.Enabled {
 			data, _ := json.Marshal(project)
 			_, err = cache.HSet("c7n_projects", project.Name, data)

@@ -11,12 +11,11 @@ import (
 	"gitee.com/RandolphCYG/akita/pkg/log"
 )
 
-// 全局变量
 var (
 	WeworkCfg *model.WeworkCfg
 )
 
-// 企业微信工单结构体
+// WeworkOrder 企业微信工单结构体
 type WeworkOrder struct {
 	SpNo       string `mapstructure:"sp_no"`       // 审批编号
 	SpName     string `mapstructure:"sp_name"`     // 审批申请类型名称（审批模板名称）
@@ -228,7 +227,7 @@ type WeworkOrder struct {
 	} `mapstructure:"comments"`
 }
 
-// 解析企业微信原始工单
+// ParseRawOrder 解析企业微信原始工单
 func ParseRawOrder(rawInfo interface{}) (orderData map[string]interface{}, err error) {
 	var weworkOrder WeworkOrder
 	// 反序列化工单详情
@@ -335,7 +334,7 @@ func ParseRawOrder(rawInfo interface{}) (orderData map[string]interface{}, err e
 	return
 }
 
-// 申请人
+// Applicant 申请人
 type Applicant struct {
 	DisplayName   string   `mapstructure:"姓名"`
 	Eid           string   `mapstructure:"工号"`
@@ -345,7 +344,7 @@ type Applicant struct {
 	InitPlatforms []string `mapstructure:"所需平台"`
 }
 
-// 各平台账号注册 工单详情 多个
+// WeworkOrderDetailsAccountsRegister 各平台账号注册 工单详情 多个
 type WeworkOrderDetailsAccountsRegister struct {
 	SpName  string      `mapstructure:"spName"`
 	Partyid string      `mapstructure:"partyid"`
@@ -354,7 +353,7 @@ type WeworkOrderDetailsAccountsRegister struct {
 	Users   []Applicant `mapstructure:"待申请人员"`
 }
 
-// 各平台账号注册 工单详情 单个
+// WeworkOrderDetailsAccountsRegisterSingle 各平台账号注册 工单详情 单个
 type WeworkOrderDetailsAccountsRegisterSingle struct {
 	SpName        string   `mapstructure:"spName"`
 	Partyid       string   `mapstructure:"partyid"`
@@ -368,7 +367,7 @@ type WeworkOrderDetailsAccountsRegisterSingle struct {
 	InitPlatforms []string `mapstructure:"所需平台"`
 }
 
-// 原始工单转换为账号注册工单结构体
+// RawToAccountsRegister 原始工单转换为账号注册工单结构体
 func RawToAccountsRegister(weworkOrder map[string]interface{}) (orderDetails WeworkOrderDetailsAccountsRegister) {
 	if _, ok := weworkOrder["姓名"]; ok {
 		var temp WeworkOrderDetailsAccountsRegisterSingle
@@ -396,7 +395,7 @@ func RawToAccountsRegister(weworkOrder map[string]interface{}) (orderDetails Wew
 	return
 }
 
-// UUAP密码找回 工单详情
+// WeworkOrderDetailsUuapPwdRetrieve UUAP密码找回 工单详情
 type WeworkOrderDetailsUuapPwdRetrieve struct {
 	SpName      string `mapstructure:"spName"`
 	Userid      string `mapstructure:"userid"`
@@ -404,7 +403,7 @@ type WeworkOrderDetailsUuapPwdRetrieve struct {
 	Eid         string `mapstructure:"工号"`
 }
 
-// 原始工单转换为UUAP密码找回结构体
+// RawToUuapPwdRetrieve 原始工单转换为UUAP密码找回结构体
 func RawToUuapPwdRetrieve(weworkOrder map[string]interface{}) (orderDetails WeworkOrderDetailsUuapPwdRetrieve) {
 	if err := mapstructure.Decode(weworkOrder, &orderDetails); err != nil {
 		log.Log.Error("Fail to convert raw oder, err: ", err)
@@ -412,7 +411,7 @@ func RawToUuapPwdRetrieve(weworkOrder map[string]interface{}) (orderDetails Wewo
 	return
 }
 
-// 账号注销 工单详情
+// WeworkOrderDetailsUuapDisable 账号注销 工单详情
 type WeworkOrderDetailsUuapDisable struct {
 	SpName      string `mapstructure:"spName"`
 	Userid      string `mapstructure:"userid"`
@@ -420,7 +419,7 @@ type WeworkOrderDetailsUuapDisable struct {
 	Eid         string `mapstructure:"工号"`
 }
 
-// 原始工单转换为账号注销结构体
+// RawToUuapPwdDisable 原始工单转换为账号注销结构体
 func RawToUuapPwdDisable(weworkOrder map[string]interface{}) (orderDetails WeworkOrderDetailsUuapDisable) {
 	if err := mapstructure.Decode(weworkOrder, &orderDetails); err != nil {
 		log.Log.Error("Fail to convert raw oder, err: ", err)
@@ -428,7 +427,7 @@ func RawToUuapPwdDisable(weworkOrder map[string]interface{}) (orderDetails Wewor
 	return
 }
 
-// 申请人
+// RenewalApplicant 申请人
 type RenewalApplicant struct {
 	DisplayName string   `mapstructure:"姓名"`
 	Eid         string   `mapstructure:"工号"`
@@ -436,14 +435,14 @@ type RenewalApplicant struct {
 	Days        string   `mapstructure:"续期天数"`
 }
 
-// 账号续期 工单详情
+// WeworkOrderDetailsAccountsRenewal 账号续期 工单详情
 type WeworkOrderDetailsAccountsRenewal struct {
 	SpName string             `mapstructure:"spName"`
 	Userid string             `mapstructure:"userid"`
 	Users  []RenewalApplicant `mapstructure:"待申请人员"`
 }
 
-// 原始工单转换为账号续期结构体
+// RawToAccountsRenewal 原始工单转换为账号续期结构体
 func RawToAccountsRenewal(weworkOrder map[string]interface{}) (orderDetails WeworkOrderDetailsAccountsRenewal) {
 	if err := mapstructure.Decode(weworkOrder, &orderDetails); err != nil {
 		log.Log.Error("Fail to convert raw oder, err: ", err)
@@ -451,13 +450,13 @@ func RawToAccountsRenewal(weworkOrder map[string]interface{}) (orderDetails Wewo
 	return
 }
 
-// c7n项目
+// C7nProject c7n项目
 type C7nProject struct {
 	Project string   `mapstructure:"项目"`
 	Roles   []string `mapstructure:"角色"`
 }
 
-// c7n项目权限 工单详情
+// WeworkOrderDetailsC7nAuthority c7n项目权限 工单详情
 type WeworkOrderDetailsC7nAuthority struct {
 	SpName      string       `mapstructure:"spName"`
 	Userid      string       `mapstructure:"userid"`
@@ -467,7 +466,7 @@ type WeworkOrderDetailsC7nAuthority struct {
 	C7nProjects []C7nProject `mapstructure:"猪齿鱼项目"`
 }
 
-// 原始工单转换为 c7n项目权限 结构体
+// RawToC7nAuthority 原始工单转换为 c7n项目权限 结构体
 func RawToC7nAuthority(weworkOrder map[string]interface{}) (orderDetails WeworkOrderDetailsC7nAuthority) {
 	if err := mapstructure.Decode(weworkOrder, &orderDetails); err != nil {
 		log.Log.Error("Fail to convert raw oder, err: ", err)

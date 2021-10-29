@@ -6,18 +6,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gin-gonic/gin"
+
 	"gitee.com/RandolphCYG/akita/bootstrap"
 	"gitee.com/RandolphCYG/akita/internal/conf"
 	"gitee.com/RandolphCYG/akita/internal/handler"
 	"gitee.com/RandolphCYG/akita/internal/model"
-	"gitee.com/RandolphCYG/akita/internal/service/ldap"
-	"gitee.com/RandolphCYG/akita/internal/service/task"
 	"gitee.com/RandolphCYG/akita/pkg/cache"
 	"gitee.com/RandolphCYG/akita/pkg/email"
 	"gitee.com/RandolphCYG/akita/pkg/hr"
 	"gitee.com/RandolphCYG/akita/pkg/log"
-
-	"github.com/gin-gonic/gin"
 )
 
 var r *gin.Engine
@@ -37,25 +35,34 @@ func Init(cfg string) {
 		panic(err)
 	}
 
-	// 根据路由模式执行操作
-	initRouterMode()
-
-	model.Init(&Cfg.Database) // 初始化数据库
+	model.InitDB(&Cfg.Database) // 初始化数据库
 	// 执行数据迁移
 	log.Log.Info("Data migration begin ...")
-	model.DB.AutoMigrate(&model.LdapCfg{}, &model.LdapField{}, &hr.HrDataConn{}, &model.WeworkCfg{}, &model.WeworkOrder{},
+	err = model.DB.AutoMigrate(&model.LdapCfg{}, &model.LdapField{}, &hr.HrDataConn{}, &model.WeworkCfg{}, &model.WeworkOrder{},
 		&model.LdapUserDepartRecord{}, &model.WeworkUserSyncRecord{}, &model.WeworkMsgTemplate{}, &model.ThirdPartyCfg{}, &model.EmailTemplate{})
+	if err != nil {
+		return
+	}
 	if result := model.DB.Limit(1).Find(&model.LdapCfg{}); result.RowsAffected == 0 {
 		model.DB.Create(&Cfg.LdapCfg)
 	}
 	log.Log.Info("Data migration successful ...")
+	// 初始化缓存
+	err = cache.Init(&Cfg.Redis)
+	if err != nil {
+		return
+	}
+	cacheRecover() // 缓存恢复
+	// 初始化 email
+	err = email.Init(&Cfg.Email)
+	if err != nil {
+		return
+	}
+	initLdap()   // 初始化LDAP
+	initWework() // 初始化企微配置信息
 
-	cache.Init(&Cfg.Redis) // 初始化缓存
-	cacheRecover()         // 缓存恢复
-
-	email.Init(&Cfg.Email) // 初始化 email
-	initLdap()             // 初始化LDAP
-	initWework()           // 初始化企微配置信息
+	// 根据路由模式执行操作
+	initRouterMode()
 }
 
 func initLdap() {
@@ -63,8 +70,12 @@ func initLdap() {
 	model.LdapCfgs, _ = model.GetAllLdapConn() // 直接查询
 	log.Log.Info("Begin to init LDAP connection pool")
 	ck := make(chan bool)
-	clock(ck) // 计时器
-	ldap.Init(&model.LdapCfgs)
+	clock(10, ck) // 计时器
+	err := model.Init(&model.LdapCfgs)
+	if err != nil {
+		log.Log.Error(err)
+		return
+	}
 	ck <- true // 计时器关闭
 	log.Log.Info("Success to init LDAP connection pool")
 	// 初始化ldap字段配置
@@ -86,6 +97,8 @@ func initWework() {
 		log.Log.Error("初始化企业微信通讯录管理配置信息错误, err: ", err)
 	}
 	log.Log.Info("UUAP server init successful ...")
+	// 初始化全局企微接口
+	model.InitWework()
 }
 
 // cacheRecover 缓存恢复
@@ -140,11 +153,11 @@ func cacheRecover() {
 }
 
 // clock 计时器
-func clock(clock chan bool) {
+func clock(timeout int, clock chan bool) {
 	start := time.Now()
 	// 超时时间
 	go func() {
-		for i := 0; i < 10; i++ {
+		for i := 0; i < timeout; i++ {
 			time.Sleep(time.Second * 1)
 			clock <- false
 		}
@@ -183,7 +196,7 @@ func initRouterMode() {
 		log.Log.Warn("Debug mode will not start crontab tasks !!!")
 	case "release":
 		gin.SetMode(gin.ReleaseMode)
-		task.StartAll() // 启动所有定时任务
+		model.InitTasks() // 启动所有定时任务
 	case "test":
 		gin.SetMode(gin.TestMode)
 	default:
@@ -191,7 +204,7 @@ func initRouterMode() {
 	}
 }
 
-// router 路由
+// InitRouter 路由
 func InitRouter() *gin.Engine {
 	v1 := r.Group("/api/v1")
 	{
@@ -199,48 +212,56 @@ func InitRouter() *gin.Engine {
 		site := v1.Group("site")
 		site.GET("ping", handler.Ping) // 就绪探针
 
-		// ldap 连接
-		ldapConns := v1.Group("ldap/conns")
-		ldapConns.GET("fetch", handler.FetchLdapConn)
-		ldapConns.POST("create", handler.CreateLdapConn)
-		ldapConns.POST("update", handler.UpdateLdapConn)
-		ldapConns.DELETE("delete", handler.DeleteLdapConn)
-		ldapConns.POST("test", handler.TestLdapConn)
-		// ldap 连接的字段明细配置
-		ldapFields := v1.Group("ldap/fields")
-		ldapFields.GET("fetch", handler.FetchLdapField)
-		ldapFields.POST("create", handler.CreateLdapField)
-		ldapFields.POST("update", handler.UpdateLdapField)
-		ldapFields.DELETE("delete", handler.DeleteLdapField)
-		ldapFields.POST("test", handler.TestLdapField)
+		// ldap conn 连接配置
+		ldapConnsGroup := v1.Group("ldap/conns")
+		ldapConnHandler := handler.NewLdapConnHandler()
+		ldapConnsGroup.GET("fetch", ldapConnHandler.Fetch)
+		ldapConnsGroup.POST("create", ldapConnHandler.Create)
+		ldapConnsGroup.POST("update", ldapConnHandler.Update)
+		ldapConnsGroup.DELETE("delete", ldapConnHandler.Delete)
+		ldapConnsGroup.POST("test", ldapConnHandler.Test)
+		// ldap field 连接字段明细
+		ldapFieldsGroup := v1.Group("ldap/fields")
+		ldapFieldHandler := handler.NewLdapFieldHandler()
+		ldapFieldsGroup.GET("fetch", ldapFieldHandler.Fetch)
+		ldapFieldsGroup.POST("create", ldapFieldHandler.Create)
+		ldapFieldsGroup.POST("update", ldapFieldHandler.Update)
+		ldapFieldsGroup.DELETE("delete", ldapFieldHandler.Delete)
+		ldapFieldsGroup.POST("test", ldapFieldHandler.Test)
 		// ldap 用户
-		ldapUsers := v1.Group("ldap/users")
-		ldapUsers.GET("manual/cache/hr", handler.CacheHrUsersManual)            // 手动触发缓存HR用户
-		ldapUsers.GET("manual/sync", handler.SyncLdapUsersManual)               // 手动触发更新ldap用户
-		ldapUsers.GET("manual/scan/expire", handler.ScanExpiredLdapUsersManual) // 手动触发扫描过期ldap用户
-
+		ldapUsersGroup := v1.Group("ldap/users")
+		ldapUserHandler := handler.NewLdapUserHandler()
+		ldapUsersGroup.GET("manual/sync", ldapUserHandler.SyncLdapUsersManual)               // 手动触发更新ldap用户
+		ldapUsersGroup.GET("manual/scan/expire", ldapUserHandler.ScanExpiredLdapUsersManual) // 手动触发扫描过期ldap用户
+		// hr 用户
+		hrUsersGroup := v1.Group("hr/users")
+		hrUserHandler := handler.NewHrUserHandler()
+		hrUsersGroup.GET("manual/cache", hrUserHandler.CacheHrUsersManual) // 手动触发缓存HR用户
 		// wework 工单
-		weworkOrders := v1.Group("wework/orders")
-		weworkOrders.POST("handle", handler.HandleOrders)
+		weworkOrdersGroup := v1.Group("wework/orders")
+		weworkOrdersHandler := handler.NewWeworkOrdersHandler()
+		weworkOrdersGroup.POST("handle", weworkOrdersHandler.HandleOrders)
 		// wework 用户
-		weworkUsers := v1.Group("wework/users")
-		weworkUsers.GET("manual/cache", handler.CacheUsersManual)                   // 手动触发缓存企业微信用户
-		weworkUsers.GET("manual/scan/expire", handler.ScanExpiredWeworkUsersManual) // 手动触发扫描企业微信过期用户
-		weworkUsers.GET("manual/scan/new", handler.ScanNewHrUsersManual)            // 手动触发扫描HR缓存数据并为新员工创建企业微信账号
-
+		weworkUsersGroup := v1.Group("wework/users")
+		weworkUserHandler := handler.NewWeworkUserHandler()
+		weworkUsersGroup.GET("manual/cache", weworkUserHandler.CacheUsersManual)             // 手动触发缓存企业微信用户
+		weworkUsersGroup.GET("manual/scan/expire", weworkUserHandler.ScanExpiredUsersManual) // 手动触发扫描企业微信过期用户
+		weworkUsersGroup.GET("manual/scan/new", weworkUserHandler.ScanNewHrUsersManual)      // 手动触发扫描HR缓存数据并为新员工创建企业微信账号
 		// c7n 项目
-		c7nProjects := v1.Group("c7n/projects")
-		c7nProjects.GET("manual/cache", handler.CacheC7nProjectsManual) // 手动触发缓存C7N项目
+		c7nProjectsGroup := v1.Group("c7n/projects")
+		c7nHandler := handler.NewC7nHandler()
+		c7nProjectsGroup.GET("manual/cache", c7nHandler.CacheProjectsManual) // 手动触发缓存C7N项目
 		// c7n 用户
-		c7nUsers := v1.Group("c7n/users")
-		c7nUsers.GET("manual/sync", handler.UpdateC7nUsersManual) // 手动触发LDAP用户同步到C7N
+		c7nUsersGroup := v1.Group("c7n/users")
+		c7nUsersGroup.GET("manual/sync", c7nHandler.UpdateUsersManual) // 手动触发LDAP用户同步到C7N
 
 		// tasks 定时任务
-		tasks := v1.Group("tasks")
-		tasks.GET("fetchall", handler.FetchAll)  // 停止定时任务
-		tasks.POST("start", handler.TaskStart)   // 启动定时任务
-		tasks.POST("remove", handler.TaskRemove) // 移除定时任务
-		tasks.GET("stop", handler.TaskStop)      // 停止所有定时任务
+		taskHandler := handler.NewTaskHandler()
+		tasksGroup := v1.Group("tasks")
+		tasksGroup.GET("all", taskHandler.FetchAll)   // 查询所有定时任务
+		tasksGroup.POST("start", taskHandler.Start)   // 启动定时任务
+		tasksGroup.POST("remove", taskHandler.Remove) // 移除定时任务
+		tasksGroup.GET("stop", taskHandler.StopAll)   // 停止所有定时任务
 	}
 
 	// 生产模式打印路由
@@ -260,5 +281,8 @@ func routePrint(format string, values ...interface{}) {
 	if !strings.HasSuffix(format, "\n") {
 		format += "\n"
 	}
-	fmt.Fprintf(os.Stdout, "[GIN-release] "+format, values...)
+	_, err := fmt.Fprintf(os.Stdout, "[GIN-release] "+format, values...)
+	if err != nil {
+		return
+	}
 }
