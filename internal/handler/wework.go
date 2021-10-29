@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"github.com/gin-gonic/gin"
 	"gitee.com/RandolphCYG/akita/internal/service/wework"
+	"github.com/gin-gonic/gin"
 )
 
 type WeworkOrdersHandler interface {
@@ -23,7 +23,7 @@ func (wof weworkOrdersField) HandleOrders(ctx *gin.Context) {
 	var service wework.Order
 	if err := ctx.ShouldBindJSON(&service); err == nil {
 		go func() {
-			err := service.HandleOrders(&service)
+			err := service.HandleOrders()
 			if err != nil {
 				return
 			}
@@ -80,3 +80,4 @@ func (wuf weworkUserField) ScanNewHrUsersManual(ctx *gin.Context) {
 		ctx.JSON(200, err)
 	}
 }
+

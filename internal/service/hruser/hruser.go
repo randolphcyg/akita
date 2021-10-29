@@ -48,7 +48,7 @@ func CacheUsers() {
 	// 先清空缓存
 	_, err = cache.HDel("hr_users")
 	if err != nil {
-		log.Log.Error("Fail to clean ldapconn users cache,:", err)
+		log.Log.Error("Fail to clean ldap users cache,:", err)
 	}
 
 	// 将HR接口元数据写入缓存
@@ -56,7 +56,7 @@ func CacheUsers() {
 		userData, _ := json.Marshal(user)
 		_, err := cache.HSet("hr_users", user.Name+user.Eid, userData)
 		if err != nil {
-			log.Log.Error("Fail to update ldapconn users to cache,:", err)
+			log.Log.Error("Fail to update ldap users to cache,:", err)
 		}
 	}
 	log.Log.Info("缓存HR用户成功!")

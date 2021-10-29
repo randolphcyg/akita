@@ -60,7 +60,7 @@ type UserFields struct {
 	EnabledFlag    bool   `json:"enabledFlag"`
 	Locked         bool   `json:"locked"`
 	LockedFlag     bool   `json:"lockedFlag"`
-	Ldap           bool   `json:"ldapconn"`
+	Ldap           bool   `json:"ldap"`
 	LdapFlag       bool   `json:"ldapFlag"`
 	Admin          bool   `json:"admin"`
 	AdminFlag      bool   `json:"adminFlag"`
@@ -158,16 +158,17 @@ func FetchUser(realName, loginName string) (user UserFields, err error) {
 	// 发送请求
 	req := HttpRequest.NewRequest()
 	req.SetHeaders(header)
-	respFetchUser, err := req.Get(fmt.Sprintf(c7nFetchUser, url.QueryEscape(realName), url.QueryEscape(loginName)))
+	fetchUserUrl := fmt.Sprintf(c7nFetchUser, url.QueryEscape(realName), url.QueryEscape(loginName))
+	respFetchUser, err := req.Get(fetchUserUrl)
 	if err != nil {
-		log.Log.Error("Fail to fetch c7n ldapuser, err: ", err)
+		log.Log.Error("Fail to fetch c7n user, err: ", err)
 		return
 	}
 	defer respFetchUser.Close() // 关闭
 
 	// 反序列化
 	var userResp UserResp
-	err = respFetchUser.Json(&user)
+	err = respFetchUser.Json(&userResp)
 	if err != nil {
 		log.Log.Error("Fail to convert response to json, err: ", err)
 		return
@@ -202,7 +203,7 @@ func FetchRole(roleName string) (role RoleFields, err error) {
 	req.SetHeaders(header)
 	respC7nFetchRoles, err := req.Get(c7nFetchRoles)
 	if err != nil {
-		log.Log.Error("Fail to fetch c7n ldapuser, err: ", err)
+		log.Log.Error("Fail to fetch c7n user, err: ", err)
 		return
 	}
 	defer respC7nFetchRoles.Close() // 关闭
@@ -276,7 +277,7 @@ func SyncUsers() {
 	req.SetHeaders(header)
 	respGetLdapConn, err := req.Get(getLdapConn)
 	if err != nil {
-		log.Log.Error("Fail to fetch c7n ldapuser, err: ", err)
+		log.Log.Error("Fail to fetch c7n user, err: ", err)
 	}
 	defer respGetLdapConn.Close() // 关闭
 

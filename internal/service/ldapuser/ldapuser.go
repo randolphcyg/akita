@@ -4,11 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"gitee.com/RandolphCYG/akita/pkg/cache"
-	"gitee.com/RandolphCYG/akita/pkg/email"
-	"gitee.com/RandolphCYG/akita/pkg/hr"
-	"gitee.com/RandolphCYG/akita/pkg/serializer"
-	"gitee.com/RandolphCYG/akita/pkg/wework/order"
 	"strconv"
 	"strings"
 	"sync"
@@ -18,14 +13,19 @@ import (
 	"golang.org/x/text/encoding/unicode"
 
 	"gitee.com/RandolphCYG/akita/internal/model"
+	"gitee.com/RandolphCYG/akita/pkg/cache"
+	"gitee.com/RandolphCYG/akita/pkg/email"
+	"gitee.com/RandolphCYG/akita/pkg/hr"
 	"gitee.com/RandolphCYG/akita/pkg/log"
+	"gitee.com/RandolphCYG/akita/pkg/serializer"
 	"gitee.com/RandolphCYG/akita/pkg/util"
+	"gitee.com/RandolphCYG/akita/pkg/wework/order"
 )
 
 var (
-	DisabledLdapUserCodes = [5]int32{514, 546, 66050, 66080, 66082}       // 禁用用户的 UserAccountControl 状态码
-	EnabledLdapUserCodes  = [4]int32{512, 544, 66048, 262656}             // 启用用户的 UserAccountControl 状态码
-	ErrLdapUserNotFound   = errors.New("fail to fetch ldapconn ldapuser") // 未找到 LDAP 用户错误
+	DisabledLdapUserCodes = [5]int32{514, 546, 66050, 66080, 66082} // 禁用用户的 UserAccountControl 状态码
+	EnabledLdapUserCodes  = [4]int32{512, 544, 66048, 262656}       // 启用用户的 UserAccountControl 状态码
+	ErrLdapUserNotFound   = errors.New("fail to fetch ldap user")   // 未找到 LDAP 用户错误
 	// LDAP 用户属性
 	attrs = []string{
 		"employeeNumber",     // 工号
@@ -78,7 +78,7 @@ func FetchLdapUsers(user *LdapAttributes) (result []*ldap.Entry) {
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldapconn connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 	}
 	// 多查询条件
 	ldapFilterNum := "(employeeNumber=" + user.Num + ")"
@@ -90,7 +90,7 @@ func FetchLdapUsers(user *LdapAttributes) (result []*ldap.Entry) {
 	ldapFilterCompany := "(company=" + user.Company + ")"
 	ldapFilterTitle := "(title=" + user.Title + ")"
 
-	searchFilter := "(&(objectClass=ldapuser)(mail=*))" // 有邮箱的用户 排除系统级别用户
+	searchFilter := "(&(objectClass=user)(mail=*))" // 有邮箱的用户 排除系统级别用户
 
 	if user.Num != "" {
 		searchFilter += ldapFilterNum
@@ -141,31 +141,31 @@ func AddUser(user *LdapAttributes) (pwd string, err error) {
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldapconn connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 		return
 	}
 	defer LdapConn.Close()
 
 	// 初始化创建用户请求
-	addReq := ldap.NewAddRequest(user.Dn, nil)                                                     // 指定新用户的dn 会同时给cn name字段赋值
-	addReq.Attribute("objectClass", []string{"top", "organizationalPerson", "ldapuser", "person"}) // 必填字段 否则报错 LDAP Result Code 65 "Object Class Violation"
-	addReq.Attribute("employeeNumber", []string{user.Num})                                         // 工号 必填 与显示姓名联合查询唯一用户
-	addReq.Attribute("displayName", []string{user.DisplayName})                                    // 真实姓名 必填 与工号联合查询唯一用户
-	addReq.Attribute("sAMAccountName", []string{user.Sam})                                         // 登录名 必填
-	addReq.Attribute("UserAccountControl", []string{user.AccountCtl})                              // 账号控制 544 是启用用户
-	addReq.Attribute("accountExpires", []string{strconv.FormatInt(user.Expire, 10)})               // 账号过期时间 当前时间加一个时间差并转换为NT时间
-	addReq.Attribute("pwdLastSet", []string{user.PwdLastSet})                                      // 用户下次登录必须修改密码 0是永不过期
-	addReq.Attribute("sn", []string{user.Sn})                                                      // 姓
-	addReq.Attribute("givenName", []string{user.GivenName})                                        // 名
-	addReq.Attribute("mail", []string{user.Email})                                                 // 邮箱 必填
-	addReq.Attribute("mobile", []string{user.Phone})                                               // 手机号 必填 某些系统需要
+	addReq := ldap.NewAddRequest(user.Dn, nil)                                                 // 指定新用户的dn 会同时给cn name字段赋值
+	addReq.Attribute("objectClass", []string{"top", "organizationalPerson", "user", "person"}) // 必填字段 否则报错 LDAP Result Code 65 "Object Class Violation"
+	addReq.Attribute("employeeNumber", []string{user.Num})                                     // 工号 必填 与显示姓名联合查询唯一用户
+	addReq.Attribute("displayName", []string{user.DisplayName})                                // 真实姓名 必填 与工号联合查询唯一用户
+	addReq.Attribute("sAMAccountName", []string{user.Sam})                                     // 登录名 必填
+	addReq.Attribute("UserAccountControl", []string{user.AccountCtl})                          // 账号控制 544 是启用用户
+	addReq.Attribute("accountExpires", []string{strconv.FormatInt(user.Expire, 10)})           // 账号过期时间 当前时间加一个时间差并转换为NT时间
+	addReq.Attribute("pwdLastSet", []string{user.PwdLastSet})                                  // 用户下次登录必须修改密码 0是永不过期
+	addReq.Attribute("sn", []string{user.Sn})                                                  // 姓
+	addReq.Attribute("givenName", []string{user.GivenName})                                    // 名
+	addReq.Attribute("mail", []string{user.Email})                                             // 邮箱 必填
+	addReq.Attribute("mobile", []string{user.Phone})                                           // 手机号 必填 某些系统需要
 	addReq.Attribute("company", []string{user.Company})
 
 	if err = LdapConn.Add(addReq); err != nil {
 		if ldap.IsErrorWithCode(err, 68) {
 			return
 		} else {
-			log.Log.Error("Fail to insert ldapuser, err: ", err)
+			log.Log.Error("Fail to insert ldap user, err: ", err)
 		}
 		return
 	}
@@ -192,7 +192,7 @@ func (user *LdapAttributes) RetrievePwd() (sam string, newPwd string, err error)
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldapconn connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 		return
 	}
 	defer LdapConn.Close()
@@ -225,7 +225,7 @@ func (user *LdapAttributes) ModifyPwd(newUserPwd string) (err error) {
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldapconn connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 		return
 	}
 	defer LdapConn.Close()
@@ -255,7 +255,7 @@ func FetchUser(user *LdapAttributes) (result *ldap.Entry, err error) {
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldapconn connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 		return
 	}
 	defer LdapConn.Close()
@@ -274,7 +274,7 @@ func FetchUser(user *LdapAttributes) (result *ldap.Entry, err error) {
 		nil,
 	)
 
-	// search ldapuser
+	// search user
 	sr, err := LdapConn.Search(searchRequest)
 	if err != nil {
 		return nil, err
@@ -292,7 +292,7 @@ func (user *LdapAttributes) ModifyDn(cn string) {
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldapconn connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 		return
 	}
 	defer LdapConn.Close()
@@ -313,7 +313,7 @@ func (user *LdapAttributes) MoveDn(newOu string) (err error) {
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldapconn connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 		return
 	}
 	defer LdapConn.Close()
@@ -325,19 +325,19 @@ func (user *LdapAttributes) MoveDn(newOu string) (err error) {
 	cn := strings.Split(entry.DN, ",")[0]
 	movReq := ldap.NewModifyDNRequest(entry.DN, cn, true, newOu)
 	if err = LdapConn.Conn.ModifyDN(movReq); err != nil {
-		log.Log.Error("Fail to move ldapuser dn, err: ", err)
+		log.Log.Error("Fail to move user dn, err: ", err)
 		return
 	}
 	return
 
 }
 
-// NewUser 将 ldapconn.Entry 类型转换为自定义类型 LdapAttributes
+// NewUser 将 ldap.Entry 类型转换为自定义类型 LdapAttributes
 func NewUser(entry *ldap.Entry) *LdapAttributes {
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldapconn connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 	}
 	defer LdapConn.Close()
 
@@ -367,7 +367,7 @@ func (user *LdapAttributes) Update() (err error) {
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldapconn connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 		return
 	}
 	defer LdapConn.Close()
@@ -379,7 +379,7 @@ func (user *LdapAttributes) Update() (err error) {
 
 	if entry != nil { // 当用户记录存在时
 		if user.Num != entry.GetAttributeValue("employeeNumber") &&
-			// ldapuser.Sam != entry.GetAttributeValue("sAMAccountName") &&
+			// user.Sam != entry.GetAttributeValue("sAMAccountName") &&
 			user.Email != entry.GetAttributeValue("mail") &&
 			user.Phone != entry.GetAttributeValue("mobile") &&
 			user.DisplayName != entry.GetAttributeValue("displayName") &&
@@ -399,7 +399,7 @@ func (user *LdapAttributes) Update() (err error) {
 			modReq.Replace("accountExpires", []string{strconv.FormatInt(user.Expire, 10)})
 
 			if err := LdapConn.Modify(modReq); err != nil {
-				log.Log.Error("Fail to update ldapuser's info: ", err)
+				log.Log.Error("Fail to update user's info: ", err)
 			}
 		}
 
@@ -438,7 +438,7 @@ func (user *LdapAttributes) ModifyInfo() (err error) {
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldapconn connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 	}
 	defer LdapConn.Close()
 
@@ -474,7 +474,7 @@ func (user *LdapAttributes) ModifyInfo() (err error) {
 	}
 
 	if err := LdapConn.Modify(modReq); err != nil {
-		log.Log.Error("Fail to modify ldapuser's information, err: ", err)
+		log.Log.Error("Fail to modify user's information, err: ", err)
 	}
 
 	// 对用户DN进行更新 必须放在修改其他普通数据之后
@@ -490,7 +490,7 @@ func IsOuExist(newOu string) (isOuExist bool) {
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldapconn connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 	}
 	defer LdapConn.Close()
 
@@ -519,7 +519,7 @@ func AddOu(newOu string) {
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldapconn connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 	}
 	defer LdapConn.Close()
 
@@ -574,7 +574,7 @@ func (user *LdapAttributes) Disable() (err error) {
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldapconn connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 		return
 	}
 	defer LdapConn.Close()
@@ -588,7 +588,7 @@ func (user *LdapAttributes) Disable() (err error) {
 	// 对用户的普通数据进行选择性更新
 	modReq.Replace("userAccountControl", []string{"546"})
 	if err = LdapConn.Modify(modReq); err != nil {
-		log.Log.Error("Fail to disable ldapuser, err: ", err)
+		log.Log.Error("Fail to disable user, err: ", err)
 		return
 	}
 	return
@@ -599,7 +599,7 @@ func (user *LdapAttributes) Renewal() (err error) {
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldapconn connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 		return
 	}
 	defer LdapConn.Close()
@@ -614,7 +614,7 @@ func (user *LdapAttributes) Renewal() (err error) {
 	expireTimeStampStr := strconv.FormatInt(user.Expire, 10)
 	modReq.Replace("accountExpires", []string{expireTimeStampStr})
 	if err = LdapConn.Modify(modReq); err != nil {
-		log.Log.Error("Fail to renewal ldapuser, err: ", err)
+		log.Log.Error("Fail to renewal user, err: ", err)
 		return
 	}
 	return
@@ -650,7 +650,7 @@ func ScanExpiredUsersManual() serializer.Response {
 func ScanExpiredUsers() {
 	LdapUsers := FetchLdapUsers(&LdapAttributes{})
 	currentTime := time.Now()
-	// expireLdapUsers := make([]*ldapconn.LdapAttributes, 0, 10)  // TODO 预留防止更改传参
+	// expireLdapUsers := make([]*ldap.LdapAttributes, 0, 10)  // TODO 预留防止更改传参
 	for _, u := range LdapUsers {
 		expire, _ := strconv.ParseInt(u.GetAttributeValue("accountExpires"), 10, 64)
 		expireDays := util.FormatLdapExpireDays(util.SubDays(util.NtToUnix(expire), currentTime))
@@ -679,7 +679,7 @@ func SyncUsers() {
 	// 从缓存取HR元数据
 	ldapUsers, err := cache.HGetAll("hr_users")
 	if err != nil {
-		log.Log.Error("Fail to fetch ldapconn users cache,:", err)
+		log.Log.Error("Fail to fetch ldap users cache,:", err)
 	}
 
 	log.Log.Info("开始更新ldap用户...")
@@ -731,7 +731,7 @@ func SyncUsers() {
 				if err == ErrLdapUserNotFound {
 					// Do nothing
 				} else {
-					log.Log.Error("Fail to update ldapuser form cache to ldapconn server,: ", err)
+					log.Log.Error("Fail to update user form cache to conn server,: ", err)
 				}
 			}
 			<-ch
@@ -818,7 +818,7 @@ func CreateLdapUser(o order.WeworkOrderDetailsAccountsRegister, user *LdapAttrib
 	// 创建LDAP用户 生成初始密码
 	pwd, err := AddUser(user)
 	if err != nil {
-		log.Log.Error("Fail to create ldapconn ldapuser, err: ", err)
+		log.Log.Error("Fail to create ldap user, err: ", err)
 		// 此处的错误一般是账号已经存在 为了防止其他错误，这里输出日志
 		err = HandleUuapDuplicateRegister(user, o)
 		return
@@ -893,7 +893,7 @@ func HandleUuapDuplicateRegister(user *LdapAttributes, order order.WeworkOrderDe
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldapconn connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 		return
 	}
 	defer LdapConn.Close()

@@ -31,7 +31,7 @@ type Order struct {
 }
 
 // HandleOrders 企业微信工单总入口
-func (service *Order) HandleOrders(o *Order) (err error) {
+func (o *Order) HandleOrders() (err error) {
 	// 判断工单是否存在 若存在则不处理，若不存在则保存一份 处理失败情况要记录到表中
 	result, orderExecuteRecord := model.FetchOrder(o.SpNo)
 	if result.RowsAffected == 1 && orderExecuteRecord.ExecuteStatus {
@@ -218,7 +218,7 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 				// 执行生成 企业微信账号 操作
 				err = CreateUser(userInfos)
 				if err != nil {
-					log.Log.Error("Fail to create ldapuser by wework order, ", err)
+					log.Log.Error("Fail to create user by wework order, ", err)
 					model.CreateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "自动创建失败, "+err.Error())
 				}
 
@@ -246,7 +246,7 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 			role, _ := c7n.FetchRole("项目成员")                                    // 获取项目成员角色的ID
 			err = c7n.AssignUserProjectRole("4", c7nUser.Id, []string{role.Id}) // 分配角色
 			if err != nil {
-				log.Log.Error("Fail to assign new ldapuser c7n default project!", err)
+				log.Log.Error("Fail to assign new user c7n default project!", err)
 			}
 		}
 
@@ -275,7 +275,7 @@ func handleWeworkDuplicateRegister(o order.WeworkOrderDetailsAccountsRegister, u
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldapconn connection, err: ", err)
+		log.Log.Error("Fail to get ldap connection, err: ", err)
 		return
 	}
 	defer LdapConn.Close()

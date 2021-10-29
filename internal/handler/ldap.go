@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"github.com/gin-gonic/gin"
 	"gitee.com/RandolphCYG/akita/internal/service/ldapconn"
+	"github.com/gin-gonic/gin"
 )
 
 type LdapConnHandler interface {

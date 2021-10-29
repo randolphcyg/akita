@@ -3,8 +3,8 @@ package handler
 import (
 	"net/http"
 
-	"github.com/gin-gonic/gin"
 	"gitee.com/RandolphCYG/akita/internal/service/task"
+	"github.com/gin-gonic/gin"
 )
 
 type TaskHandler interface {

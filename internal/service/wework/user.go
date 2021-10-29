@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"gitee.com/RandolphCYG/akita/internal/service/ldapuser"
 	"strconv"
 	"strings"
 	"time"
 
 	"gitee.com/RandolphCYG/akita/internal/model"
+	"gitee.com/RandolphCYG/akita/internal/service/ldapuser"
 	"gitee.com/RandolphCYG/akita/pkg/cache"
 	"gitee.com/RandolphCYG/akita/pkg/hr"
 	"gitee.com/RandolphCYG/akita/pkg/log"
@@ -100,7 +100,7 @@ func CacheUsers() {
 	json.Unmarshal(temp, &usersMsg)
 
 	if usersMsg.Errcode != 0 {
-		log.Log.Error("Fail to fetch wework ldapuser list, err:", usersMsg.Errmsg)
+		log.Log.Error("Fail to fetch wework user list, err:", usersMsg.Errmsg)
 	}
 
 	// 先清空缓存
@@ -126,7 +126,7 @@ func CacheUsers() {
 			if len(userDetails.Extattr.Attrs) >= 1 && userDetails.Extattr.Attrs[0].Name == "工号" { // 忽略不符合规范的用户
 				_, err = cache.HSet("wework_users", userDetails.Extattr.Attrs[0].Value, temp) // 缓存用户
 				if err != nil {
-					log.Log.Error("Fail to cache wework ldapuser,:", err)
+					log.Log.Error("Fail to cache wework user,:", err)
 				}
 			}
 			<-done
@@ -167,7 +167,7 @@ func FetchDepart(hrDepartName string) (depart Depart, err error) {
 	json.Unmarshal(b, &departsMsg)
 
 	if departsMsg.Errcode != 0 {
-		log.Log.Error("Fail to fetch wework ldapuser list, err:", departsMsg.Errmsg)
+		log.Log.Error("Fail to fetch wework user list, err:", departsMsg.Errmsg)
 		return
 	}
 
@@ -203,7 +203,7 @@ func FetchDepartById(id int) (department Depart, err error) {
 	}
 
 	if departsMsg.Errcode != 0 {
-		log.Log.Error("Fail to fetch wework ldapuser list, err:", departsMsg.Errmsg)
+		log.Log.Error("Fail to fetch wework user list, err:", departsMsg.Errmsg)
 		return
 	}
 
@@ -225,7 +225,7 @@ func FetchDeparts() (departsMsg DepartsMsg, err error) {
 	}
 
 	if departsMsg.Errcode != 0 {
-		log.Log.Error("Fail to fetch wework ldapuser list, err:", departsMsg.Errmsg)
+		log.Log.Error("Fail to fetch wework user list, err:", departsMsg.Errmsg)
 		return
 	}
 
@@ -333,7 +333,7 @@ func RenewalUser(weworkUserId string, applicant order.RenewalApplicant, expireDa
 		log.Log.Error(err)
 		return
 	}
-	log.Log.Info("Success to renewal wework ldapuser!")
+	log.Log.Info("Success to renewal wework user!")
 	return nil
 }
 
@@ -351,7 +351,7 @@ func ScanNewHrUsersManual() serializer.Response {
 func ScanNewHrUsers() {
 	hrUsers, err := cache.HGetAll("hr_users") // 从缓存取HR元数据
 	if err != nil {
-		log.Log.Error("Fail to fetch ldapconn users cache,:", err)
+		log.Log.Error("Fail to fetch ldap users cache,:", err)
 	}
 
 	for _, hu := range hrUsers {
@@ -440,7 +440,7 @@ func ScanExpiredUsers() {
 	go func() {
 		hrUsers, err := cache.HGetAll("hr_users") // 从缓存取HR元数据
 		if err != nil {
-			log.Log.Error("Fail to fetch ldapconn users cache,:", err)
+			log.Log.Error("Fail to fetch ldap users cache,:", err)
 		}
 		for _, u := range hrUsers {
 			var hrUser hr.User
@@ -566,7 +566,7 @@ func DisableUser(u UserDetails) (err error) {
 		model.CreateWeworkUserSyncRecord(u.Userid, u.Name, u.Extattr.Attrs[0].Value, "禁用")
 	}
 
-	log.Log.Info("Success to disable wework ldapuser: " + u.Name + " " + u.Userid)
+	log.Log.Info("Success to disable wework user: " + u.Name + " " + u.Userid)
 	return
 }
 
@@ -593,7 +593,7 @@ func DeleteUser(u UserDetails) (err error) {
 		model.CreateWeworkUserSyncRecord(u.Userid, u.Name, u.Extattr.Attrs[0].Value, "删除")
 	}
 
-	log.Log.Info("Success to delete wework ldapuser: " + u.Name + " " + u.Userid)
+	log.Log.Info("Success to delete wework user: " + u.Name + " " + u.Userid)
 	return
 }
 
@@ -633,7 +633,7 @@ func ClearUserExpiredFlag(u UserDetails) (err error) {
 		model.CreateWeworkUserSyncRecord(u.Userid, u.Name, u.Extattr.Attrs[0].Value, "外部员工转为本公司员工，去除过期字段")
 	}
 
-	log.Log.Info("Success to clear wework ldapuser's expired flag!")
+	log.Log.Info("Success to clear wework user's expired flag!")
 	return
 }
 
@@ -672,6 +672,6 @@ func FormatHistoryUser(user UserDetails, formatEid string, formatMail string) (e
 		return err
 	}
 
-	log.Log.Info("Success to format wework ldapuser!")
+	log.Log.Info("Success to format wework user!")
 	return nil
 }

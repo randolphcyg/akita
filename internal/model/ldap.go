@@ -2,9 +2,9 @@ package model
 
 import (
 	"crypto/tls"
-	"github.com/go-ldap/ldap/v3"
 	ldappool "gitee.com/RandolphCYG/akita/pkg/ldapPool"
 	"gitee.com/RandolphCYG/akita/pkg/log"
+	"github.com/go-ldap/ldap/v3"
 	"time"
 
 	"gorm.io/gorm"
@@ -101,7 +101,7 @@ func Init(c *LdapCfg) (err error) {
 		func(s string) (ldap.Client, error) {
 			conn, err := ldap.DialURL(LdapCfgs.ConnUrl)
 			if err != nil {
-				log.Log.Error("Fail to dial ldapconn url, err: ", err)
+				log.Log.Error("Fail to dial ldap url, err: ", err)
 			}
 
 			// 重新连接TLS
@@ -111,7 +111,7 @@ func Init(c *LdapCfg) (err error) {
 
 			// 与只读用户绑定
 			if err = conn.Bind(LdapCfgs.AdminAccount, LdapCfgs.Password); err != nil {
-				log.Log.Error("admin ldapuser auth failed, err: ", err)
+				log.Log.Error("admin user auth failed, err: ", err)
 			}
 			return conn, nil
 		}, []uint16{ldap.LDAPResultTimeLimitExceeded, ldap.ErrorNetwork})

@@ -1,8 +1,8 @@
 package hr
 
 import (
-	"github.com/kirinlabs/HttpRequest"
 	"gitee.com/RandolphCYG/akita/pkg/log"
+	"github.com/kirinlabs/HttpRequest"
 )
 
 // TokenResp 获取token接口返回数据结构体

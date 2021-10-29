@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"github.com/gin-gonic/gin"
 	"gitee.com/RandolphCYG/akita/pkg/c7n"
+	"github.com/gin-gonic/gin"
 )
 
 type C7nHandler interface {
