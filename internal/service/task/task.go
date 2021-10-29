@@ -22,7 +22,7 @@ var (
 	LdapSyncUsers          = ldapuser.SyncUsers
 	LdapScanExpiredUsers   = ldapuser.ScanExpiredUsers
 	WeworkScanExpiredUsers = wework.ScanExpiredUsers
-	ScanNewHrUsers         = wework.ScanNewHrUsers
+	WeworkScanNewHrUsers   = wework.ScanNewHrUsers
 	C7nCacheProjects       = c7n.CacheProjects
 	C7nUpdateUsers         = c7n.SyncUsers
 )
@@ -57,9 +57,9 @@ func init() {
 		Func: C7nCacheProjects,
 	}
 	// 全量为内部新用户创建企业微信账号【每天 工作时间】 依赖HR缓存和企业微信缓存
-	model.AllTasks["ScanNewHrUsers"] = model.JobWrapper{
+	model.AllTasks["WeworkScanNewHrUsers"] = model.JobWrapper{
 		Cron: "25 9-17 * * *",
-		Func: ScanNewHrUsers,
+		Func: WeworkScanNewHrUsers,
 	}
 	// 扫描过期ldap用户并发通知【每天一次】
 	model.AllTasks["LdapScanExpiredUsers"] = model.JobWrapper{
