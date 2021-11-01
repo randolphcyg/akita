@@ -2,6 +2,8 @@ package util
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"math/rand"
 	"strings"
 	"time"
@@ -12,7 +14,6 @@ import (
 	"github.com/nosixtools/solarlunar/festival"
 
 	"gitee.com/RandolphCYG/akita/pkg/cache"
-	"gitee.com/RandolphCYG/akita/pkg/log"
 )
 
 const (
@@ -155,7 +156,7 @@ func SendRobotMsg(msg string) {
 	// 从缓存取url
 	weworkRobotStaffChangesNotifier, err := cache.HGet("third_party_cfgs", "wework_robot_staff_changes_notifier")
 	if err != nil {
-		log.Log.Error("读取三方系统-c7n配置错误: ", err)
+		err = errors.New("读取三方系统-c7n配置错误: " + err.Error())
 		return
 	}
 	req := HttpRequest.NewRequest()
@@ -170,10 +171,10 @@ func SendRobotMsg(msg string) {
 	res, err := req.Post(weworkRobotStaffChangesNotifier, msgPkg)
 	if err != nil {
 		// 抛错
-		log.Log.Error("Fail to fetch token, err: ", err)
+		err = errors.New("Fail to fetch token, err: " + err.Error())
 		return
 	}
-	log.Log.Info(res.Content())
+	fmt.Println(res.Content())
 }
 
 // TruncateMsg 裁剪企业微信机器人消息 将长消息按行判断切分，返回消息切片

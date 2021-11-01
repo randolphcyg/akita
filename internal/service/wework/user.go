@@ -8,17 +8,16 @@ import (
 	"strings"
 	"time"
 
+	"gitee.com/RandolphCYG/akita/internal/middleware/log"
 	"gitee.com/RandolphCYG/akita/internal/model"
 	"gitee.com/RandolphCYG/akita/internal/service/ldapuser"
 	"gitee.com/RandolphCYG/akita/pkg/cache"
 	"gitee.com/RandolphCYG/akita/pkg/hr"
-	"gitee.com/RandolphCYG/akita/pkg/log"
 	"gitee.com/RandolphCYG/akita/pkg/serializer"
 	"gitee.com/RandolphCYG/akita/pkg/util"
-	"gitee.com/RandolphCYG/akita/pkg/wework/order"
 )
 
-type WeworkMsg struct {
+type Msg struct {
 	Errcode int    `json:"errcode"`
 	Errmsg  string `json:"errmsg"`
 }
@@ -37,7 +36,7 @@ type UserDetails struct {
 	IsLeaderInDept []int  `json:"is_leader_in_dept"`
 	MainDepartment int    `json:"main_department"`
 	Department     []int  `json:"department"`
-	Order          []int  `json:"order"`
+	Order          []int  `json:"weOrder"`
 	Extattr        struct {
 		Attrs []struct {
 			Type int    `json:"type"`
@@ -67,7 +66,7 @@ type UsersMsg struct {
 type Depart struct {
 	Id       int    `json:"id"`
 	Name     string `json:"name"`
-	Order    int    `json:"order"`
+	Order    int    `json:"weOrder"`
 	Parentid int    `json:"parentid"`
 }
 
@@ -78,15 +77,17 @@ type DepartsMsg struct {
 	Errmsg     string   `json:"errmsg"`
 }
 
-// CacheUsersManual 手动触发缓存企业微信用户
-func CacheUsersManual() (err error) {
-	CacheUsers()
-	return
+// CacheUsersManual 手动触发缓存企微用户
+func CacheUsersManual() serializer.Response {
+	go func() {
+		CacheUsers()
+	}()
+	return serializer.Response{Data: 0, Msg: "手动触发缓存企微用户成功!"}
 }
 
 // CacheUsers 缓存企业微信用户
 func CacheUsers() {
-	log.Log.Info("开始更新企业微信用户缓存...")
+	log.Log.Info("开始更新企微用户缓存...")
 	var usersMsg UsersMsg
 	res, err := model.CorpAPIUserManager.UserSimpleList(map[string]interface{}{
 		"department_id": "1",
@@ -133,7 +134,7 @@ func CacheUsers() {
 		}(i, userInfo)
 		done <- 1
 	}
-	log.Log.Info("更新企业微信用户缓存完成!")
+	log.Log.Info("更新企微用户缓存完成!")
 }
 
 // FetchUser 根据工号查找用户
@@ -265,7 +266,7 @@ func CreateUser(user *ldapuser.LdapAttributes) (err error) {
 		"to_invite": true, // 邀请用户
 	}
 
-	var msg WeworkMsg
+	var msg Msg
 	res, err := model.CorpAPIUserManager.UserCreate(weworkUserInfos)
 	if err != nil {
 		return
@@ -283,7 +284,7 @@ func CreateUser(user *ldapuser.LdapAttributes) (err error) {
 			"tagid":    36,
 			"userlist": []string{user.Sam},
 		}
-		var WeworkMsgTag WeworkMsg
+		var WeworkMsgTag Msg
 		tagRes, _ := model.CorpAPIUserManager.TagAddUser(weworkUserTagInfos)
 
 		bTagRes, _ := json.Marshal(tagRes)
@@ -297,7 +298,7 @@ func CreateUser(user *ldapuser.LdapAttributes) (err error) {
 }
 
 // RenewalUser 企业微信用户续期
-func RenewalUser(weworkUserId string, applicant order.RenewalApplicant, expireDays int) (err error) {
+func RenewalUser(weworkUserId string, applicant model.RenewalApplicant, expireDays int) (err error) {
 	weworkUserInfos := map[string]interface{}{
 		"userid": weworkUserId,
 		"enable": 1,
@@ -321,7 +322,7 @@ func RenewalUser(weworkUserId string, applicant order.RenewalApplicant, expireDa
 		},
 	}
 	// 更新用户
-	var msg WeworkMsg
+	var msg Msg
 	res, err := model.CorpAPIUserManager.UserUpdate(weworkUserInfos)
 	if err != nil {
 		return
@@ -549,7 +550,7 @@ func DisableUser(u UserDetails) (err error) {
 		"enable": 0,
 	}
 	// 更新用户
-	var msg WeworkMsg
+	var msg Msg
 	res, err := model.CorpAPIUserManager.UserUpdate(weworkUserInfos)
 	if err != nil {
 		return
@@ -576,7 +577,7 @@ func DeleteUser(u UserDetails) (err error) {
 		"userid": u.Userid,
 	}
 	// 更新用户
-	var msg WeworkMsg
+	var msg Msg
 	res, err := model.CorpAPIUserManager.UserDelete(weworkUserInfos)
 	if err != nil {
 		return
@@ -616,7 +617,7 @@ func ClearUserExpiredFlag(u UserDetails) (err error) {
 	}
 
 	// 更新用户
-	var msg WeworkMsg
+	var msg Msg
 	res, err := model.CorpAPIUserManager.UserUpdate(weworkUserInfos)
 	if err != nil {
 		return
@@ -656,7 +657,7 @@ func FormatHistoryUser(user UserDetails, formatEid string, formatMail string) (e
 		},
 	}
 	// 更新用户
-	var msg WeworkMsg
+	var msg Msg
 	res, err := model.CorpAPIUserManager.UserUpdate(weworkUserInfos)
 	if err != nil {
 		return

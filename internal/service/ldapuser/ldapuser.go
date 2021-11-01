@@ -12,14 +12,13 @@ import (
 	"github.com/go-ldap/ldap/v3"
 	"golang.org/x/text/encoding/unicode"
 
+	"gitee.com/RandolphCYG/akita/internal/middleware/log"
 	"gitee.com/RandolphCYG/akita/internal/model"
 	"gitee.com/RandolphCYG/akita/pkg/cache"
 	"gitee.com/RandolphCYG/akita/pkg/email"
 	"gitee.com/RandolphCYG/akita/pkg/hr"
-	"gitee.com/RandolphCYG/akita/pkg/log"
 	"gitee.com/RandolphCYG/akita/pkg/serializer"
 	"gitee.com/RandolphCYG/akita/pkg/util"
-	"gitee.com/RandolphCYG/akita/pkg/wework/order"
 )
 
 var (
@@ -791,7 +790,7 @@ func FormatData(mail string, mobile string) (err error) {
 }
 
 // CreateLdapUser 生成ldap用户操作
-func CreateLdapUser(o order.AccountsRegister, user *LdapAttributes) (err error) {
+func CreateLdapUser(o model.AccountsRegister, user *LdapAttributes) (err error) {
 	// 数据校验 1. 手机号11位 中间不允许有空格 2. 邮箱中间不允许有空格
 	err = FormatData(user.Email, user.Phone)
 	if err != nil {
@@ -882,7 +881,7 @@ func HandleExpiredLdapUsers(user *LdapAttributes, expireDays int) (err error) {
 }
 
 // HandleUuapDuplicateRegister 处理重复注册
-func HandleUuapDuplicateRegister(user *LdapAttributes, order order.AccountsRegister) (err error) {
+func HandleUuapDuplicateRegister(user *LdapAttributes, order model.AccountsRegister) (err error) {
 	duplicateRegisterUuapUserWeworkMsgTemplate, err := cache.HGet("wework_msg_templates", "wework_template_uuap_user_duplicate_register")
 	if err != nil {
 		log.Log.Error("读取企业微信消息模板错误: ", err)

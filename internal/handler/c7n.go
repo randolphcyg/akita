@@ -7,7 +7,7 @@ import (
 
 type C7nHandler interface {
 	CacheProjectsManual(ctx *gin.Context)
-	UpdateUsersManual(ctx *gin.Context)
+	SyncUsersManual(ctx *gin.Context)
 }
 
 // c7nField 无用结构体 用于interface
@@ -29,10 +29,10 @@ func (c c7nField) CacheProjectsManual(ctx *gin.Context) {
 	}
 }
 
-// UpdateUsersManual 手动触发LDAP用户的同步
-func (c c7nField) UpdateUsersManual(ctx *gin.Context) {
+// SyncUsersManual 手动触发LDAP用户的同步
+func (c c7nField) SyncUsersManual(ctx *gin.Context) {
 	if err := ctx.ShouldBind(0); err == nil {
-		res := c7n.UpdateUsersManual()
+		res := c7n.SyncUsersManual()
 		ctx.JSON(200, res)
 	} else {
 		ctx.JSON(200, err)

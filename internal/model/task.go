@@ -1,8 +1,9 @@
 package model
 
 import (
-	"gitee.com/RandolphCYG/akita/pkg/log"
 	"github.com/robfig/cron/v3"
+
+	"gitee.com/RandolphCYG/akita/internal/middleware/log"
 )
 
 var (

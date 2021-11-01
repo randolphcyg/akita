@@ -11,19 +11,21 @@ import (
 	"gitee.com/RandolphCYG/akita/bootstrap"
 	"gitee.com/RandolphCYG/akita/internal/conf"
 	"gitee.com/RandolphCYG/akita/internal/handler"
+	"gitee.com/RandolphCYG/akita/internal/middleware"
+	"gitee.com/RandolphCYG/akita/internal/middleware/log"
 	"gitee.com/RandolphCYG/akita/internal/model"
 	"gitee.com/RandolphCYG/akita/pkg/cache"
 	"gitee.com/RandolphCYG/akita/pkg/email"
 	"gitee.com/RandolphCYG/akita/pkg/hr"
-	"gitee.com/RandolphCYG/akita/pkg/log"
 )
 
 var r *gin.Engine
 
 func init() {
-	gin.SetMode(gin.ReleaseMode) //  先设置为生产模式 保证日志静默
-	r = gin.New()                // 初始化gin引擎
-	r.Use(log.LogerMiddleware()) // 日志中间件
+	gin.SetMode(gin.ReleaseMode)                         // 先设置为生产模式 保证日志静默
+	r = gin.New()                                        // 初始化gin引擎
+	r.Use(log.LogerMiddleware())                         // 日志中间件
+	r.Use(middleware.TimeoutMiddleware(3 * time.Second)) // 超时控制中间件
 }
 
 func Init(cfg string) {
@@ -253,7 +255,7 @@ func InitRouter() *gin.Engine {
 		c7nProjectsGroup.GET("manual/cache", c7nHandler.CacheProjectsManual) // 手动触发缓存C7N项目
 		// c7n 用户
 		c7nUsersGroup := v1.Group("c7n/users")
-		c7nUsersGroup.GET("manual/sync", c7nHandler.UpdateUsersManual) // 手动触发LDAP用户同步到C7N
+		c7nUsersGroup.GET("manual/sync", c7nHandler.SyncUsersManual) // 手动触发LDAP用户同步到C7N
 
 		// tasks 定时任务
 		taskHandler := handler.NewTaskHandler()

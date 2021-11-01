@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/pkg/errors"
 	"gitee.com/RandolphCYG/akita/pkg/wework/config"
 	"gitee.com/RandolphCYG/akita/pkg/wework/utils"
-	"github.com/pkg/errors"
 )
 
 type AccessAPI interface {

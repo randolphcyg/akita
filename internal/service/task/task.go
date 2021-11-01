@@ -2,17 +2,15 @@ package task
 
 import (
 	"encoding/json"
+	"gitee.com/RandolphCYG/akita/pkg/c7n"
 
 	"github.com/robfig/cron/v3"
 
+	"gitee.com/RandolphCYG/akita/internal/middleware/log"
 	"gitee.com/RandolphCYG/akita/internal/model"
-
 	"gitee.com/RandolphCYG/akita/internal/service/hruser"
 	"gitee.com/RandolphCYG/akita/internal/service/ldapuser"
 	"gitee.com/RandolphCYG/akita/internal/service/wework"
-
-	"gitee.com/RandolphCYG/akita/pkg/c7n"
-	"gitee.com/RandolphCYG/akita/pkg/log"
 	"gitee.com/RandolphCYG/akita/pkg/serializer"
 )
 

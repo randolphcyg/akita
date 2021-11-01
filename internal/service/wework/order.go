@@ -5,15 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
+	"github.com/goinggo/mapstructure"
+
+	"gitee.com/RandolphCYG/akita/internal/middleware/log"
 	"gitee.com/RandolphCYG/akita/internal/model"
 	"gitee.com/RandolphCYG/akita/internal/service/ldapconn"
 	"gitee.com/RandolphCYG/akita/internal/service/ldapuser"
+
 	"gitee.com/RandolphCYG/akita/pkg/c7n"
 	"gitee.com/RandolphCYG/akita/pkg/cache"
-	"gitee.com/RandolphCYG/akita/pkg/log"
 	"gitee.com/RandolphCYG/akita/pkg/util"
-	"gitee.com/RandolphCYG/akita/pkg/wework/order"
 )
 
 var (
@@ -51,11 +54,11 @@ func (o *Order) HandleOrders() (err error) {
 
 	// 解析企业微信原始工单
 	if _, ok := response["info"]; !ok {
-		log.Log.Error("Fail to parse raw order, order receipt has no field [info]!")
+		log.Log.Error("Fail to parse raw weOrder, weOrder receipt has no field [info]!")
 		return
 	}
 
-	orderData, err := order.ParseRawOrder(response["info"])
+	orderData, err := ParseRawOrder(response["info"])
 	if err != nil {
 		log.Log.Error(err)
 		return
@@ -65,44 +68,44 @@ func (o *Order) HandleOrders() (err error) {
 	switch orderData["spName"] {
 	case "账号注册":
 		{
-			weworkOrder := order.RawToAccountsRegister(orderData)
+			weworkOrder := RawToAccountsRegister(orderData)
 			err = handleOrderAccountsRegister(weworkOrder)
 		}
 	case "UUAP密码找回":
 		{
-			weworkOrder := order.RawToUuapPwdRetrieve(orderData)
+			weworkOrder := RawToUuapPwdRetrieve(orderData)
 			err = handleOrderUuapPwdRetrieve(weworkOrder)
 		}
 	case "账号注销":
 		{
-			weworkOrder := order.RawToUuapPwdDisable(orderData)
+			weworkOrder := RawToUuapPwdDisable(orderData)
 			err = handleOrderUuapDisable(weworkOrder)
 		}
 	case "账号续期":
 		{
-			weworkOrder := order.RawToAccountsRenewal(orderData)
+			weworkOrder := RawToAccountsRenewal(orderData)
 			err = handleOrderAccountsRenewal(weworkOrder)
 		}
 	case "猪齿鱼项目权限":
 		{
-			weworkOrder := order.RawToC7nAuthority(orderData)
+			weworkOrder := RawToC7nAuthority(orderData)
 			err = handleOrderC7nAuthority(weworkOrder)
 		}
 	default:
-		log.Log.Warning("UUAP server has no handler with this kind of order, please handle it manually!")
+		log.Log.Warning("UUAP server has no handler with this kind of weOrder, please handle it manually!")
 		return
 	}
 	// 统一处理工单处理情况
 	if result.RowsAffected == 1 && !orderExecuteRecord.ExecuteStatus { // 非首次执行 重试
 		if err != nil { // 工单执行出现错误
-			log.Log.Error("Fail to handle previous wework order, err: ", err)
+			log.Log.Error("Fail to handle previous wework weOrder, err: ", err)
 			model.UpdateOrder(o.SpNo, false, fmt.Sprintf("%v", err))
 		} else {
 			model.UpdateOrder(o.SpNo, true, fmt.Sprintf("%v", err))
 		}
 	} else if result.RowsAffected == 0 { // 首次执行
 		if err != nil { // 工单执行出现错误
-			log.Log.Error("Fail to handle fresh wework order, err: ", err)
+			log.Log.Error("Fail to handle fresh wework weOrder, err: ", err)
 			model.CreateOrder(o.SpNo, false, fmt.Sprintf("%v", err))
 		} else {
 			model.CreateOrder(o.SpNo, true, fmt.Sprintf("%v", err))
@@ -128,7 +131,7 @@ func fetchLatestCompanyType() (err error) {
 }
 
 // handleOrderAccountsRegister 账号注册 工单
-func handleOrderAccountsRegister(o order.AccountsRegister) (err error) {
+func handleOrderAccountsRegister(o model.AccountsRegister) (err error) {
 	// 支持处理多个申请者
 	for _, applicant := range o.Users {
 		var expire int64
@@ -222,7 +225,7 @@ func handleOrderAccountsRegister(o order.AccountsRegister) (err error) {
 				// 执行生成 企业微信账号 操作
 				err = CreateUser(userInfos)
 				if err != nil {
-					log.Log.Error("Fail to create user by wework order, ", err)
+					log.Log.Error("Fail to create user by wework weOrder, ", err)
 					model.CreateWeworkUserSyncRecord(userInfos.Sam, userInfos.DisplayName, userInfos.Num, "自动创建失败, "+err.Error())
 				}
 
@@ -270,7 +273,7 @@ func handleOrderAccountsRegister(o order.AccountsRegister) (err error) {
 }
 
 // handleWeworkDuplicateRegister 处理企业微信用户重复注册
-func handleWeworkDuplicateRegister(o order.AccountsRegister, user *ldapuser.LdapAttributes) (err error) {
+func handleWeworkDuplicateRegister(o model.AccountsRegister, user *ldapuser.LdapAttributes) (err error) {
 	duplicateRegisterWeworkUserWeworkMsgTemplate, err := cache.HGet("wework_msg_templates", "wework_template_wework_user_duplicate_register")
 	if err != nil {
 		log.Log.Error("读取企业微信消息模板错误: ", err)
@@ -306,7 +309,7 @@ func handleWeworkDuplicateRegister(o order.AccountsRegister, user *ldapuser.Ldap
 }
 
 // handleOrderUuapPwdRetrieve UUAP密码找回 工单
-func handleOrderUuapPwdRetrieve(o order.UuapPwdRetrieve) (err error) {
+func handleOrderUuapPwdRetrieve(o model.UuapPwdRetrieve) (err error) {
 	user := &ldapuser.LdapAttributes{
 		Num:         o.Eid,
 		DisplayName: o.DisplayName,
@@ -338,7 +341,7 @@ func handleOrderUuapPwdRetrieve(o order.UuapPwdRetrieve) (err error) {
 }
 
 // handleOrderUuapDisable 账号注销 工单
-func handleOrderUuapDisable(o order.UuapDisable) (err error) {
+func handleOrderUuapDisable(o model.UuapDisable) (err error) {
 	user := &ldapuser.LdapAttributes{
 		Num:         o.Eid,
 		DisplayName: o.DisplayName,
@@ -371,7 +374,7 @@ func handleOrderUuapDisable(o order.UuapDisable) (err error) {
 }
 
 // handleOrderAccountsRenewal 账号续期 工单
-func handleOrderAccountsRenewal(o order.AccountsRenewal) (err error) {
+func handleOrderAccountsRenewal(o model.AccountsRenewal) (err error) {
 	// 支持处理多个申请者
 	for _, applicant := range o.Users {
 		fmt.Println(applicant)
@@ -406,7 +409,7 @@ func handleOrderAccountsRenewal(o order.AccountsRenewal) (err error) {
 }
 
 // RenewalUuap 续期
-func RenewalUuap(o order.AccountsRenewal, applicant order.RenewalApplicant) (err error) {
+func RenewalUuap(o model.AccountsRenewal, applicant model.RenewalApplicant) (err error) {
 	days, _ := strconv.ParseInt(applicant.Days, 10, 64)
 	user := &ldapuser.LdapAttributes{
 		Num:         applicant.Eid,
@@ -441,7 +444,7 @@ func RenewalUuap(o order.AccountsRenewal, applicant order.RenewalApplicant) (err
 }
 
 // handleWeworkOrderFindUserErr 处理未找到企微用户错误
-func handleWeworkOrderFindUserErr(o order.AccountsRenewal, name, eid string) {
+func handleWeworkOrderFindUserErr(o model.AccountsRenewal, name, eid string) {
 	c7nFindProjectErrMsgTemplate, _ := cache.HGet("wework_msg_templates", "wework_template_wework_find_user_err")
 	msg := map[string]interface{}{
 		"touser":  o.Userid,
@@ -459,7 +462,7 @@ func handleWeworkOrderFindUserErr(o order.AccountsRenewal, name, eid string) {
 }
 
 // handleC7nOrderFindUserErr 处理未找到c7n用户错误
-func handleC7nOrderFindUserErr(o order.C7nAuthority, name, eid string) {
+func handleC7nOrderFindUserErr(o model.C7nAuthority, name, eid string) {
 	c7nFindProjectErrMsgTemplate, _ := cache.HGet("wework_msg_templates", "wework_template_c7n_find_user_err")
 	msg := map[string]interface{}{
 		"touser":  o.Userid,
@@ -477,7 +480,7 @@ func handleC7nOrderFindUserErr(o order.C7nAuthority, name, eid string) {
 }
 
 // handleC7nOrderFindProjectErr 处理未找到c7n项目错误
-func handleC7nOrderFindProjectErr(o order.C7nAuthority, p string) {
+func handleC7nOrderFindProjectErr(o model.C7nAuthority, p string) {
 	c7nFindProjectErrMsgTemplate, _ := cache.HGet("wework_msg_templates", "wework_template_c7n_find_project_err")
 	msg := map[string]interface{}{
 		"touser":  o.Userid,
@@ -495,7 +498,7 @@ func handleC7nOrderFindProjectErr(o order.C7nAuthority, p string) {
 }
 
 // handleOrderC7nAuthority c7n权限处理
-func handleOrderC7nAuthority(order order.C7nAuthority) (err error) {
+func handleOrderC7nAuthority(order model.C7nAuthority) (err error) {
 	// c7n 用户处理流程
 	c7nUser, err := c7n.FetchUser(order.DisplayName, order.Eid)
 	if err != nil || c7nUser.Id == "" { // 有报错或者未查询到用户则回执执行错误消息
@@ -527,5 +530,176 @@ func handleOrderC7nAuthority(order order.C7nAuthority) (err error) {
 		log.Log.Info("成功为用户[" + c7nUser.RealName + "]分配项目[" + project.Name + "]的[" + string(s) + "]角色")
 	}
 
+	return
+}
+
+// ParseRawOrder 解析企业微信原始工单
+func ParseRawOrder(rawInfo interface{}) (orderData map[string]interface{}, err error) {
+	var weworkOrder model.RawWeworkOrder
+	// 反序列化工单详情
+	if err = mapstructure.Decode(rawInfo, &weworkOrder); err != nil {
+		err = errors.New("Fail to deserialize map to struct, err: " + err.Error())
+		return
+	}
+
+	// 判断工单状态
+	if weworkOrder.SpStatus != 2 { // 工单不是通过状态
+		err = errors.New("The ticket is not approved!")
+		return
+	}
+
+	// 清洗工单
+	orderData = make(map[string]interface{})
+	orderData["spName"] = weworkOrder.SpName
+	orderData["partyid"] = weworkOrder.Applyer.Partyid
+	orderData["userid"] = weworkOrder.Applyer.Userid
+	// 抄送人
+	if len(weworkOrder.Notifyer) >= 1 {
+		orderData["notifyer"] = weworkOrder.Notifyer
+	}
+	// 处理工单数据
+	for _, con := range weworkOrder.ApplyData.Contents {
+		switch con.Control {
+		case "Number":
+			orderData[con.Title[0].Text] = con.Value.NewNumber
+		case "Text":
+			orderData[con.Title[0].Text] = strings.ToLower(strings.TrimSpace(con.Value.Text)) // 字符串去除空格并转为小写
+		case "Textarea":
+			orderData[con.Title[0].Text] = strings.ToLower(strings.TrimSpace(con.Value.Text)) // 字符串去除空格并转为小写
+		case "Date":
+			orderData[con.Title[0].Text] = con.Value.Date.STimestamp
+		case "Selector":
+			if con.Value.Selector.Type == "multi" { // 多选
+				tempSelectors := make([]string, len(con.Value.Selector.Options))
+				for _, value := range con.Value.Selector.Options {
+					tempSelectors = append(tempSelectors, value.Value[0].Text)
+				}
+				orderData[con.Title[0].Text] = tempSelectors
+			} else { // 单选
+				orderData[con.Title[0].Text] = con.Value.Selector.Options[0].Value[0].Text
+			}
+		case "Tips": // 忽略说明类型
+			continue
+		case "Contact":
+			orderData[con.Title[0].Text] = con.Value.Members
+		case "File":
+			t, _ := json.Marshal(con.Value.Files)
+			var tem []struct{ FileId string }
+			json.Unmarshal(t, &tem)
+			var temp []string
+			for _, file := range tem {
+				temp = append(temp, file.FileId)
+			}
+			orderData[con.Title[0].Text] = temp
+		// 明细的处理
+		case "Table":
+			temps := make([]map[string]interface{}, 0)
+			for _, u := range con.Value.Children {
+				temp := make(map[string]interface{})
+				for _, c := range u.List {
+					switch c.Control {
+					case "Number":
+						temp[c.Title[0].Text] = c.Value.NewNumber
+					case "Text": // 明细文本
+						temp[c.Title[0].Text] = strings.ToLower(strings.TrimSpace(c.Value.Text)) // 字符串去除空格并转为小写
+					case "Textarea": // 明细多行文本
+						temp[c.Title[0].Text] = strings.ToLower(strings.TrimSpace(c.Value.Text)) // 字符串去除空格并转为小写
+					case "Date":
+						temp[con.Title[0].Text] = c.Value.Date.STimestamp
+					case "Selector": // 明细选择
+						if c.Value.Selector.Type == "multi" { // 多选
+							tempSel := make([]string, 0)
+							for _, v := range c.Value.Selector.Options {
+								tempSel = append(tempSel, v.Value[0].Text)
+							}
+							temp[c.Title[0].Text] = tempSel
+						} else { // 单选
+							temp[c.Title[0].Text] = c.Value.Selector.Options[0].Value[0].Text
+						}
+					case "Contact":
+						temp[c.Title[0].Text] = c.Value.Members
+					case "File": // 明细文件
+						t, _ := json.Marshal(c.Value.Files)
+						var tem []struct{ FileId string }
+						json.Unmarshal(t, &tem)
+						var te []string
+						for _, file := range tem {
+							te = append(te, file.FileId)
+						}
+						temp[c.Title[0].Text] = te
+					}
+				}
+				temps = append(temps, temp)
+			}
+			orderData[con.Title[0].Text] = temps
+		default:
+			err = errors.New("包含未处理工单项类型【" + con.Control + "】请及时补充后端逻辑")
+			return
+		}
+	}
+	return
+}
+
+// RawToAccountsRegister 原始工单转换为账号注册工单结构体
+func RawToAccountsRegister(weworkOrder map[string]interface{}) (orderDetails model.AccountsRegister) {
+	if _, ok := weworkOrder["姓名"]; ok {
+		var temp model.AccountsRegisterSingle
+		if err := mapstructure.Decode(weworkOrder, &temp); err != nil {
+			err = errors.New("Fail to convert raw weOrder, err: " + err.Error())
+		}
+		// 将单转多
+		orderDetails.Partyid = temp.Partyid
+		orderDetails.SpName = temp.SpName
+		orderDetails.Userid = temp.Userid
+		orderDetails.Users = append(orderDetails.Users, model.Applicant{
+			DisplayName:   temp.DisplayName,
+			Eid:           temp.Eid,
+			Mobile:        temp.Mobile,
+			Mail:          temp.Mail,
+			Company:       temp.Company,
+			InitPlatforms: temp.InitPlatforms,
+		})
+	} else {
+		if err := mapstructure.Decode(weworkOrder, &orderDetails); err != nil {
+			err = errors.New("Fail to convert raw weOrder, err: " + err.Error())
+			return
+		}
+	}
+	return
+}
+
+// RawToUuapPwdRetrieve 原始工单转换为UUAP密码找回结构体
+func RawToUuapPwdRetrieve(weworkOrder map[string]interface{}) (orderDetails model.UuapPwdRetrieve) {
+	if err := mapstructure.Decode(weworkOrder, &orderDetails); err != nil {
+		err = errors.New("Fail to convert raw weOrder, err: " + err.Error())
+		return
+	}
+	return
+}
+
+// RawToUuapPwdDisable 原始工单转换为账号注销结构体
+func RawToUuapPwdDisable(weworkOrder map[string]interface{}) (orderDetails model.UuapDisable) {
+	if err := mapstructure.Decode(weworkOrder, &orderDetails); err != nil {
+		err = errors.New("Fail to convert raw weOrder, err: " + err.Error())
+		return
+	}
+	return
+}
+
+// RawToAccountsRenewal 原始工单转换为账号续期结构体
+func RawToAccountsRenewal(weworkOrder map[string]interface{}) (orderDetails model.AccountsRenewal) {
+	if err := mapstructure.Decode(weworkOrder, &orderDetails); err != nil {
+		err = errors.New("Fail to convert raw weOrder, err: " + err.Error())
+		return
+	}
+	return
+}
+
+// RawToC7nAuthority 原始工单转换为 c7n项目权限 结构体
+func RawToC7nAuthority(weworkOrder map[string]interface{}) (orderDetails model.C7nAuthority) {
+	if err := mapstructure.Decode(weworkOrder, &orderDetails); err != nil {
+		err = errors.New("Fail to convert raw weOrder, err: " + err.Error())
+		return
+	}
 	return
 }

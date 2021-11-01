@@ -2,12 +2,14 @@ package model
 
 import (
 	"crypto/tls"
-	ldappool "gitee.com/RandolphCYG/akita/pkg/ldapPool"
-	"gitee.com/RandolphCYG/akita/pkg/log"
-	"github.com/go-ldap/ldap/v3"
+
 	"time"
 
+	ldappool "github.com/RandolphCYG/ldapPool"
+	"github.com/go-ldap/ldap/v3"
 	"gorm.io/gorm"
+
+	"gitee.com/RandolphCYG/akita/internal/middleware/log"
 )
 
 var (

@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"time"
 
+	"gorm.io/gorm"
 	"gitee.com/RandolphCYG/akita/internal/model"
 	"gitee.com/RandolphCYG/akita/pkg/serializer"
-	"gorm.io/gorm"
 )
 
 // LdapConnService 查询条件

@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"gitee.com/RandolphCYG/akita/internal/service/wework"
 	"github.com/gin-gonic/gin"
+	"gitee.com/RandolphCYG/akita/internal/service/wework"
 )
 
 type WeworkOrdersHandler interface {
@@ -49,13 +49,11 @@ func NewWeworkUserHandler() WeworkUserHandler {
 	return &weworkUserField{}
 }
 
-// CacheUsersManual 手动触发缓存企业微信用户
+// CacheUsersManual 手动触发缓存企微用户
 func (wuf weworkUserField) CacheUsersManual(ctx *gin.Context) {
 	if err := ctx.ShouldBind(0); err == nil {
-		go func() {
-			err = wework.CacheUsersManual()
-		}()
-		ctx.JSON(200, "稍等片刻将更新企业微信用户缓存...")
+		res := wework.CacheUsersManual()
+		ctx.JSON(200, res)
 	} else {
 		ctx.JSON(200, err)
 	}

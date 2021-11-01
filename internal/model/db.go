@@ -1,8 +1,9 @@
 package model
 
 import (
-	"gitee.com/RandolphCYG/akita/pkg/db"
 	"gorm.io/gorm"
+
+	"gitee.com/RandolphCYG/akita/pkg/db"
 )
 
 // DB 数据库全局变量

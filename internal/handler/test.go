@@ -1,12 +1,12 @@
 package handler
 
 import (
+	"gitee.com/RandolphCYG/akita/pkg/util"
 	"strconv"
 	"time"
 
-	"gitee.com/RandolphCYG/akita/internal/model"
-	"gitee.com/RandolphCYG/akita/pkg/util"
 	"github.com/gin-gonic/gin"
+	"gitee.com/RandolphCYG/akita/internal/model"
 )
 
 // Ping test calendar module | ldap connection pool

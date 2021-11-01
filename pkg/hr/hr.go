@@ -1,7 +1,8 @@
 package hr
 
 import (
-	"gitee.com/RandolphCYG/akita/pkg/log"
+	"errors"
+
 	"github.com/kirinlabs/HttpRequest"
 )
 
@@ -60,19 +61,19 @@ func FetchToken(h *HrDataConn) (tokenResp TokenResp, err error) {
 	respFetchToken, err := req.Post(h.UrlGetToken)
 	if err != nil {
 		// 抛错
-		log.Log.Error("Fail to fetch token, err: ", err)
+		err = errors.New("Fail to fetch token, err: " + err.Error())
 		return
 	}
 	// 反序列化
 	err = respFetchToken.Json(&tokenResp)
 	if err != nil {
 		// 抛错
-		log.Log.Error("Fail to convert response to json, err: ", err)
+		err = errors.New("Fail to convert response to json, err: " + err.Error())
 		return
 	}
 	if !tokenResp.Success && tokenResp.ErrorDescription != "" {
 		// 抛错
-		log.Log.Error(tokenResp.ErrorDescription)
+		err = errors.New(tokenResp.ErrorDescription)
 		return
 	}
 	return
@@ -93,7 +94,7 @@ func FetchData(h *HrDataConn) (users []User, err error) {
 	req.SetHeaders(header)
 	respFetchData, err := req.Post(h.UrlGetData)
 	if err != nil {
-		log.Log.Error("Fail to fetch hr data, err: ", err)
+		err = errors.New("Fail to fetch hr data, err: " + err.Error())
 		return
 	}
 
@@ -104,7 +105,7 @@ func FetchData(h *HrDataConn) (users []User, err error) {
 	}
 	// 返回数据是否有报错字段
 	if dataResp.Result != "" {
-		log.Log.Error("Fail to fetch hr data, err: ", dataResp.Result)
+		err = errors.New("Fail to fetch hr data, err: " + dataResp.Result)
 		return
 	}
 	users = dataResp.Content
