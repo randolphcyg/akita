@@ -128,7 +128,7 @@ func fetchLatestCompanyType() (err error) {
 }
 
 // handleOrderAccountsRegister 账号注册 工单
-func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (err error) {
+func handleOrderAccountsRegister(o order.AccountsRegister) (err error) {
 	// 支持处理多个申请者
 	for _, applicant := range o.Users {
 		var expire int64
@@ -213,7 +213,11 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 		if _, ok := platforms["企业微信"]; ok {
 			weworkUser, err := FetchUser(userInfos.Num)
 			if err == nil && weworkUser.Userid != "" && weworkUser.Name == userInfos.DisplayName {
-				handleWeworkDuplicateRegister(o, userInfos)
+				err := handleWeworkDuplicateRegister(o, userInfos)
+				if err != nil {
+					log.Log.Error("Fail to handle wework duplication register, ", err)
+					return err
+				}
 			} else {
 				// 执行生成 企业微信账号 操作
 				err = CreateUser(userInfos)
@@ -266,7 +270,7 @@ func handleOrderAccountsRegister(o order.WeworkOrderDetailsAccountsRegister) (er
 }
 
 // handleWeworkDuplicateRegister 处理企业微信用户重复注册
-func handleWeworkDuplicateRegister(o order.WeworkOrderDetailsAccountsRegister, user *ldapuser.LdapAttributes) (err error) {
+func handleWeworkDuplicateRegister(o order.AccountsRegister, user *ldapuser.LdapAttributes) (err error) {
 	duplicateRegisterWeworkUserWeworkMsgTemplate, err := cache.HGet("wework_msg_templates", "wework_template_wework_user_duplicate_register")
 	if err != nil {
 		log.Log.Error("读取企业微信消息模板错误: ", err)
@@ -302,7 +306,7 @@ func handleWeworkDuplicateRegister(o order.WeworkOrderDetailsAccountsRegister, u
 }
 
 // handleOrderUuapPwdRetrieve UUAP密码找回 工单
-func handleOrderUuapPwdRetrieve(o order.WeworkOrderDetailsUuapPwdRetrieve) (err error) {
+func handleOrderUuapPwdRetrieve(o order.UuapPwdRetrieve) (err error) {
 	user := &ldapuser.LdapAttributes{
 		Num:         o.Eid,
 		DisplayName: o.DisplayName,
@@ -334,7 +338,7 @@ func handleOrderUuapPwdRetrieve(o order.WeworkOrderDetailsUuapPwdRetrieve) (err 
 }
 
 // handleOrderUuapDisable 账号注销 工单
-func handleOrderUuapDisable(o order.WeworkOrderDetailsUuapDisable) (err error) {
+func handleOrderUuapDisable(o order.UuapDisable) (err error) {
 	user := &ldapuser.LdapAttributes{
 		Num:         o.Eid,
 		DisplayName: o.DisplayName,
@@ -367,7 +371,7 @@ func handleOrderUuapDisable(o order.WeworkOrderDetailsUuapDisable) (err error) {
 }
 
 // handleOrderAccountsRenewal 账号续期 工单
-func handleOrderAccountsRenewal(o order.WeworkOrderDetailsAccountsRenewal) (err error) {
+func handleOrderAccountsRenewal(o order.AccountsRenewal) (err error) {
 	// 支持处理多个申请者
 	for _, applicant := range o.Users {
 		fmt.Println(applicant)
@@ -402,7 +406,7 @@ func handleOrderAccountsRenewal(o order.WeworkOrderDetailsAccountsRenewal) (err 
 }
 
 // RenewalUuap 续期
-func RenewalUuap(o order.WeworkOrderDetailsAccountsRenewal, applicant order.RenewalApplicant) (err error) {
+func RenewalUuap(o order.AccountsRenewal, applicant order.RenewalApplicant) (err error) {
 	days, _ := strconv.ParseInt(applicant.Days, 10, 64)
 	user := &ldapuser.LdapAttributes{
 		Num:         applicant.Eid,
@@ -437,7 +441,7 @@ func RenewalUuap(o order.WeworkOrderDetailsAccountsRenewal, applicant order.Rene
 }
 
 // handleWeworkOrderFindUserErr 处理未找到企微用户错误
-func handleWeworkOrderFindUserErr(o order.WeworkOrderDetailsAccountsRenewal, name, eid string) {
+func handleWeworkOrderFindUserErr(o order.AccountsRenewal, name, eid string) {
 	c7nFindProjectErrMsgTemplate, _ := cache.HGet("wework_msg_templates", "wework_template_wework_find_user_err")
 	msg := map[string]interface{}{
 		"touser":  o.Userid,
@@ -455,7 +459,7 @@ func handleWeworkOrderFindUserErr(o order.WeworkOrderDetailsAccountsRenewal, nam
 }
 
 // handleC7nOrderFindUserErr 处理未找到c7n用户错误
-func handleC7nOrderFindUserErr(o order.WeworkOrderDetailsC7nAuthority, name, eid string) {
+func handleC7nOrderFindUserErr(o order.C7nAuthority, name, eid string) {
 	c7nFindProjectErrMsgTemplate, _ := cache.HGet("wework_msg_templates", "wework_template_c7n_find_user_err")
 	msg := map[string]interface{}{
 		"touser":  o.Userid,
@@ -473,7 +477,7 @@ func handleC7nOrderFindUserErr(o order.WeworkOrderDetailsC7nAuthority, name, eid
 }
 
 // handleC7nOrderFindProjectErr 处理未找到c7n项目错误
-func handleC7nOrderFindProjectErr(o order.WeworkOrderDetailsC7nAuthority, p string) {
+func handleC7nOrderFindProjectErr(o order.C7nAuthority, p string) {
 	c7nFindProjectErrMsgTemplate, _ := cache.HGet("wework_msg_templates", "wework_template_c7n_find_project_err")
 	msg := map[string]interface{}{
 		"touser":  o.Userid,
@@ -491,7 +495,7 @@ func handleC7nOrderFindProjectErr(o order.WeworkOrderDetailsC7nAuthority, p stri
 }
 
 // handleOrderC7nAuthority c7n权限处理
-func handleOrderC7nAuthority(order order.WeworkOrderDetailsC7nAuthority) (err error) {
+func handleOrderC7nAuthority(order order.C7nAuthority) (err error) {
 	// c7n 用户处理流程
 	c7nUser, err := c7n.FetchUser(order.DisplayName, order.Eid)
 	if err != nil || c7nUser.Id == "" { // 有报错或者未查询到用户则回执执行错误消息

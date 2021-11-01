@@ -103,7 +103,7 @@ email:
 
 企业微信依赖在`/pkg/wework/api`中，企业微信原始工单的通用解析在`/pkg/wework/order/wework.go`的结构体`WeworkOrder`，这是第一层解析；
 
-类似于`WeworkOrderDetailsUuapDisable`是对应具体工单的解析，此步骤将工单解析为对应结构体，值得注意的是mapstructure映射要和工单中的字段名称相同，`spName`、`userid`、`remark`等是工单通用的默认字段。
+类似于`AccountsRegister`是对应具体工单的解析，此步骤将工单解析为对应结构体，值得注意的是mapstructure映射要和工单中的字段名称相同，`spName`、`userid`、`remark`等是工单通用的默认字段。
 
 2. 定时任务
 

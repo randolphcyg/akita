@@ -23,9 +23,7 @@ import (
 )
 
 var (
-	DisabledLdapUserCodes = [5]int32{514, 546, 66050, 66080, 66082} // 禁用用户的 UserAccountControl 状态码
-	EnabledLdapUserCodes  = [4]int32{512, 544, 66048, 262656}       // 启用用户的 UserAccountControl 状态码
-	ErrLdapUserNotFound   = errors.New("fail to fetch ldap user")   // 未找到 LDAP 用户错误
+	ErrLdapUserNotFound = errors.New("fail to fetch ldap user") // 未找到 LDAP 用户错误
 	// LDAP 用户属性
 	attrs = []string{
 		"employeeNumber",     // 工号
@@ -793,7 +791,7 @@ func FormatData(mail string, mobile string) (err error) {
 }
 
 // CreateLdapUser 生成ldap用户操作
-func CreateLdapUser(o order.WeworkOrderDetailsAccountsRegister, user *LdapAttributes) (err error) {
+func CreateLdapUser(o order.AccountsRegister, user *LdapAttributes) (err error) {
 	// 数据校验 1. 手机号11位 中间不允许有空格 2. 邮箱中间不允许有空格
 	err = FormatData(user.Email, user.Phone)
 	if err != nil {
@@ -884,7 +882,7 @@ func HandleExpiredLdapUsers(user *LdapAttributes, expireDays int) (err error) {
 }
 
 // HandleUuapDuplicateRegister 处理重复注册
-func HandleUuapDuplicateRegister(user *LdapAttributes, order order.WeworkOrderDetailsAccountsRegister) (err error) {
+func HandleUuapDuplicateRegister(user *LdapAttributes, order order.AccountsRegister) (err error) {
 	duplicateRegisterUuapUserWeworkMsgTemplate, err := cache.HGet("wework_msg_templates", "wework_template_uuap_user_duplicate_register")
 	if err != nil {
 		log.Log.Error("读取企业微信消息模板错误: ", err)

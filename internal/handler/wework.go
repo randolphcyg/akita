@@ -80,4 +80,3 @@ func (wuf weworkUserField) ScanNewHrUsersManual(ctx *gin.Context) {
 		ctx.JSON(200, err)
 	}
 }
-
