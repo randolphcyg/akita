@@ -219,7 +219,7 @@ func FetchRole(roleName string) (role RoleFields, err error) {
 	// 数据筛选
 	for _, r := range roleResp.Content {
 		if r.Enabled {
-			if strings.Contains(role.Name, roleName) {
+			if r.Name == roleName {
 				role = r
 			}
 		}
