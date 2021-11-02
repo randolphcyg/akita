@@ -17,103 +17,168 @@ import (
 )
 
 const (
-	characterBytes = "!@#$%^&*?"
-	digitBytes     = "1234567890"
-	letterBytes    = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	letterIdxBits  = 8                    // 6 bits to represent a letter index
-	letterIdxMask  = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
-	letterIdxMax   = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
+	characterBytes  = "!@#$%^&*?"
+	digitBytes      = "1234567890"
+	lowLetterBytes  = "abcdefghijklmnopqrstuvwxyz"
+	highLetterBytes = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	letterIdxBits   = 6                    // 6 bits to represent a letter index
+	letterIdxMask   = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
+	letterIdxMax    = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
 )
 
-var (
-	src = rand.NewSource(time.Now().UnixNano())
-)
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
+// NewPwd 复杂密码生成器
+func NewPwd(length int) (string, error) {
+	// check length
+	if length < 4 || length > 25 {
+		return "", errors.New("length is invalid")
+	}
+	// assign elements from 4 kinds of base elements
+	r := rand.New(rand.NewSource(time.Now().Unix()))
+	factor := length / 4
+	b := make([]byte, length)
+	b = assignElement(lowLetterBytes, length, 1, b)
+	b = assignElement(highLetterBytes, length, factor*2, b)
+	b = assignElement(characterBytes, length, factor*3, b)
+	b = assignElement(digitBytes, length, factor*4, b)
+	// shuffle
+	rand.Shuffle(len(b), func(i, j int) {
+		i = r.Intn(length)
+		b[i], b[j] = b[j], b[i]
+	})
+	return *(*string)(unsafe.Pointer(&b)), nil
 }
 
-// PwdGenerator 复杂密码生成器 TODO 复杂密码的排序过于固定
-func PwdGenerator(n int) string {
-	b := make([]byte, n)
-	// A src.Int63() generates 63 random bits, enough for letterIdxMax characters!
-	for i, cache, remain := n-1, src.Int63(), letterIdxMax; i >= 0; {
+// assignElement 为密码分配元素
+func assignElement(base string, length int, factor int, b []byte) []byte {
+	r := rand.New(rand.NewSource(time.Now().Unix()))
+	for i, cacheValue, remain := length-factor, r.Int63(), letterIdxMax; i >= 0; {
 		if remain == 0 {
-			cache, remain = src.Int63(), letterIdxMax
+			cacheValue, remain = r.Int63(), letterIdxMax
 		}
-		if idx := int(cache & letterIdxMask); idx < len(letterBytes) {
-			b[i] = letterBytes[idx]
+		if idx := int(cacheValue & letterIdxMask); idx < len(base) {
+			b[i] = base[idx]
 			i--
 		}
-		cache >>= letterIdxBits
+		cacheValue >>= letterIdxBits
 		remain--
 	}
-	// 特殊符号
-	for i, cache, remain := n-1-3, src.Int63(), letterIdxMax; i >= 0; {
-		if remain == 0 {
-			cache, remain = src.Int63(), letterIdxMax
-		}
-		if idx := int(cache & letterIdxMask); idx < len(characterBytes) {
-			b[i+3] = characterBytes[idx]
-			i--
-		}
-		cache >>= letterIdxBits
-		remain--
-	}
-	// 数字
-	for i, cache, remain := n-1-5, src.Int63(), letterIdxMax; i >= 0; {
-		if remain == 0 {
-			cache, remain = src.Int63(), letterIdxMax
-		}
-		if idx := int(cache & letterIdxMask); idx < len(digitBytes) {
-			b[i+4] = digitBytes[idx]
-			i--
-		}
-		cache >>= letterIdxBits
-		remain--
-	}
-
-	return *(*string)(unsafe.Pointer(&b))
+	return b
 }
 
-// SamplePwdGenerator 最普通的复杂密码生成 不使用版本
-func SamplePwdGenerator(n int) (pwd string) {
-	characters := []rune("!@#$%^&*?")
-	digits := []rune("1234567890")
-	letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-	b := make([]rune, n)
-	for i := range b[:3] {
-		b[i] = letters[rand.Intn(len(letters))]
+// SimpleNewPwd 复杂密码生成 简易实现方式
+func SimpleNewPwd(length int) (pwd string, err error) {
+	// check length
+	if length < 4 || length > 25 {
+		return "", errors.New("length is invalid")
 	}
-	for i := range b[3:5] {
-		b[i+3] = characters[rand.Intn(len(characters))]
+	// assign elements from 4 kinds of base elements
+	r := rand.New(rand.NewSource(time.Now().Unix()))
+	factor := length / 4
+	characters := []rune(characterBytes)
+	digits := []rune(digitBytes)
+	highLetters := []rune(highLetterBytes)
+	lowerLetters := []rune(lowLetterBytes)
+	// get rand elements
+	b := make([]rune, length)
+	for i := range b[:factor] {
+		b[i] = highLetters[r.Intn(len(highLetters))]
 	}
-	for i := range b[5:7] {
-		b[i+5] = digits[rand.Intn(len(digits))]
+	for i := range b[factor : factor*2] {
+		b[i+factor] = lowerLetters[r.Intn(len(lowerLetters))]
 	}
-	return string(b)
+	for i := range b[factor*2 : factor*3] {
+		b[i+factor*2] = characters[r.Intn(len(characters))]
+	}
+	for i := range b[factor*3:] {
+		b[i+factor*3] = digits[r.Intn(len(digits))]
+	}
+	// shuffle
+	rand.Shuffle(len(b), func(i, j int) {
+		i = r.Intn(length)
+		b[i], b[j] = b[j], b[i]
+	})
+	return string(b), nil
+}
+
+// MiddleNewPwd 复杂密码生成 中等实现方式
+func MiddleNewPwd(length int) (pwd string, err error) {
+	// check length
+	if length < 4 || length > 25 {
+		return "", errors.New("length is invalid")
+	}
+	// assign elements from 4 kinds of base elements
+	var pwdBase string
+	factor := length / 4
+	lastFactor := length - 3*factor
+	characters := getRandStr(characterBytes, factor)
+	pwdBase += characters
+	digits := getRandStr(digitBytes, factor)
+	pwdBase += digits
+	highLetters := getRandStr(highLetterBytes, factor)
+	pwdBase += highLetters
+	lowLetters := getRandStr(lowLetterBytes, lastFactor)
+	pwdBase += lowLetters
+	// shuffle
+	var temp []string
+	for _, s := range pwdBase {
+		temp = append(temp, string(s))
+	}
+	pwd, err = shuffle(temp)
+	if err != nil {
+		return
+	}
+	return
+}
+
+// shuffle 打乱元素
+func shuffle(slice []string) (str string, err error) {
+	r := rand.New(rand.NewSource(time.Now().Unix()))
+	length := len(slice)
+	// judge length
+	if length < 1 {
+		return "", errors.New("length is invalid")
+	}
+	// shuffle
+	for i := 0; i < length; i++ {
+		randIndex := r.Intn(length) // 随机数
+		slice[length-1], slice[randIndex] = slice[randIndex], slice[length-1]
+	}
+	str = strings.Join(slice, "")
+	return
+}
+
+// getRandStr 获取随机字符
+func getRandStr(baseStr string, length int) string {
+	r := rand.New(rand.NewSource(time.Now().UnixNano() + rand.Int63()))
+	bytes := make([]byte, length)
+	l := len(baseStr)
+	for i := 0; i < length; i++ {
+		bytes[i] = baseStr[r.Intn(l)]
+	}
+	return string(bytes)
 }
 
 // Judge 密码复杂度判断
-func Judge(pwd string) (isValid bool) {
-	characters := "!@#$%^&*?"
+func Judge(pwd string) bool {
+	// 长度不满足
 	if len(pwd) < 8 {
 		return false
 	}
-	var flag = [...]int{0, 0, 0, 0, 0, 0, 0, 0}
+	// 检查字符串元素复杂度
+	var flag []int
 	for i := 0; i < len(pwd); i++ {
-		// fmt.Printf("%c\n", pwd[i])
 		if unicode.IsLower(rune(pwd[i])) {
-			flag[i] = 1
+			flag = append(flag, 1)
 		} else if unicode.IsDigit(rune(pwd[i])) {
-			flag[i] = 2
-		} else if strings.Contains(characters, string(pwd[i])) {
-			flag[i] = 3
+			flag = append(flag, 2)
+		} else if strings.Contains(characterBytes, string(pwd[i])) {
+			flag = append(flag, 3)
 		} else if unicode.IsUpper(rune(pwd[i])) {
-			flag[i] = 4
+			flag = append(flag, 4)
 		}
 	}
-	complexity := len(RemoveRepeatedElement(flag[:]))
+	// 复杂度标记切片去重
+	complexity := len(removeRepeatedElement(flag[:]))
 	if complexity >= 3 {
 		return true
 	} else {
@@ -121,8 +186,8 @@ func Judge(pwd string) (isValid bool) {
 	}
 }
 
-// RemoveRepeatedElement 数组去重 通过map键的唯一性去重
-func RemoveRepeatedElement(s []int) []int {
+// removeRepeatedElement 数组去重 通过map键的唯一性去重
+func removeRepeatedElement(s []int) []int {
 	result := make([]int, 0)
 	m := make(map[int]bool) //map的值不重要
 	for _, v := range s {

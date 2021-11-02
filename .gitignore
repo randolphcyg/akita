@@ -20,9 +20,6 @@
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
-# 暂时不将测试文件上传
-*_test.go
-
 # 忽略主配置文件
 config/config.yaml
 # 忽略日志文件
@@ -31,3 +28,6 @@ config/config.yaml
 __debug_bin
 .vscode
 .idea
+
+# ldap连接池测试文件
+pool_test.go

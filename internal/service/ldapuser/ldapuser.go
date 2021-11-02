@@ -169,7 +169,7 @@ func AddUser(user *LdapAttributes) (pwd string, err error) {
 
 	// 初始化复杂密码
 	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
-	pwd = util.PwdGenerator(8)                                           // 密码字符串
+	pwd,_ = util.NewPwd(8)                                           // 密码字符串
 	pwdEncoded, err := utf16.NewEncoder().String(fmt.Sprintf("%q", pwd)) // 密码字符字面值
 	if err != nil {
 		log.Log.Error("Fail to encode pwd, err: ", err)
@@ -202,7 +202,7 @@ func (user *LdapAttributes) RetrievePwd() (sam string, newPwd string, err error)
 	sam = entry.GetAttributeValue("sAMAccountName")
 	// 初始化复杂密码
 	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
-	newPwd = util.PwdGenerator(8)                                           // 密码字符串
+	newPwd,err = util.NewPwd(8)                                           // 密码字符串
 	pwdEncoded, err := utf16.NewEncoder().String(fmt.Sprintf("%q", newPwd)) // 密码字符字面值
 	if err != nil {
 		log.Log.Error("Fail to encode pwd, err: ", err)
