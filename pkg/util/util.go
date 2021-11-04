@@ -2,7 +2,6 @@ package util
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/kirinlabs/HttpRequest"
 	"github.com/nosixtools/solarlunar/festival"
+	"github.com/pkg/errors"
 
 	"gitee.com/RandolphCYG/akita/pkg/cache"
 )

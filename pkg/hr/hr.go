@@ -1,7 +1,8 @@
 package hr
 
 import (
-	"errors"
+	"gitee.com/RandolphCYG/akita/pkg/serializer"
+	"github.com/pkg/errors"
 
 	"github.com/kirinlabs/HttpRequest"
 )
@@ -56,19 +57,18 @@ type HrDataConn struct {
 }
 
 // FetchToken 获取token
-func FetchToken(h *HrDataConn) (tokenResp TokenResp, err error) {
+func (h *HrDataConn) FetchToken() (tokenResp TokenResp, err error) {
 	req := HttpRequest.NewRequest()
 	respFetchToken, err := req.Post(h.UrlGetToken)
 	if err != nil {
 		// 抛错
-		err = errors.New("Fail to fetch token, err: " + err.Error())
+		err = errors.Wrap(err, serializer.ErrGetToken)
 		return
 	}
 	// 反序列化
 	err = respFetchToken.Json(&tokenResp)
 	if err != nil {
-		// 抛错
-		err = errors.New("Fail to convert response to json, err: " + err.Error())
+		err = errors.Wrap(err, serializer.ErrConvertRespToJson)
 		return
 	}
 	if !tokenResp.Success && tokenResp.ErrorDescription != "" {
@@ -80,9 +80,9 @@ func FetchToken(h *HrDataConn) (tokenResp TokenResp, err error) {
 }
 
 // FetchData 带着token去获取HR数据
-func FetchData(h *HrDataConn) (users []User, err error) {
+func (h *HrDataConn) FetchData() (users []User, err error) {
 	req := HttpRequest.NewRequest()
-	hrToken, err := FetchToken(h)
+	hrToken, err := h.FetchToken()
 	if err != nil {
 		return
 	}
@@ -94,7 +94,7 @@ func FetchData(h *HrDataConn) (users []User, err error) {
 	req.SetHeaders(header)
 	respFetchData, err := req.Post(h.UrlGetData)
 	if err != nil {
-		err = errors.New("Fail to fetch hr data, err: " + err.Error())
+		err = errors.Wrap(err, serializer.ErrFetchHrData)
 		return
 	}
 
@@ -105,7 +105,7 @@ func FetchData(h *HrDataConn) (users []User, err error) {
 	}
 	// 返回数据是否有报错字段
 	if dataResp.Result != "" {
-		err = errors.New("Fail to fetch hr data, err: " + dataResp.Result)
+		err = errors.Wrap(err, serializer.ErrFetchHrData+dataResp.Result)
 		return
 	}
 	users = dataResp.Content

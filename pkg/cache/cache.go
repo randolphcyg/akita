@@ -3,10 +3,10 @@ package cache
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"time"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/pkg/errors"
 )
 
 // Config redis 配置
@@ -122,7 +122,7 @@ func HDel(key string) (res int64, err error) {
 
 // HGet hash 获取某个元素
 func HGet(key string, field string) (res string, err error) {
-	res, _ = RedisClient.HGet(ctx, key, field).Result()
+	res, err = RedisClient.HGet(ctx, key, field).Result()
 	return
 }
 

@@ -2,11 +2,12 @@ package wework
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"gitee.com/RandolphCYG/akita/internal/middleware/log"
 	"gitee.com/RandolphCYG/akita/internal/model"
@@ -98,10 +99,14 @@ func CacheUsers() {
 	}
 
 	temp, _ := json.Marshal(res)
-	json.Unmarshal(temp, &usersMsg)
+	err = json.Unmarshal(temp, &usersMsg)
+	if err != nil {
+		return
+	}
 
 	if usersMsg.Errcode != 0 {
-		log.Log.Error("Fail to fetch wework user list, err:", usersMsg.Errmsg)
+		err = errors.Wrap(err, serializer.ErrFetchWeUserList+usersMsg.Errmsg)
+		return
 	}
 
 	// 先清空缓存
@@ -141,10 +146,12 @@ func CacheUsers() {
 func FetchUser(eid string) (userDetails UserDetails, err error) {
 	user, err := cache.HGet("wework_users", eid)
 	if err != nil {
-		err = errors.New("无此用户: " + err.Error())
 		return
 	}
-	json.Unmarshal([]byte(user), &userDetails)
+	err = json.Unmarshal([]byte(user), &userDetails)
+	if err != nil {
+		return UserDetails{}, err
+	}
 	return
 }
 
@@ -168,7 +175,7 @@ func FetchDepart(hrDepartName string) (depart Depart, err error) {
 	json.Unmarshal(b, &departsMsg)
 
 	if departsMsg.Errcode != 0 {
-		log.Log.Error("Fail to fetch wework user list, err:", departsMsg.Errmsg)
+		err = errors.Wrap(err, serializer.ErrFetchWeUserList+departsMsg.Errmsg)
 		return
 	}
 
@@ -204,7 +211,7 @@ func FetchDepartById(id int) (department Depart, err error) {
 	}
 
 	if departsMsg.Errcode != 0 {
-		log.Log.Error("Fail to fetch wework user list, err:", departsMsg.Errmsg)
+		err = errors.Wrap(err, serializer.ErrFetchWeUserList+departsMsg.Errmsg)
 		return
 	}
 
@@ -226,7 +233,7 @@ func FetchDeparts() (departsMsg DepartsMsg, err error) {
 	}
 
 	if departsMsg.Errcode != 0 {
-		log.Log.Error("Fail to fetch wework user list, err:", departsMsg.Errmsg)
+		err = errors.Wrap(err, serializer.ErrFetchWeUserList+departsMsg.Errmsg)
 		return
 	}
 
@@ -297,47 +304,6 @@ func CreateUser(user *ldapuser.LdapAttributes) (err error) {
 	return
 }
 
-// RenewalUser 企业微信用户续期
-func RenewalUser(weworkUserId string, applicant model.RenewalApplicant, expireDays int) (err error) {
-	weworkUserInfos := map[string]interface{}{
-		"userid": weworkUserId,
-		"enable": 1,
-		"extattr": map[string]interface{}{
-			"attrs": []interface{}{
-				map[string]interface{}{
-					"type": 0,
-					"name": "工号",
-					"text": map[string]string{
-						"value": applicant.Eid,
-					},
-				},
-				map[string]interface{}{
-					"type": 0,
-					"name": "过期日期",
-					"text": map[string]string{
-						"value": util.ExpireStr(expireDays),
-					},
-				},
-			},
-		},
-	}
-	// 更新用户
-	var msg Msg
-	res, err := model.CorpAPIUserManager.UserUpdate(weworkUserInfos)
-	if err != nil {
-		return
-	}
-
-	b, err := json.Marshal(res)
-	json.Unmarshal(b, &msg)
-	if err != nil {
-		log.Log.Error(err)
-		return
-	}
-	log.Log.Info("Success to renewal wework user!")
-	return nil
-}
-
 // ScanNewHrUsersManual 手动触发扫描HR数据并为新员工创建企业微信账号
 func ScanNewHrUsersManual() serializer.Response {
 	go func() {
@@ -352,7 +318,8 @@ func ScanNewHrUsersManual() serializer.Response {
 func ScanNewHrUsers() {
 	hrUsers, err := cache.HGetAll("hr_users") // 从缓存取HR元数据
 	if err != nil {
-		log.Log.Error("Fail to fetch ldap users cache,:", err)
+		err = errors.Wrap(err, serializer.ErrFetchLDAPUserCache)
+		return
 	}
 
 	for _, hu := range hrUsers {
@@ -417,7 +384,10 @@ func ScanNewHrUsers() {
 				}
 			} else { // 已经存在的公司老人
 				if len(u.Extattr.Attrs) >= 2 && u.Extattr.Attrs[1].Name == "过期日期" && u.Extattr.Attrs[1].Value != "" { // 外部员工转为本公司员工，去除过期字段
-					ClearUserExpiredFlag(u)
+					err := u.ClearUserExpiredFlag()
+					if err != nil {
+						log.Log.Error(err)
+					}
 				}
 			}
 		}
@@ -441,8 +411,10 @@ func ScanExpiredUsers() {
 	go func() {
 		hrUsers, err := cache.HGetAll("hr_users") // 从缓存取HR元数据
 		if err != nil {
-			log.Log.Error("Fail to fetch ldap users cache,:", err)
+			err = errors.Wrap(err, serializer.ErrFetchLDAPUserCache)
+			return
 		}
+
 		for _, u := range hrUsers {
 			var hrUser hr.User
 			json.Unmarshal([]byte(u), &hrUser) // 反序列化
@@ -537,8 +509,8 @@ func SendWeworkOuterUserExpiredMsg(user UserDetails, remainingDays int) {
 	}
 	_, err = model.CorpAPIMsg.MessageSend(msg)
 	if err != nil {
-		log.Log.Error("Fail to send wework msg, err: ", err)
-		// TODO 发送企业微信消息错误，应当考虑重发逻辑
+		err = errors.Wrap(err, serializer.ErrSendWeMsg)
+		return
 	}
 	log.Log.Info("企业微信回执消息:企业微信用户【" + user.Userid + "】姓名【" + user.Name + "】状态【即将过期】")
 }
@@ -557,7 +529,7 @@ func DisableUser(u UserDetails) (err error) {
 	}
 
 	b, err := json.Marshal(res)
-	json.Unmarshal(b, &msg)
+	err = json.Unmarshal(b, &msg)
 	if err != nil {
 		log.Log.Error(err)
 		return
@@ -584,7 +556,7 @@ func DeleteUser(u UserDetails) (err error) {
 	}
 
 	b, err := json.Marshal(res)
-	json.Unmarshal(b, &msg)
+	err = json.Unmarshal(b, &msg)
 	if err != nil {
 		log.Log.Error(err)
 		return
@@ -599,9 +571,8 @@ func DeleteUser(u UserDetails) (err error) {
 }
 
 // ClearUserExpiredFlag 清空用户过期字段
-func ClearUserExpiredFlag(u UserDetails) (err error) {
+func (u *UserDetails) ClearUserExpiredFlag() (err error) {
 	weworkUserInfos := map[string]interface{}{
-		// 自定义属性
 		"userid": u.Userid,
 		"extattr": map[string]interface{}{
 			"attrs": []interface{}{
@@ -624,7 +595,7 @@ func ClearUserExpiredFlag(u UserDetails) (err error) {
 	}
 
 	b, err := json.Marshal(res)
-	json.Unmarshal(b, &msg)
+	err = json.Unmarshal(b, &msg)
 	if err != nil {
 		log.Log.Error(err)
 		return
@@ -638,19 +609,25 @@ func ClearUserExpiredFlag(u UserDetails) (err error) {
 	return
 }
 
-// FormatHistoryUser 企业微信历史用户规整
-func FormatHistoryUser(user UserDetails, formatEid string, formatMail string) (err error) {
+// Renewal 账号续期
+func (u *UserDetails) Renewal(eid string, expireDays int) (err error) {
 	weworkUserInfos := map[string]interface{}{
-		"userid": user.Userid,
+		"userid": u.Userid,
 		"enable": 1,
-		"email":  formatMail,
 		"extattr": map[string]interface{}{
 			"attrs": []interface{}{
 				map[string]interface{}{
 					"type": 0,
 					"name": "工号",
 					"text": map[string]string{
-						"value": formatEid,
+						"value": eid,
+					},
+				},
+				map[string]interface{}{
+					"type": 0,
+					"name": "过期日期",
+					"text": map[string]string{
+						"value": util.ExpireStr(expireDays),
 					},
 				},
 			},
@@ -664,15 +641,9 @@ func FormatHistoryUser(user UserDetails, formatEid string, formatMail string) (e
 	}
 
 	b, err := json.Marshal(res)
-	if err != nil {
-		log.Log.Error(err)
-		return
-	}
 	err = json.Unmarshal(b, &msg)
 	if err != nil {
 		return err
 	}
-
-	log.Log.Info("Success to format wework user!")
 	return nil
 }

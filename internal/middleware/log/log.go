@@ -14,12 +14,13 @@ import (
 )
 
 var (
-	logFilePath = "./"
-	logFileName = "uuap.log"
-	Log         *logrus.Logger
+	logFilePath    = "./"
+	logFileName    = "akita.log"
+	rotateLogsFile = "akita." + "%Y%m%d" + ".log"
+	Log            *logrus.Logger
 )
 
-func LogerMiddleware() gin.HandlerFunc {
+func LoggerMiddleware() gin.HandlerFunc {
 	// 日志文件
 	logFile := path.Join(logFilePath, logFileName)
 	// 写入文件
@@ -46,7 +47,7 @@ func LogerMiddleware() gin.HandlerFunc {
 
 	// 设置 rotatelogs
 	logWriter, err := rotatelogs.New(
-		logFile+".%Y%m%d",                         // 分割后的文件名称
+		rotateLogsFile, // 分割后的文件名称
 		rotatelogs.WithMaxAge(7*24*time.Hour),     // 设置最大保存时间(7天)
 		rotatelogs.WithRotationTime(24*time.Hour), // 设置日志切割时间间隔(1天)
 	)
@@ -64,7 +65,7 @@ func LogerMiddleware() gin.HandlerFunc {
 	}
 
 	Log.AddHook(lfshook.NewHook(writeMap, &logrus.JSONFormatter{
-		TimestampFormat: "2006-01-02 2006-01-02 15:04:05.000",
+		TimestampFormat: "2006-01-02 15:04:05.000",
 	}))
 
 	return func(c *gin.Context) {

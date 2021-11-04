@@ -2,6 +2,26 @@ package serializer
 
 import "github.com/gin-gonic/gin"
 
+var (
+	ErrLdapUserNotFound            = "查询LDAP用户失败！"
+	ErrGetLdapConn                 = "获取LDAP连接失败！"
+	ErrSendWeMsg                   = "发送企微消息失败！"
+	ErrFetchLDAPUserCache          = "查询LDAP用户缓存失败！"
+	ErrUpdateUser                  = "根据缓存更新用户信息到服务端失败！"
+	ErrModifyUser                  = "修改用户信息失败！"
+	ErrCompanyNotExists            = "无此公司,请到LDAP服务器增加对应公司！"
+	ErrDeserialize                 = "反序列化错误！"
+	ErrFetchDB                     = "查询数据库错误！"
+	ErrNotFindUserInWeworkCache    = "企微缓存查询不到用户！"
+	WarnNotSupportWeOrder          = "服务端无此工单处理流程, 请手动处理！"
+	ErrConvertRawWeOrder           = "转换企微原始工单失败！"
+	ErrAssignUserC7nDefaultProject = "Fail to assign new user c7n default project！"
+	ErrFetchWeUserList             = "查询企微用户列表失败！"
+	ErrGetToken                    = "获取token失败！"
+	ErrFetchHrData                 = "获取HR数据失败！"
+	ErrConvertRespToJson           = "Fail to convert response to json"
+)
+
 // Response 基础序列化器
 type Response struct {
 	Code  int         `json:"code"`

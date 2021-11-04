@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"gitee.com/RandolphCYG/akita/internal/model"
+	"github.com/gin-gonic/gin"
 )
 
 // Ping test calendar module | ldap connection pool

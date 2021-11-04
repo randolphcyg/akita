@@ -24,7 +24,7 @@ var r *gin.Engine
 func init() {
 	gin.SetMode(gin.ReleaseMode)                         // 先设置为生产模式 保证日志静默
 	r = gin.New()                                        // 初始化gin引擎
-	r.Use(log.LogerMiddleware())                         // 日志中间件
+	r.Use(log.LoggerMiddleware())                        // 日志中间件
 	r.Use(middleware.TimeoutMiddleware(3 * time.Second)) // 超时控制中间件
 }
 

@@ -2,8 +2,8 @@ package c7n
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
+	"github.com/pkg/errors"
 	"net/url"
 	"strings"
 
@@ -107,7 +107,7 @@ func GetToken() (header map[string]string, err error) {
 	req := HttpRequest.NewRequest()
 	respC7nFetchToken, err := req.Post(c7nFetchToken)
 	if err != nil {
-		err = errors.New("Fail to fetch token, err: " + err.Error())
+		err = errors.Wrap(err, serializer.ErrGetToken)
 		return
 	}
 	defer respC7nFetchToken.Close() // 关闭
@@ -115,7 +115,7 @@ func GetToken() (header map[string]string, err error) {
 	// 反序列化
 	err = respC7nFetchToken.Json(&tokenResp)
 	if err != nil {
-		err = errors.New("Fail to convert response to json, err: " + err.Error())
+		err = errors.Wrap(err, serializer.ErrConvertRespToJson)
 		return
 	}
 	if tokenResp.Error != "" {
@@ -144,7 +144,7 @@ func FetchUser(realName, loginName string) (user UserFields, err error) {
 	// 取token
 	header, err := GetToken()
 	if err != nil {
-		err = errors.New("Fail to fetch token, err: " + err.Error())
+		err = errors.Wrap(err, serializer.ErrGetToken)
 		return
 	}
 
@@ -170,7 +170,7 @@ func FetchUser(realName, loginName string) (user UserFields, err error) {
 	var userResp UserResp
 	err = respFetchUser.Json(&userResp)
 	if err != nil {
-		err = errors.New("Fail to convert response to json, err: " + err.Error())
+		err = errors.Wrap(err, serializer.ErrConvertRespToJson)
 		return
 	}
 
@@ -187,7 +187,7 @@ func FetchRole(roleName string) (role RoleFields, err error) {
 	// 取token
 	header, err := GetToken()
 	if err != nil {
-		err = errors.New("Fail to fetch token, err: " + err.Error())
+		err = errors.Wrap(err, serializer.ErrGetToken)
 		return
 	}
 
@@ -212,7 +212,7 @@ func FetchRole(roleName string) (role RoleFields, err error) {
 	var roleResp RoleResp
 	err = respC7nFetchRoles.Json(&roleResp)
 	if err != nil {
-		err = errors.New("Fail to convert response to json, err: " + err.Error())
+		err = errors.Wrap(err, serializer.ErrConvertRespToJson)
 		return
 	}
 
@@ -232,7 +232,7 @@ func AssignUserProjectRole(c7nProjectId string, c7nUserId string, c7nRoleIds []s
 	// 取token
 	header, err := GetToken()
 	if err != nil {
-		err = errors.New("Fail to fetch token, err: " + err.Error())
+		err = errors.Wrap(err, serializer.ErrGetToken)
 		return
 	}
 
@@ -263,7 +263,7 @@ func SyncUsers() {
 	// 取token
 	header, err := GetToken()
 	if err != nil {
-		err = errors.New("Fail to fetch token, err: " + err.Error())
+		err = errors.Wrap(err, serializer.ErrGetToken)
 	}
 
 	// 从缓存取url
@@ -285,7 +285,7 @@ func SyncUsers() {
 	var fetchLdapRes FetchLdapRes
 	err = respGetLdapConn.Json(&fetchLdapRes)
 	if err != nil {
-		err = errors.New("Fail to convert response to json, err: " + err.Error())
+		err = errors.Wrap(err, serializer.ErrConvertRespToJson)
 	}
 
 	// 数据筛选
@@ -299,7 +299,7 @@ func SyncUsers() {
 	}
 	respSyncLdapUsers, err := req.Post(fmt.Sprintf(syncLdapUsers, LdapId))
 	if err != nil {
-		err = errors.New("Fail to fetch token, err: " + err.Error())
+		err = errors.Wrap(err, serializer.ErrGetToken)
 	}
 	defer respSyncLdapUsers.Close() // 关闭
 	return
@@ -326,7 +326,7 @@ func CacheProjects() {
 	// 取token
 	header, err := GetToken()
 	if err != nil {
-		err = errors.New("Fail to fetch token, err: " + err.Error())
+		err = errors.Wrap(err, serializer.ErrGetToken)
 		return
 	}
 

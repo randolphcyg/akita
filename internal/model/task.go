@@ -32,10 +32,9 @@ func (j JobWrapper) Run() {
 
 // InitTasks 注册并启动所有定时任务
 func InitTasks() {
-	// 添加所有任务
 	for name, t := range AllTasks {
-		enterId, _ := Cron.AddJob(t.Cron, JobWrapper{name, t.Cron, t.Func}) // cron.EntryID(len(C.Entries()) - 1),
-		CurrentTasks[name] = Job{enterId}
+		enterId, _ := Cron.AddJob(t.Cron, JobWrapper{Name: name, Cron: t.Cron, Func: t.Func})
+		CurrentTasks[name] = Job{Id: enterId}
 	}
 	log.Log.Info("Success to start all crontab tasks, :", CurrentTasks)
 }

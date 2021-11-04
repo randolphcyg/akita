@@ -2,8 +2,6 @@ package task
 
 import (
 	"encoding/json"
-	"gitee.com/RandolphCYG/akita/pkg/c7n"
-
 	"github.com/robfig/cron/v3"
 
 	"gitee.com/RandolphCYG/akita/internal/middleware/log"
@@ -11,6 +9,7 @@ import (
 	"gitee.com/RandolphCYG/akita/internal/service/hruser"
 	"gitee.com/RandolphCYG/akita/internal/service/ldapuser"
 	"gitee.com/RandolphCYG/akita/internal/service/wework"
+	"gitee.com/RandolphCYG/akita/pkg/c7n"
 	"gitee.com/RandolphCYG/akita/pkg/serializer"
 )
 
@@ -84,8 +83,8 @@ func Start(taskName string) serializer.Response {
 		if _, exist := model.CurrentTasks[taskName]; exist {
 			return serializer.Response{Msg: "启动定时任务[" + taskName + "]失败! 此任务已经在计划列表中，无需重复添加!", Data: -1}
 		}
-		enterId, _ := model.Cron.AddJob(t.Cron, model.JobWrapper{taskName, t.Cron, t.Func}) // cron.EntryID(len(model.Cron.Entries()) - 1),
-		model.CurrentTasks[taskName] = model.Job{enterId}
+		enterId, _ := model.Cron.AddJob(t.Cron, model.JobWrapper{Name: taskName, Cron: t.Cron, Func: t.Func})
+		model.CurrentTasks[taskName] = model.Job{Id: enterId}
 	}
 	log.Log.Info("动态添加定时任务，当前所有任务:", model.Cron.Entries(), "所有任务CurrentTasks:", model.CurrentTasks)
 	res, _ := json.Marshal(model.CurrentTasks)

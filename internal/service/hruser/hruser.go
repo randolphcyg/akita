@@ -2,6 +2,7 @@ package hruser
 
 import (
 	"encoding/json"
+
 	"gitee.com/RandolphCYG/akita/internal/middleware/log"
 	"gitee.com/RandolphCYG/akita/internal/model"
 	"gitee.com/RandolphCYG/akita/pkg/cache"
@@ -36,10 +37,11 @@ func CacheUsers() {
 	if result := model.DB.First(&hrDataConn); result.Error != nil {
 		log.Log.Error("Fail to get HR data connection cfg!")
 	}
-	hrUsers, err := hr.FetchData(&hr.HrDataConn{
+	h := &hr.HrDataConn{
 		UrlGetToken: hrDataConn.UrlGetToken,
 		UrlGetData:  hrDataConn.UrlGetData,
-	})
+	}
+	hrUsers, err := h.FetchData()
 	if err != nil {
 		log.Log.Error(err)
 		return

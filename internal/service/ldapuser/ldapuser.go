@@ -2,7 +2,6 @@ package ldapuser
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -10,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-ldap/ldap/v3"
+	"github.com/pkg/errors"
 	"golang.org/x/text/encoding/unicode"
 
 	"gitee.com/RandolphCYG/akita/internal/middleware/log"
@@ -22,7 +22,6 @@ import (
 )
 
 var (
-	ErrLdapUserNotFound = errors.New("fail to fetch ldap user") // 未找到 LDAP 用户错误
 	// LDAP 用户属性
 	attrs = []string{
 		"employeeNumber",     // 工号
@@ -75,7 +74,8 @@ func FetchLdapUsers(user *LdapAttributes) (result []*ldap.Entry) {
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldap connection, err: ", err)
+		err = errors.Wrap(err, serializer.ErrGetLdapConn)
+		return
 	}
 	// 多查询条件
 	ldapFilterNum := "(employeeNumber=" + user.Num + ")"
@@ -138,7 +138,7 @@ func AddUser(user *LdapAttributes) (pwd string, err error) {
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldap connection, err: ", err)
+		err = errors.Wrap(err, serializer.ErrGetLdapConn)
 		return
 	}
 	defer LdapConn.Close()
@@ -169,7 +169,7 @@ func AddUser(user *LdapAttributes) (pwd string, err error) {
 
 	// 初始化复杂密码
 	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
-	pwd,_ = util.NewPwd(8)                                           // 密码字符串
+	pwd, err = util.NewPwd(8)                                            // 密码字符串
 	pwdEncoded, err := utf16.NewEncoder().String(fmt.Sprintf("%q", pwd)) // 密码字符字面值
 	if err != nil {
 		log.Log.Error("Fail to encode pwd, err: ", err)
@@ -189,7 +189,7 @@ func (user *LdapAttributes) RetrievePwd() (sam string, newPwd string, err error)
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldap connection, err: ", err)
+		err = errors.Wrap(err, serializer.ErrGetLdapConn)
 		return
 	}
 	defer LdapConn.Close()
@@ -202,7 +202,7 @@ func (user *LdapAttributes) RetrievePwd() (sam string, newPwd string, err error)
 	sam = entry.GetAttributeValue("sAMAccountName")
 	// 初始化复杂密码
 	utf16 := unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM)
-	newPwd,err = util.NewPwd(8)                                           // 密码字符串
+	newPwd, err = util.NewPwd(8)                                            // 密码字符串
 	pwdEncoded, err := utf16.NewEncoder().String(fmt.Sprintf("%q", newPwd)) // 密码字符字面值
 	if err != nil {
 		log.Log.Error("Fail to encode pwd, err: ", err)
@@ -222,7 +222,7 @@ func (user *LdapAttributes) ModifyPwd(newUserPwd string) (err error) {
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldap connection, err: ", err)
+		err = errors.Wrap(err, serializer.ErrGetLdapConn)
 		return
 	}
 	defer LdapConn.Close()
@@ -252,7 +252,7 @@ func FetchUser(user *LdapAttributes) (result *ldap.Entry, err error) {
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldap connection, err: ", err)
+		err = errors.Wrap(err, serializer.ErrGetLdapConn)
 		return
 	}
 	defer LdapConn.Close()
@@ -280,7 +280,7 @@ func FetchUser(user *LdapAttributes) (result *ldap.Entry, err error) {
 	if len(sr.Entries) > 0 && len(sr.Entries[0].Attributes) > 0 {
 		result = sr.Entries[0]
 	} else {
-		return nil, ErrLdapUserNotFound
+		return nil, errors.Wrap(err, serializer.ErrLdapUserNotFound)
 	}
 	return
 }
@@ -289,7 +289,7 @@ func (user *LdapAttributes) ModifyDn(cn string) {
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldap connection, err: ", err)
+		err = errors.Wrap(err, serializer.ErrGetLdapConn)
 		return
 	}
 	defer LdapConn.Close()
@@ -310,7 +310,7 @@ func (user *LdapAttributes) MoveDn(newOu string) (err error) {
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldap connection, err: ", err)
+		err = errors.Wrap(err, serializer.ErrGetLdapConn)
 		return
 	}
 	defer LdapConn.Close()
@@ -330,11 +330,12 @@ func (user *LdapAttributes) MoveDn(newOu string) (err error) {
 }
 
 // NewUser 将 ldap.Entry 类型转换为自定义类型 LdapAttributes
-func NewUser(entry *ldap.Entry) *LdapAttributes {
+func NewUser(entry *ldap.Entry) (*LdapAttributes, error) {
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldap connection, err: ", err)
+		err = errors.Wrap(err, serializer.ErrGetLdapConn)
+		return nil, err
 	}
 	defer LdapConn.Close()
 
@@ -356,7 +357,7 @@ func NewUser(entry *ldap.Entry) *LdapAttributes {
 		Company:     entry.GetAttributeValue("company"),
 		Depart:      entry.GetAttributeValue("department"),
 		Title:       entry.GetAttributeValue("title"),
-	}
+	}, nil
 }
 
 // Update 更新用户信息
@@ -364,7 +365,7 @@ func (user *LdapAttributes) Update() (err error) {
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldap connection, err: ", err)
+		err = errors.Wrap(err, serializer.ErrGetLdapConn)
 		return
 	}
 	defer LdapConn.Close()
@@ -435,7 +436,8 @@ func (user *LdapAttributes) ModifyInfo() (err error) {
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldap connection, err: ", err)
+		err = errors.Wrap(err, serializer.ErrGetLdapConn)
+		return
 	}
 	defer LdapConn.Close()
 
@@ -471,7 +473,8 @@ func (user *LdapAttributes) ModifyInfo() (err error) {
 	}
 
 	if err := LdapConn.Modify(modReq); err != nil {
-		log.Log.Error("Fail to modify user's information, err: ", err)
+		err = errors.Wrap(err, serializer.ErrModifyUser)
+		log.Log.Error(err)
 	}
 
 	// 对用户DN进行更新 必须放在修改其他普通数据之后
@@ -487,7 +490,8 @@ func IsOuExist(newOu string) (isOuExist bool) {
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldap connection, err: ", err)
+		err = errors.Wrap(err, serializer.ErrGetLdapConn)
+		return
 	}
 	defer LdapConn.Close()
 
@@ -516,7 +520,8 @@ func AddOu(newOu string) {
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldap connection, err: ", err)
+		err = errors.Wrap(err, serializer.ErrGetLdapConn)
+		return
 	}
 	defer LdapConn.Close()
 
@@ -571,7 +576,7 @@ func (user *LdapAttributes) Disable() (err error) {
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldap connection, err: ", err)
+		err = errors.Wrap(err, serializer.ErrGetLdapConn)
 		return
 	}
 	defer LdapConn.Close()
@@ -596,7 +601,7 @@ func (user *LdapAttributes) Renewal() (err error) {
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldap connection, err: ", err)
+		err = errors.Wrap(err, serializer.ErrGetLdapConn)
 		return
 	}
 	defer LdapConn.Close()
@@ -653,10 +658,17 @@ func ScanExpiredUsers() {
 		expireDays := util.FormatLdapExpireDays(util.SubDays(util.NtToUnix(expire), currentTime))
 		if expireDays != 106752 { // 排除不过期的账号
 			if expireDays >= -7 && expireDays <= 14 { // 未/已经过期 7 天内的账号
-				ldapUser := NewUser(u) // 初始化速度较慢 适用定时异步任务处理少量数据
+				ldapUser, err := NewUser(u) // 初始化速度较慢 适用定时异步任务处理少量数据
+				if err != nil {
+					log.Log.Error(err)
+					return
+				}
 				// expireLdapUsers = append(expireLdapUsers, ldapUser)
 				log.Log.Info(ldapUser, " 过期天数: ", expireDays)
-				HandleExpiredLdapUsers(ldapUser, expireDays) // 处理过期账号
+				err = HandleExpiredLdapUsers(ldapUser, expireDays)
+				if err != nil {
+					return
+				} // 处理过期账号
 			}
 		}
 
@@ -676,7 +688,8 @@ func SyncUsers() {
 	// 从缓存取HR元数据
 	ldapUsers, err := cache.HGetAll("hr_users")
 	if err != nil {
-		log.Log.Error("Fail to fetch ldap users cache,:", err)
+		err = errors.Wrap(err, serializer.ErrFetchLDAPUserCache)
+		return
 	}
 
 	log.Log.Info("开始更新ldap用户...")
@@ -725,10 +738,11 @@ func SyncUsers() {
 			// 更新用户操作
 			err := ldapUser.Update()
 			if err != nil {
-				if err == ErrLdapUserNotFound {
+				if err == errors.Wrap(err, serializer.ErrLdapUserNotFound) {
 					// Do nothing
 				} else {
-					log.Log.Error("Fail to update user form cache to conn server,: ", err)
+					err = errors.Wrap(err, serializer.ErrUpdateUser)
+					log.Log.Error(err)
 				}
 			}
 			<-ch
@@ -806,7 +820,8 @@ func CreateLdapUser(o model.AccountsRegister, user *LdapAttributes) (err error) 
 		}
 		_, err = model.CorpAPIMsg.MessageSend(msg)
 		if err != nil {
-			log.Log.Error("Fail to send wework msg, err: ", err)
+			err = errors.Wrap(err, serializer.ErrSendWeMsg)
+			return
 		}
 		log.Log.Info("企业微信回执消息:工单【" + o.SpName + "】用户【" + o.Userid + "】姓名【" + user.DisplayName + "】工号【" + user.Num + "】状态【初次注册-手机号|邮箱格式错误】")
 		return
@@ -837,8 +852,8 @@ func CreateLdapUser(o model.AccountsRegister, user *LdapAttributes) (err error) 
 	}
 	_, err = model.CorpAPIMsg.MessageSend(msg)
 	if err != nil {
-		log.Log.Error("Fail to send wework msg, err: ", err)
-		// TODO 发送企业微信消息错误，应当考虑重发逻辑
+		err = errors.Wrap(err, serializer.ErrSendWeMsg)
+		return
 	}
 	log.Log.Info("企业微信回执消息:工单【" + o.SpName + "】用户【" + o.Userid + "】姓名【" + user.DisplayName + "】工号【" + user.Num + "】状态【初次注册】")
 	return
@@ -890,7 +905,7 @@ func HandleUuapDuplicateRegister(user *LdapAttributes, order model.AccountsRegis
 	// 获取连接
 	LdapConn, err := model.LdapPool.Get()
 	if err != nil {
-		log.Log.Error("Fail to get ldap connection, err: ", err)
+		err = errors.Wrap(err, serializer.ErrGetLdapConn)
 		return
 	}
 	defer LdapConn.Close()
@@ -910,8 +925,8 @@ func HandleUuapDuplicateRegister(user *LdapAttributes, order model.AccountsRegis
 		},
 	})
 	if err != nil {
-		log.Log.Error("Fail to send wework msg, err: ", err)
-		// TODO 发送企业微信消息错误，应当考虑重发逻辑
+		err = errors.Wrap(err, serializer.ErrSendWeMsg)
+		return
 	}
 	log.Log.Info("企业微信回执消息:工单【" + order.SpName + "】用户【" + order.Userid + "】姓名【" + user.DisplayName + "】工号【" + user.Num + "】状态【已注册过的UUAP用户】")
 	return

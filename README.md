@@ -2,11 +2,11 @@
 
 ## 1. 项目介绍
 
-此项目负责管理active diretory(ldap)用户和处理企业微信工单，做到用户从入职到离职整个生命周期的账号自治，用户主要用企业微信工单与管理员、后端系统交互。发信可以配置成企业微信和邮件通知。
+此项目负责管理Active Diretory Domain(ldap)用户、企微用户和处理企微工单，做到用户从入职到离职整个生命周期的账号自治，用户主要用企业微信工单与管理员、后端系统交互。发信可以配置成企业微信和邮件通知。
 
 ## 2. 开发
 
-该项目主要在go1.16环境开发，后升级到go1.17版本，所有有开发需求时，请注意go版本。
+该项目主要在go1.17环境开发，有开发需求时，请注意go版本。
 
 ```shell
 git clone git@gitee.com:RandolphCYG/akita.git
@@ -33,8 +33,8 @@ main函数起了个主线程，`engine := router.InitRouter()`作用是初始化
 
 ### `/pkg`
 
-其他项目也可以引用的公共包，redis、mysql、log、email、crontab、wework的封装
-
+- 其他项目也可以引用的公共包，对数据库、缓存、邮件、外部系统、通用组件、企微接口等的封装；
+- pkg中的每个包尽量独立，pkg包之前尽量不互相依赖，internal依赖于pkg，绝对不要写反向依赖。
 
 ### `/config`
 
@@ -77,14 +77,14 @@ ldapCfg:
   Timeout:       5
 
 email:
-  Host: smtp.exmail.qq.com              # SMTP地址
-  Port: 25                              # 端口
-  Username: devops@xxxx.com             # 用户名
-  Password: xxx                         # 密码
-  NickName: SRE                         # 发送者名称
+  Host: smtp.exmail.qq.com             # SMTP地址
+  Port: 25                             # 端口
+  Username: sys@xxxx.com               # 用户名
+  Password: xxx                        # 密码
+  NickName: system                     # 发送者名称
   Address: devops@xxxxx.com    		   # 发送者邮箱
-  ReplyTo: NULL                         # 回复地址
-  KeepAlive: 30                         # 连接保持时长
+  ReplyTo: NULL                        # 回复地址
+  KeepAlive: 30                        # 连接保持时长
 ```
 
 ### `/internal`
@@ -95,7 +95,7 @@ email:
 2. handler 处理程序，该层接受请求，调用存储库层并满足业务流程并发送响应；
 3. service 服务，主要的业务处理逻辑都放在这里；
 4. model 模型，将映射数据库表的结构体和orm操作都放在这里；
-
+5. middleware 中间件 日志中间件和超时中间件
 
 ## 4. 特殊点简介
 
@@ -107,11 +107,13 @@ email:
 
 2. 定时任务
 
-在`internal\service\task\task.go`中的`init`方法完成对定时任务的注册，其后`StartAll`函数将所有注册了的定时任务`AllTasks`加到计划中。
+在`/internal/service/task/task.go`中的`init`方法完成对定时任务的注册，其后在初始化gin的路由时调用`InitTasks`函数将所有注册了的定时任务`AllTasks`加到Schedule中。
 
 3. ldap
 
-基于ldap模块，和企业人员信息特点，封装了根据`真实姓名`+`工号`的查询方式，组合字段对应ldap中用户的cn即`commonName`,外部公司人员也遵循这一规则，例如外部的人员，工号是`9527`，则其`sam`账号为`OD9527`，但是提交工单时候依然正常填写姓名工号即可。所有人的工号都可以在企业微信自己的工号字段查询。
+基于ldap模块，和企业人员信息特点，封装了根据`真实姓名`+`工号`的查询方式，组合字段对应ldap中用户的cn即`commonName`,外部公司人员也遵循这一规则；
+
+例如外部的人员，工号是`9527`，则其`sam`账号为`OD9527`，但是提交工单时候依然正常填写姓名工号即可。所有人的工号都可以在企业微信自己的工号字段查询。
 
 ldap_fields表的company_type字段：
 
@@ -124,4 +126,7 @@ ldap_fields表的company_type字段：
 
 4. 缓存
 
-因为核心业务太小众化，因此无需放出来，功能也是无效的，该项目结构简单，可以用来写较小的后端项目
+因为核心业务太小众化，因此无需放出来，功能也是无效的，该项目结构简单，可以用来写较小的后端项目；
+
+`Init`函数可以用来初始化缓存连接池，另外也封装了对其他字段的操作方法。
+

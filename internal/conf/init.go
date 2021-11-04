@@ -1,11 +1,11 @@
 package conf
 
 import (
-	"errors"
 	"log"
 	"strings"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 )
 
@@ -39,9 +39,9 @@ func LoadConfig(confPath string) (*viper.Viper, error) {
 		v.AddConfigPath("config") // 如果没有指定配置文件,则解析默认的配置文件
 		v.SetConfigName("config")
 	}
-	v.SetConfigType("yaml")    // 设置配置文件格式为YAML
-	v.AutomaticEnv()           // 读取匹配的环境变量
-	viper.SetEnvPrefix("uuap") // 读取环境变量的前缀为 uuap
+	v.SetConfigType("yaml")     // 设置配置文件格式为YAML
+	v.AutomaticEnv()            // 读取匹配的环境变量
+	viper.SetEnvPrefix("akita") // 读取环境变量的前缀为 uuap
 	replacer := strings.NewReplacer(".", "_")
 	viper.SetEnvKeyReplacer(replacer)
 	if err := v.ReadInConfig(); err != nil {
